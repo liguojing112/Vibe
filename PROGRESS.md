@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P2 安卓基础**（P1 已完成）
-- 当前任务：T2.5 已完成 → 下一步 T2.6 网络层与本地存储
+- 当前任务：T2.6 已完成 → 下一步 T2.7 导航与 App 骨架
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T2.5 输入类与反馈类组件完成（13 个组件 + `core/common/UiState.kt` + 预览页），`bash scripts/check-android.sh` 通过。下一步按 `docs/08` 做 T2.6（Retrofit/OkHttp 配置、`ApiResult` 解析、`AuthInterceptor`、全局业务码处理、DataStore、BuildConfig 地址、debug 明文配置；本规划还要求建 Room 本地库骨架）。
+- 上次停在哪：T2.6 网络层与本地存储完成（OkHttp+Retrofit 装配、`ApiResponse`/`ApiResult`、`AuthInterceptor`、`AuthApi`、`ClDataStore`、Room 本地库骨架），`check-android.sh` 与 `check-server.sh` 都通过。顺带把**服务端业务错误的 `data` 从 `[]` 改成 `null`**（客户端按 DTO 解析 data，空数组会解析失败）。下一步按 `docs/08` 做 T2.7（`Routes.kt` 全部页面路由、`ClNavHost`、底部导航受 `call_enabled` 控制、启动拉 `/app/config`、未实现页面占位）。
 
 ## 任务进度
 
@@ -16,7 +16,7 @@
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
-- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
+- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
@@ -335,6 +335,25 @@
 - 遗留/疑问：
   1. `ClPullRefreshList` 内部是 `LazyColumn`，**必须给它一个确定高度**（不能直接放进 `verticalScroll` 的 Column，会因无限高度约束崩溃）——预览页里就是用固定高度包的。
   2. `ClChipGroup` 把选中集合整体回传（`onSelectionChange(Set<String>)`），由调用方持有状态；`multi=false` 时点谁选谁。
+
+### T2.6 网络层与本地存储 —— ✅ 完成（2026-10-12）
+- 完成内容（`core/network/`、`core/data/local/`）：
+  - `ApiResponse<T>`（服务端响应外壳，含 200/401/10004 常量）、`ApiResult`（`Success` / `BizError(code,message,data)` / `NetworkError`）+ **`safeApiCall<T>`（reified）**：code=200 时按调用方要的类型解析 `data`，其余走业务错误/网络错误。
+  - `TokenStore`（接口）+ `AuthInterceptor`：给**本服务**的请求加 `Authorization`；收到 401 用 refresh_token **自动刷新一次**并重放；刷新失败清登录态；跨主机（以后图片走 CDN）**不带 token**；刷新请求自身标 `X-No-Auth` 防止递归。
+  - `AuthApi`（注册/登录/刷新/退出/改密码）+ `dto/AuthDto.kt`；`NetworkModule`（OkHttp 30 秒超时 + 日志拦截器 + Retrofit + kotlinx.serialization 转换器，地址取自 `BuildConfig.API_BASE_URL`）；`ClJson`（共用 Json 配置）。
+  - `ClDataStore`：DataStore 存 token（**内存里额外缓存一份**，因为 OkHttp 拦截器要同步读）、按用户分key的筛选条件、消息提醒开关；`LocalModule` 把 `TokenStore` 绑到它。
+  - Room 本地库骨架：`db/ClDatabase.kt`（version 1 + `MIGRATIONS` 数组，从第 1 天就带迁移）、`entity/SyncStateEntity`（同步游标）、`dao/SyncStateDao`、`DatabaseModule`。**`message`/`conversation` 两张表和 v2 迁移留到 T4.5**（Room 要求至少一个实体，所以先用最小的 sync_state 起库）。
+- 顺带的**服务端改动**：业务错误的 `data` 从 `[]` 改成 `null`（`ApiResult::error` 与 `ClBusinessException` 的默认值）。原因：客户端按具体 DTO 解析 `data`，空数组会解析失败。已实测错密码返回 `{"code":10001,...,"data":null}`，成功响应不受影响。
+- 验收对照（docs/02 第 4.3 节，用 MockWebServer）：
+  1. 成功 —— ✅ `ApiResultTest`
+  2. 业务错误（10001 / 20001）—— ✅
+  3. **401 刷新成功**（刷新后带新 token 重放，共 3 个请求）—— ✅ `AuthInterceptorTest`
+  4. **401 刷新失败**（清登录态并返回未登录）—— ✅
+  5. 网络错误 —— ✅
+  6. 补充：有 token 自动带头 / 无 token 不带头 / 刷新请求不递归刷新 —— ✅
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；`testDebugUnitTest` 含上面 9 个用例；`check-ui.sh` 通过）；`bash scripts/check-server.sh` → 通过（**100 测试 / 1160 断言**）。
+- 对照设计图：不涉及
+- 遗留/疑问：业务错误的 `data` 结构和服务端成功时的 DTO 不一样（例如 20001 带 `balance`/`needed`），所以 `ApiResult.BizError.data` 保留原始 `JsonElement`，需要时自己取。
 
 ## 阶段验收记录
 

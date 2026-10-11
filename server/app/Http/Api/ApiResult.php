@@ -25,7 +25,11 @@ class ApiResult implements Arrayable
         return new self(200, $message, $data);
     }
 
-    public static function error(BizCode $code, ?string $message = null, mixed $data = []): self
+    /**
+     * 业务错误。没有额外数据时 data 是 null（不是空数组）：
+     * 客户端按具体 DTO 解析 data，空数组会解析失败。
+     */
+    public static function error(BizCode $code, ?string $message = null, mixed $data = null): self
     {
         return new self($code->value, $message ?? $code->message(), $data);
     }

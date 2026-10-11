@@ -15,7 +15,7 @@ class ClBusinessException extends \RuntimeException
 {
     private ApiResult $response;
 
-    public function __construct(BizCode $code, ?string $message = null, mixed $data = [])
+    public function __construct(BizCode $code, ?string $message = null, mixed $data = null)
     {
         $this->response = ApiResult::error($code, $message, $data);
         parent::__construct($message ?? $code->message());
