@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P2 安卓基础**（P1 已完成）
-- 当前任务：T2.1 已完成 → 下一步 T2.2 图标
+- 当前任务：T2.2 已完成 → 下一步 T2.3 结构类与按钮类组件
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T2.1 主题完成（`core/designsystem/theme/` 下 ClColors/ClTypography/ClSpacing/ClSize/ClShapes/ClElevation/ClGradients/ClTheme），`bash scripts/check-android.sh` 通过（BUILD SUCCESSFUL + UI 检查通过；含新增的 token 逐项断言测试）。下一步按 `docs/08` 做 T2.2（`ClIcons`，把 docs/03 第 6 节列的图标都提供出来）。
+- 上次停在哪：T2.2 图标完成（`ClIcons` 26 个图标 + 新增 `material-icons-extended` 依赖），`bash scripts/check-android.sh` 通过。下一步按 `docs/08` 做 T2.3（`core/designsystem/component/` 的 5.1 结构类 + 5.2 按钮类组件，并加进组件预览页）。
 
 ## 任务进度
 
@@ -16,7 +16,7 @@
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
-- P2：[x] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
+- P2：[x] T2.1 [x] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
@@ -52,6 +52,8 @@
 
 | 端 | 名称 | 版本 | 用途 | 任务 |
 |---|---|---|---|---|
+| 后台 | postcss-html | 2.0.0 | stylelint 解析 `.vue` 的 `<style>` 所需；它是上游的隐式 peer 依赖，pnpm 严格布局下未被提升到根 node_modules，必须显式声明才能跑 `lint:stylelint` | T0.3 |
+| 安卓 | androidx.compose.material:material-icons-extended | 1.7.8（Compose BOM 2026.09.00 钉的版本） | `ClIcons` 要用 Material Icons Rounded 全套。**注意**：Google 已弃用这个 artifact（建议自带矢量图），且它会明显增大包体 —— release 构建应打开 `isMinifyEnabled` 让 R8 裁掉没用到的图标，或以后把用到的图标改成自带 ImageVector | T2.2 |
 | 后台 | postcss-html | 2.0.0 | stylelint 解析 `.vue` 的 `<style>` 所需；它是上游的隐式 peer 依赖，pnpm 严格布局下未被提升到根 node_modules，必须显式声明才能跑 `lint:stylelint` | T0.3 |
 
 ## 待确认问题
@@ -281,6 +283,14 @@
 - 对照设计图：本任务只做 token，无可视页面；颜色/字号/间距数值已与 03 文档逐项核对。
 - 踩到的坑：Compose 里**没有** `Canvas.drawOutline()` / `Path.addOutline()`，把 `Shape` 转成 `Path` 要显式按 `Outline.Rounded / Rectangle / Generic` 分支构造。
 - 遗留/疑问：无
+
+### T2.2 图标 —— ✅ 完成（2026-10-11）
+- 完成内容：`core/designsystem/icon/ClIcons.kt`，把 docs/03 第 6 节第 6 条列的 **26 个图标全部**提供出来（home/heart/message/user/search/filter/pin/chevron/back/bell/eye/star/wallet/shield/settings/calendar/edit/mic/phone/video/gift/check/more/spark/speaker/flip），全部映射到 **Material Icons Rounded**（线条风格）。页面里只准用 `ClIcons.xxx`，不准直接用 `Icons.Rounded.*`。
+- 新增依赖：`material-icons-extended:1.7.8`（见「新增依赖记录」表，含包体/弃用提醒）。
+- 验收对照：docs 列出的图标全部存在 —— ✅ `ClIconsTest` 逐项断言 26 个图标都有名字、有尺寸。
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；含上面的图标断言测试；`check-ui.sh` 通过）
+- 对照设计图：本任务只做图标清单，无可视页面。
+- 遗留/疑问：release 包体受 `material-icons-extended` 影响，见依赖记录表。
 
 ## 阶段验收记录
 
