@@ -5,10 +5,10 @@
 
 ## 当前状态
 
-- 当前阶段：**P1 后端基础 已完成**，下一阶段 P2 安卓基础
-- 当前任务：（P1 全部完成）下一步 T2.1 主题
+- 当前阶段：**P2 安卓基础**（P1 已完成）
+- 当前任务：T2.1 已完成 → 下一步 T2.2 图标
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：**P1 七个任务（T1.1~T1.7）全部完成**，`bash scripts/check-all.sh` 全绿（server 100 测试 / admin-web / android）。后端已具备：配置中心、统一响应与错误码、App 用户表与认证（注册/登录/刷新/退出/改密码 + JWT api 场景）、启动配置与协议接口、图片上传、钱包服务（流水 + 增减/冻结/结算 + 对账）。下一步进入 P2（安卓基础，从 T2.1 主题开始），这一阶段是 UI 统一的关键，要按 docs/03 逐个 token 落地。
+- 上次停在哪：T2.1 主题完成（`core/designsystem/theme/` 下 ClColors/ClTypography/ClSpacing/ClSize/ClShapes/ClElevation/ClGradients/ClTheme），`bash scripts/check-android.sh` 通过（BUILD SUCCESSFUL + UI 检查通过；含新增的 token 逐项断言测试）。下一步按 `docs/08` 做 T2.2（`ClIcons`，把 docs/03 第 6 节列的图标都提供出来）。
 
 ## 任务进度
 
@@ -16,7 +16,7 @@
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
-- P2：[ ] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10
+- P2：[x] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
@@ -269,6 +269,18 @@
 - 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 100, Assertions: 1160**；phpstan `[OK] No errors`；money 通过）；开发库已迁移，后端重启后登录 200。
 - 对照设计图：不涉及
 - 遗留/疑问：`total_recharge` / `total_spent` 的归属口径（哪些 type 计入）文档没明说，按名字取最合理的口径实现，已记在此处备查。
+
+### T2.1 主题 —— ✅ 完成（2026-10-11）
+- 完成内容（都在 `android/app/src/main/java/com/qichuang/changliao/core/designsystem/theme/`）：
+  - `ClColors`（37 个颜色 token，含 mask 的 43% 透明度）、`ClTypography`（13 个字级）、`ClSpacing`（8 个）、`ClSize`（14 个）、`ClShapes`（9 个，气泡角序同 CSS border-radius）、`ClElevation`（卡片阴影 Y5/blur20）。
+  - `ClGradients`：7 个渐变（数值取自 HTML 原型 CSS，见下）。`ClTheme`（`CompositionLocal` 提供，强制浅色）+ `Modifier.clCardShadow()`（全项目唯一卡片阴影）+ `Modifier.clTopWashBackground()` + `Modifier.clGradientBackground()`。
+  - `MainActivity` 套上 `ClTheme`，占位页改用 `ClTheme.colors/typography`（不再用 MaterialTheme）。
+- 一处与文档写法的偏差（结果一致）：03 文档说渐变「定义在 ClColors 里的 Brush」，但 Compose 的 `Brush` 与尺寸绑定、没法像 CSS 那样只写角度/百分比，**`gradientTopWash` 更是三层（两块 radial + 一块 linear）**，单个 Brush 表达不了。所以改成「颜色 + 角度」的数据 + `Modifier` 按实际尺寸绘制，数值严格来自原型 CSS（`.topwash` = `radial-gradient(circle at 8% 1%,#fff7cb 0,transparent 37%), radial-gradient(circle at 100% 45%,#fff0f0 0,transparent 38%), linear-gradient(#fffaf2,#fff 90%)`）。
+- 验收对照：03 第 2~4 节的每个 token 都存在且数值一致 —— ✅ `ClThemeTokensTest` 逐项断言：37 个颜色、8 个间距、14 个尺寸、13 个字号、2 个阴影。
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；`testDebugUnitTest` 含上面的断言测试；`check-ui.sh` 通过）
+- 对照设计图：本任务只做 token，无可视页面；颜色/字号/间距数值已与 03 文档逐项核对。
+- 踩到的坑：Compose 里**没有** `Canvas.drawOutline()` / `Path.addOutline()`，把 `Shape` 转成 `Path` 要显式按 `Outline.Rounded / Rectangle / Generic` 分支构造。
+- 遗留/疑问：无
 
 ## 阶段验收记录
 
