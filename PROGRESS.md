@@ -5,17 +5,17 @@
 
 ## 当前状态
 
-- 当前阶段：**P0 已完成**，下一阶段 P1（后端基础，从 T1.1 配置中心开始）
-- 当前任务：（P0 全部完成）下一步 T1.1
+- 当前阶段：**P1 后端基础**（P0 已完成）
+- 当前任务：T1.1 已完成 → 下一步 T1.2 统一响应与错误码
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：**P0 六个任务（T0.1~T0.6）全部完成**，`scripts/check-all.sh` 全绿。三端都能跑：后端在 WSL 里 `php bin/hyperf.php start`（9501，admin/123456）；后台 `pnpm dev`（localhost:2888）；安卓 `./gradlew assembleDebug`（需 JAVA_HOME=JDK17）。下一步进入 P1，按 `docs/08` 从 T1.1（配置中心）开始。
+- 上次停在哪：T1.1 配置中心完成（`cl_config`/`cl_level_config` 迁移+种子、`AppConfigService`、测试），`bash scripts/check-server.sh` 通过（54 测试 / 1018 断言、phpstan 无错误、资金扫描通过）。下一步按 `docs/08` 做 T1.2（`ApiResult`/`BizCode`/`ClBusinessException`/异常处理器/分页工具）。
 
 ## 任务进度
 
 <!-- 做完一个，把 [ ] 改成 [x]，并在下方「任务记录」里写自检记录 -->
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
-- P1：[ ] T1.1 [ ] T1.2 [ ] T1.3 [ ] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
+- P1：[x] T1.1 [ ] T1.2 [ ] T1.3 [ ] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
 - P2：[ ] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
@@ -156,6 +156,21 @@
 - 自检命令：不涉及代码改动
 - 对照设计图：不涉及
 - 遗留/疑问：无
+
+### T1.1 配置中心 —— ✅ 完成（2026-10-11）
+- 完成内容：
+  - 迁移 `2026_10_11_000001_create_cl_config_tables.php`：建 `cl_config`（key 唯一、value/value_type/group/label/remark）与 `cl_level_config`（5 行等级配置）。
+  - 模型 `App\Model\Cl\Config`、`App\Model\Cl\LevelConfig`；仓储 `App\Repository\Cl\ConfigRepository`（新增 `findByKey`）、`LevelConfigRepository`（`allOrdered`/`findByLevel`）。
+  - 服务 `App\Service\Cl\Config\AppConfigService`（**全项目唯一读配置入口**）：`get(key, default)` / `getGroup(group)` / `set(key, value)` / `forget()`；整表缓存在 Redis 的 `cl:config`（key => {value, group}），按 `value_type` 自动转 int/bool/json/string；`set()` 会写库并清缓存，且**只允许改已存在的 key**（不允许自创），key 不存在返回 false。
+  - 种子 `cl_config_seeder_20261011.php`（docs/06 第 2 节全部 **27 个 key** + 协议文本 `agreement.user`/`agreement.privacy`）、`cl_level_config_seeder_20261011.php`（Lv1~Lv5：门槛 0/20000/100000/300000/1000000，单价 5/8/10/15/20，分成 3000/3500/4000/4500/5000，语音 60~200，视频 120~400）。
+- 验收对照：
+  1. int/bool/json/string 读取 —— ✅ `AppConfigServiceTest` 的 testGetInt/testGetBool/testGetJson/testGetString
+  2. 缓存失效 —— ✅ testSetClearsCache（set 后立刻读到新值，不是缓存旧值）
+  3. 种子 key 与 06 第 2 节逐项一致 —— ✅ testSeedKeysMatchDoc（把 27 个 key 排序后断言与种子完全一致）
+  4. 额外：`set` 未定义 key 返回 false —— ✅ testSetUnknownKeyReturnsFalse
+- 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 54, Assertions: 1018**；phpstan `[OK] No errors`；money 检查通过）
+- 对照设计图：不涉及
+- 遗留/疑问：`cl_config.value` 用 text 存，json 类型统一 `json_encode`（`JSON_UNESCAPED_UNICODE`）；布尔统一存 `'1'/'0'`。
 
 ## 阶段验收记录
 
