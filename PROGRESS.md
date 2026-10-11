@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P2 安卓基础**（P1 已完成）
-- 当前任务：T2.2 已完成 → 下一步 T2.3 结构类与按钮类组件
+- 当前任务：T2.3 已完成 → 下一步 T2.4 展示类组件
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T2.2 图标完成（`ClIcons` 26 个图标 + 新增 `material-icons-extended` 依赖），`bash scripts/check-android.sh` 通过。下一步按 `docs/08` 做 T2.3（`core/designsystem/component/` 的 5.1 结构类 + 5.2 按钮类组件，并加进组件预览页）。
+- 上次停在哪：T2.3 结构类与按钮类组件完成（`ClScaffold`/`ClTopBar`/`ClPageHeader`/`ClBottomBar`/`ClSectionHeader`/`ClFixedBottomArea` + 6 个按钮 + `ClToast`，组件预览页已能展示全部）。`bash scripts/check-android.sh` 通过。下一步按 `docs/08` 做 T2.4（`core/designsystem/component/` 的 5.3 展示类组件 + 预览）。
 
 ## 任务进度
 
@@ -16,7 +16,7 @@
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
-- P2：[x] T2.1 [x] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
+- P2：[x] T2.1 [x] T2.2 [x] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
@@ -73,6 +73,7 @@
 | Q0-9 | **`composer test` 有 7 个 MineAdmin 自带测试失败**（期望 422、实得 401）。根因：后台控制器 `AccessTokenMiddleware` 用 `#[Middleware(priority: 100)]`，优先级高于全局 `ValidationMiddleware`，先鉴权返回 401 | 你决定：**排除这 7 个用例**。已改 `server/composer.json` 的 test 脚本，用 phpunit 的 filter 反向排除 `Menu/Role/UserControllerTest::{testCreate,testSave,testUpdateInfo}`；原因写在 `server/phpunit.xml.dist` 注释里。**未改任何 MineAdmin 源码**；401 先返回本就是正确行为。排除后 44 测试全过 | T0.2、T0.4、T1.2 | ✅ 已解决（排除） |
 | Q0-12 | **`composer analyse`（phpstan）在 MineAdmin 自带代码上报 5 个错**（`IRepository` 泛型模板返回值 3 处、`RoleService` 调 `Model::menus()` 1 处、`User::getPolicy()` 1 处） | 已用 PHPStan 官方 **baseline** 机制精确豁免这 5 条（`server/phpstan-baseline.neon` + `phpstan.neon.dist` 里 includes），以后新增的问题仍会让 analyse 失败。未改 MineAdmin 源码 | T0.4 | ✅ 已解决 |
 | Q0-13 | `docs/05` 第 4.1 节的 `GET /app/config` 要返回 `version`，但 06 的 key 清单与其它文档都没定义它是什么（客户端版本？配置版本？） | 按铁律 7「可调项从配置读」新增配置项 **`app.version`**（默认 `1.0.0`，group=feature，后台可改），当「启动配置版本号」用。若客户另有定义再改 | T1.4、T7.7 | ⏳ 待确认语义 |
+| Q0-14 | `ClSoftButton` 的三种底色（docs/03 第 5.2 节只说 Yellow/Peach/Gray，对应语音/视频/私信）在原型 CSS 里找不到确切的三组值（原型有几十种相近暖色底） | 先映射到最接近的颜色 token：Yellow = primarySoft/primaryText、Peach = tagGoldBg/tagGoldText、Gray = bgInput/inkSecondary。等做 P01 卡片时对着设计图定哪种按钮用哪种 | T2.3、T3.7 | ⏳ 待对着设计图确认 |
 | Q0-10 | MineAdmin 自带测试默认连 `.env` 里的开发库，会 `truncate` 种子表 | 已解决：`composer test` 脚本前置 `DB_DATABASE=cl_test REDIS_DB=15`（Hyperf dotenv 是 immutable，shell 变量优先；phpunit 的 `<env>` 因测试引导先建容器而无效） | T0.2 | ✅ 已解决 |
 | Q0-11 | **MineAdmin-Vue 3.2.1 自带代码有大量 lint 错误**（eslint 13 error：未使用变量/`prefer-promise-reject-errors`；stylelint 328 error：单行声明数、重复选择器、空 style 块等），导致 `pnpm lint` 直接失败 | 你已决定：**在配置里给上游目录放宽**。已改 `admin-web/eslint.config.js`（`src/**` 放宽两条规则，`src/modules/cl/**` 重新收紧）与 `admin-web/stylelint.config.js`（对 `src/{components,layouts,plugins,assets,modules/base}/**` 用 overrides 关掉相关规则；`@apply` 加白名单；`.md` 加入 ignores）。**未改任何 MineAdmin 源码** | T0.3、T7.x | ✅ 已解决 |
 
@@ -291,6 +292,23 @@
 - 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；含上面的图标断言测试；`check-ui.sh` 通过）
 - 对照设计图：本任务只做图标清单，无可视页面。
 - 遗留/疑问：release 包体受 `material-icons-extended` 影响，见依赖记录表。
+
+### T2.3 结构类与按钮类组件 —— ✅ 完成（2026-10-11）
+- 完成内容（`core/designsystem/component/`，一个组件一个文件）：
+  - **5.1 结构类**：`ClScaffold`（状态栏色 + 顶栏 + 内容 + 固定底部区 + 底栏 + Toast 宿主）、`ClTopBar`、`ClPageHeader`（带黄色短下划线）、`ClBottomBar`（选中项 primary 圆角底 + 未读角标 >99 显示 99+）、`ClSectionHeader`、`ClFixedBottomArea`。
+  - **5.2 按钮类**：`ClPrimaryButton`（黄底胶囊，支持 subText/禁用/loading）、`ClSecondaryButton`、`ClSoftButton`（Yellow/Peach/Gray 三种底色）、`ClOutlineSmallButton`、`ClTextButton`、`ClIconButton`。
+  - `ClToast` + `rememberClToast()`：ClScaffold 描述里要求「Toast 宿主」，所以把 5.6 的 Toast 一并做了（深色胶囊、2.2 秒消失）。
+  - 组件预览页 `DesignSystemGalleryScreen` 重写：按 5.1/5.2 分组展示**每个组件的各种状态**（主按钮的 normal/subText/禁用/loading 等）。
+  - `MainActivity`：debug 包直接进组件预览页（03 第 7 节要求它只在 debug 可达；正式入口「设置页连点版本号 5 次」在 T6.6 接）。
+- 验收对照：
+  1. 预览页能看到每个组件 —— ✅（`check-ui.sh` 会遍历 `component/*.kt`、逐个确认出现在预览页里，本次通过）
+  2. `check-ui.sh` 通过 —— ✅
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；lint、单测、打包、`check-ui.sh` 全通过）
+- 对照设计图：本阶段无页面；组件样式按 docs/03 第 5.1/5.2 节 + 原型 CSS（`.inner-head`/`.page-title`/`.bottom`/`.full-btn`/`.say-hi`/`.action`/`.section-head`）落地。
+- 遗留/疑问：
+  1. `ClSoftButton` 三种底色的映射见 Q0-14。
+  2. 原型 `.page-title` 是 26px/800，而 docs/03 第 3 节写 25sp/Bold —— 按**文档**取 25sp（03 是规范）。
+  3. `ClBottomBar` 里的未读角标是临时私有实现，等 T2.4 的 `ClBadgeDot` 出来后改为复用它。
 
 ## 阶段验收记录
 

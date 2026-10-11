@@ -10,12 +10,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.qichuang.changliao.core.designsystem.gallery.DesignSystemGalleryScreen
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
  * 唯一的 Activity（见 docs/02 第 4.1 节）。
- * T0.4 只显示占位页；导航与真实页面从 T2.7 起接入。
+ * T2.7 起接入真正的导航；现在 debug 包直接进组件预览页（docs/03 第 7 节），release 还是占位页。
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -23,7 +24,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             ClTheme {
-                ClPlaceholderScreen()
+                if (BuildConfig.DEBUG) {
+                    DesignSystemGalleryScreen()
+                } else {
+                    ClPlaceholderScreen()
+                }
             }
         }
     }
