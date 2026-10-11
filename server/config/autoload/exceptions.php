@@ -11,6 +11,7 @@ declare(strict_types=1);
  */
 use App\Exception\Handler\AppExceptionHandler;
 use App\Exception\Handler\BusinessExceptionHandler;
+use App\Exception\Handler\ClBusinessExceptionHandler;
 use App\Exception\Handler\JwtExceptionHandler;
 use App\Exception\Handler\ModeNotFoundHandler;
 use App\Exception\Handler\UnauthorizedExceptionHandler;
@@ -20,6 +21,8 @@ return [
     'handler' => [
         'http' => [
             ModeNotFoundHandler::class,
+            // 处理 App 接口业务异常（畅撩交友，docs/05 第 3 节）
+            ClBusinessExceptionHandler::class,
             // 处理业务异常
             BusinessExceptionHandler::class,
             // 处理未授权异常

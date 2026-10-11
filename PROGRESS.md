@@ -6,16 +6,16 @@
 ## 当前状态
 
 - 当前阶段：**P1 后端基础**（P0 已完成）
-- 当前任务：T1.1 已完成 → 下一步 T1.2 统一响应与错误码
+- 当前任务：T1.2 已完成 → 下一步 T1.3 App 用户表与认证
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T1.1 配置中心完成（`cl_config`/`cl_level_config` 迁移+种子、`AppConfigService`、测试），`bash scripts/check-server.sh` 通过（54 测试 / 1018 断言、phpstan 无错误、资金扫描通过）。下一步按 `docs/08` 做 T1.2（`ApiResult`/`BizCode`/`ClBusinessException`/异常处理器/分页工具）。
+- 上次停在哪：T1.2 统一响应与错误码完成（`ApiResult`、`BizCode`、`ClBusinessException` + 处理器、分页工具），`bash scripts/check-server.sh` 通过（**63 测试 / 1037 断言**、phpstan 无错误）。后端已重启、登录正常。下一步按 `docs/08` 做 T1.3（`cl_user` 迁移、注册/登录/刷新/退出/改密码、App 专用 JWT scene、`AppAuthMiddleware`、登录锁定与限流、注册时建钱包表）。
 
 ## 任务进度
 
 <!-- 做完一个，把 [ ] 改成 [x]，并在下方「任务记录」里写自检记录 -->
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
-- P1：[x] T1.1 [ ] T1.2 [ ] T1.3 [ ] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
+- P1：[x] T1.1 [x] T1.2 [ ] T1.3 [ ] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
 - P2：[ ] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
@@ -171,6 +171,22 @@
 - 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 54, Assertions: 1018**；phpstan `[OK] No errors`；money 检查通过）
 - 对照设计图：不涉及
 - 遗留/疑问：`cl_config.value` 用 text 存，json 类型统一 `json_encode`（`JSON_UNESCAPED_UNICODE`）；布尔统一存 `'1'/'0'`。
+
+### T1.2 统一响应与错误码 —— ✅ 完成（2026-10-11）
+- 完成内容：
+  - `App\Http\Api\ApiResult`：App 接口统一响应 `{code, message, data}`（结构与 MineAdmin 的 `Result` 一致，但 code 允许业务码整数）；带 `success()` / `error()` / **分页工具** `page()`（`{list,total,page,page_size,has_more}`）与游标分页 `cursor()`（`{list,has_more}`，聊天消息用）。
+  - `App\Model\Enums\Cl\BizCode`：docs/05 第 3 节**全部 18 个业务码**（10001~50001）+ `message()` 中文文案。
+  - `App\Exception\ClBusinessException` + `App\Exception\Handler\ClBusinessExceptionHandler`：业务异常输出 **HTTP 200** + body code = 业务码（注册进 `config/autoload/exceptions.php`）。
+  - 测试 `tests/Unit/Cl/Http/ApiResultTest.php`、`tests/Feature/Cl/Api/ExceptionResponseTest.php`。
+- 验收对照：
+  1. 抛业务异常返回 `{code:20001,...}` 且 HTTP 200 —— ✅（`ClBusinessExceptionHandler` 断言 `getStatusCode()===200` 且 body code=20001、data 带 balance/needed）
+  2. 参数校验失败返回 422 —— ✅（`ValidationExceptionHandler` + `ValidationException::withMessages()`，断言 body code=422、message 为第一条错误）
+- 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 63, Assertions: 1037**；phpstan `[OK] No errors`；money 通过）
+- 踩到的两个坑（都已处理）：
+  1. **注解扫描缓存**：新增带 `#[Message]` 的枚举后 `ConstantsCollector` 读不到，导致文案为空。已在 `composer.json` 的 `test` 脚本前置 `rm -rf runtime/container`（否则以后每加一个注解类都会莫名失败）。同理，**改了异常处理器等配置后要重启后端**（已重启）。
+  2. **phpunit 容器里翻译器取不到 key**（直接 `php` 跑能取到），同一份翻译两种上下文行为不一致。考虑到这些是固定的中文用户文案、不做多语言，`BizCode` 改为**把文案直接写在枚举里**，删除了 `storage/languages/zh_CN/cl.php`。以后若真要 i18n 再迁。
+- 对照设计图：不涉及
+- 遗留/疑问：无
 
 ## 阶段验收记录
 

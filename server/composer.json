@@ -115,7 +115,7 @@
       "rm -rf runtime/container"
     ],
     "test": [
-      "DB_DATABASE=cl_test REDIS_DB=15 co-phpunit --prepend tests/bootstrap.php --group=migrations --colors=always",
+      "rm -rf runtime/container && DB_DATABASE=cl_test REDIS_DB=15 co-phpunit --prepend tests/bootstrap.php --group=migrations --colors=always",
       "DB_DATABASE=cl_test REDIS_DB=15 co-phpunit --prepend tests/bootstrap.php --exclude-group=migrations --filter='/^(?!.*(?:MenuControllerTest::testCreate|MenuControllerTest::testSave|RoleControllerTest::testCreate|RoleControllerTest::testSave|UserControllerTest::testCreate|UserControllerTest::testSave|UserControllerTest::testUpdateInfo)).*/'"
     ],
     "coverage": [
