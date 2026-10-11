@@ -5,16 +5,16 @@
 
 ## 当前状态
 
-- 当前阶段：P0
-- 当前任务：T0.5 README
-- 任务状态：进行中 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T0.6 / T0.1 / T0.2 / T0.3 / T0.4 全部完成，**`scripts/check-all.sh` 全绿通过**。安卓工程已建好并能打 debug 包（AGP 9.4.1 + Gradle 9.8.1 + Kotlin 2.4.21 + Compose BOM 2026.09.00，compileSdk/targetSdk 37、minSdk 26），6 个检查脚本已建。下一步只剩 T0.5 README（只写已验证过的命令）。
+- 当前阶段：**P0 已完成**，下一阶段 P1（后端基础，从 T1.1 配置中心开始）
+- 当前任务：（P0 全部完成）下一步 T1.1
+- 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
+- 上次停在哪：**P0 六个任务（T0.1~T0.6）全部完成**，`scripts/check-all.sh` 全绿。三端都能跑：后端在 WSL 里 `php bin/hyperf.php start`（9501，admin/123456）；后台 `pnpm dev`（localhost:2888）；安卓 `./gradlew assembleDebug`（需 JAVA_HOME=JDK17）。下一步进入 P1，按 `docs/08` 从 T1.1（配置中心）开始。
 
 ## 任务进度
 
 <!-- 做完一个，把 [ ] 改成 [x]，并在下方「任务记录」里写自检记录 -->
 
-- P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [ ] T0.5
+- P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[ ] T1.1 [ ] T1.2 [ ] T1.3 [ ] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
 - P2：[ ] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
@@ -147,9 +147,26 @@
 - 对照设计图：不涉及
 - 遗留/疑问：① 构建需 `JAVA_HOME` 指向 JDK 17（本机默认 JDK 24 未验证是否可行）；② `composer test` 排除了 7 个上游用例（Q0-9）、phpstan 有 5 条 upstream baseline（Q0-12）。
 
+### T0.5 README —— ✅ 完成（2026-10-11）
+- 完成内容：写根目录 `README.md`，包含三端环境要求、数据库说明、三端启动命令、检查命令；只写本机已实际验证过的命令。
+- 验收对照：按 README 的步骤能启动三端 —— ✅
+  1. 后端：WSL 里 `cd server && php bin/hyperf.php start` → `HTTP Server listening at 0.0.0.0:9501`，`/admin/passport/login` 返回 200 ✅
+  2. 后台：`cd admin-web && pnpm dev` → `http://localhost:2888/` 返回 200（注意是 IPv6）✅
+  3. 安卓：`cd android && JAVA_HOME=<JDK17> ./gradlew assembleDebug` → BUILD SUCCESSFUL ✅
+- 自检命令：不涉及代码改动
+- 对照设计图：不涉及
+- 遗留/疑问：无
+
 ## 阶段验收记录
 
 <!-- 每个阶段结束写一段：check-all 结果、走查了哪些页面、发现并修复了什么 -->
+
+### P0 准备与骨架 —— ✅ 通过（2026-10-11）
+- `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（rc=0）：server 44 测试 + phpstan + check-money；admin-web lint+build；android testDebugUnitTest+lintDebug+assembleDebug+check-ui。
+- 三端均可启动（见 T0.5 记录）。
+- 本阶段无 UI 页面，故未做设计图走查。
+- 发现并处理的问题（详见各任务记录与「待确认问题」表）：WSL 网络（Clash）、Swoole 编译与 `use_shortname`、测试库隔离、MineAdmin 上游 7 个测试 + 5 个 phpstan 报错、MineAdmin-Vue 上游 lint、AGP 9 内置 Kotlin 的三处适配、Google Maven 不可达改阿里云镜像。
+- 遗留：后台「浏览器登录看到菜单」的人工验证未做（无人可用浏览器）；见 T0.3 记录。
 
 ## 页面与设计图对照表（T9.2 填写）
 
