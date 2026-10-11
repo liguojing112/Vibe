@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P2 安卓基础**（P1 已完成）
-- 当前任务：T2.4 已完成 → 下一步 T2.5 输入类与反馈类组件
+- 当前任务：T2.5 已完成 → 下一步 T2.6 网络层与本地存储
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T2.4 展示类组件完成（19 个 5.3 组件 + 预览页），`bash scripts/check-android.sh` 通过。下一步按 `docs/08` 做 T2.5（5.5 输入类 + 5.6 反馈类组件；注意 `ClToast` 已在 T2.3 提前做了）。
+- 上次停在哪：T2.5 输入类与反馈类组件完成（13 个组件 + `core/common/UiState.kt` + 预览页），`bash scripts/check-android.sh` 通过。下一步按 `docs/08` 做 T2.6（Retrofit/OkHttp 配置、`ApiResult` 解析、`AuthInterceptor`、全局业务码处理、DataStore、BuildConfig 地址、debug 明文配置；本规划还要求建 Room 本地库骨架）。
 
 ## 任务进度
 
@@ -16,7 +16,7 @@
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
-- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
+- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
@@ -320,6 +320,21 @@
 - 对照设计图：本阶段无页面；样式按 docs/03 第 5.3 节 + 原型 CSS（`.notice-card`/`.balance-hero`/`.bill-grid`/`.record-line`/`.menu-row`/`.demo-label` 等）落地。
 - 踩到的坑：`ClSettingRow(label, desc, trailing, onClick)` 这种「可组合参数后面还有普通参数」的签名，**调用时尾随 lambda 会绑到最后一个参数（onClick）**而不是 `trailing` —— 必须写成 `trailing = { ... }`。
 - 遗留/疑问：两个原型色不在 docs/03 的颜色 token 表里，作为**组件内私有常量**并注明出处：头像占位色 `#E8D8C7`（03 第 6 节第 7 条）、次按钮底色 `#F4EEE3`（03 第 5.2 节）、卡片阴影色 `#F5F1EB`（03 第 4 节）。
+
+### T2.5 输入类与反馈类组件 —— ✅ 完成（2026-10-12）
+- 完成内容：
+  - **5.5 输入类**（6 个）：`ClTextField`（标签在上、`input` 圆角、`line` 描边、错误红字、`maxLength` 截断）、`ClPasswordField`（显示/隐藏切换）、`ClSelectField`（点击弹选择，另附 `ClSelectOption`）、`ClChipGroup`（单选/多选，选中用 primaryChip + primaryChipBorder）、`ClRangeSlider`（年龄 18~60）、`ClCheckboxAgreement`（协议勾选，两份协议可点）。
+  - **5.6 反馈类**（7 个，`ClToast` 已在 T2.3 做过）：`ClBottomSheet`、`ClConfirmDialog`（可危险色）、`ClLoading`、`ClEmpty`、`ClErrorRetry`、`ClPullRefreshList`（下拉刷新 + 滚到底自动加载更多 + 底部「加载中 / 加载失败点击重试 / 没有更多了」）、`ClImagePreview`（全屏、多图可左右翻、显示 1/N）。
+  - `core/common/UiState.kt`：`sealed interface UiState<out T> { Loading; Empty; Error(message); Content(data) }`（docs/02 第 4.4 节）。
+  - 组件预览页补上这两个分组，每个组件都带状态示例。
+- 验收对照：
+  1. 预览页能看到每个组件 —— ✅（`check-ui.sh` 逐个确认 `component/*.kt` 都出现在预览页）
+  2. `check-ui.sh` 通过 —— ✅
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；lint、单测、打包、`check-ui.sh` 全通过）
+- 对照设计图：本阶段无页面；样式按 docs/03 第 5.5/5.6 节 + 原型 CSS（`.sheet`、`.empty` 等）落地。
+- 遗留/疑问：
+  1. `ClPullRefreshList` 内部是 `LazyColumn`，**必须给它一个确定高度**（不能直接放进 `verticalScroll` 的 Column，会因无限高度约束崩溃）——预览页里就是用固定高度包的。
+  2. `ClChipGroup` 把选中集合整体回传（`onSelectionChange(Set<String>)`），由调用方持有状态；`multi=false` 时点谁选谁。
 
 ## 阶段验收记录
 

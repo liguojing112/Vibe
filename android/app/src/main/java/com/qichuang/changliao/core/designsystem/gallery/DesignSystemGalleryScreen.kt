@@ -20,7 +20,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
 import com.qichuang.changliao.core.designsystem.component.ClAvatar
+import com.qichuang.changliao.core.designsystem.component.ClBottomSheet
+import com.qichuang.changliao.core.designsystem.component.ClCheckboxAgreement
+import com.qichuang.changliao.core.designsystem.component.ClChipGroup
+import com.qichuang.changliao.core.designsystem.component.ClConfirmDialog
+import com.qichuang.changliao.core.designsystem.component.ClEmpty
+import com.qichuang.changliao.core.designsystem.component.ClErrorRetry
+import com.qichuang.changliao.core.designsystem.component.ClImagePreview
+import com.qichuang.changliao.core.designsystem.component.ClLoading
+import com.qichuang.changliao.core.designsystem.component.ClPasswordField
+import com.qichuang.changliao.core.designsystem.component.ClPullRefreshList
+import com.qichuang.changliao.core.designsystem.component.ClRangeSlider
+import com.qichuang.changliao.core.designsystem.component.ClSelectField
+import com.qichuang.changliao.core.designsystem.component.ClTextField
 import com.qichuang.changliao.core.designsystem.component.ClBadgeDot
 import com.qichuang.changliao.core.designsystem.component.ClBalanceCard
 import com.qichuang.changliao.core.designsystem.component.ClBillGroup
@@ -277,17 +291,146 @@ fun DesignSystemGalleryScreen(onBack: (() -> Unit)? = null) {
                 }
             }
 
+            // ============ 5.5 输入类 ============
+            ClSectionHeader(title = "输入类")
+            Column(
+                modifier = Modifier.padding(horizontal = ClTheme.spacing.l),
+                verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.l),
+            ) {
+                var text by remember { mutableStateOf("") }
+                var password by remember { mutableStateOf("") }
+                var city by remember { mutableStateOf("") }
+                var chips by remember { mutableStateOf(setOf("推荐")) }
+                var tags by remember { mutableStateOf(setOf("音乐", "旅行")) }
+                var ageRange by remember { mutableStateOf(18f..60f) }
+                var agreed by remember { mutableStateOf(false) }
+
+                ClTextField(
+                    label = "手机号",
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = "请输入手机号",
+                    maxLength = 11,
+                )
+                ClTextField(
+                    label = "带错误提示",
+                    value = "",
+                    onValueChange = {},
+                    error = "手机号不能为空",
+                )
+                ClPasswordField(label = "密码", value = password, onValueChange = { password = it })
+                ClSelectField(label = "城市", value = city, onClick = { city = "杭州" })
+
+                ClChipGroup(
+                    options = listOf("推荐", "新人", "同城"),
+                    selected = chips,
+                    onSelectionChange = { chips = it },
+                )
+                ClChipGroup(
+                    options = listOf("认真交友", "兴趣搭子", "长期关系"),
+                    selected = tags,
+                    onSelectionChange = { tags = it },
+                    multi = true,
+                )
+
+                ClRangeSlider(value = ageRange, onValueChange = { ageRange = it })
+
+                ClCheckboxAgreement(checked = agreed, onCheckedChange = { agreed = it })
+            }
+
             // ============ 5.6 反馈类 ============
             ClSectionHeader(title = "反馈类")
             Column(
                 modifier = Modifier.padding(horizontal = ClTheme.spacing.l),
-                verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.m),
+                verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.l),
             ) {
-                ClOutlineSmallButton(text = "点我看 ClToast", onClick = { toast.show("这是一条 Toast") })
+                var showSheet by remember { mutableStateOf(false) }
+                var showDialog by remember { mutableStateOf(false) }
+                var showPreview by remember { mutableStateOf(false) }
+                var refreshing by remember { mutableStateOf(false) }
+                val demoItems = remember { (1..8).map { "列表项 $it" } }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(ClTheme.spacing.m)) {
+                    ClOutlineSmallButton(text = "点我看 ClToast", onClick = { toast.show("这是一条 Toast") })
+                    ClOutlineSmallButton(text = "底部弹窗", onClick = { showSheet = true })
+                    ClOutlineSmallButton(text = "确认对话框", onClick = { showDialog = true })
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(ClTheme.spacing.m)) {
+                    ClOutlineSmallButton(text = "图片预览", onClick = { showPreview = true })
+                    ClOutlineSmallButton(text = "下拉刷新", onClick = { refreshing = true })
+                }
+
+                ClCard {
+                    Text(text = "ClLoading", style = ClTheme.typography.caption, color = ClTheme.colors.muted)
+                    Box(modifier = Modifier.height(120.dp)) {
+                        ClLoading()
+                    }
+                }
+
+                ClCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                    Box(modifier = Modifier.height(200.dp)) {
+                        ClEmpty(title = "还没有通话记录", desc = "去认识新朋友吧", actionText = "去发现")
+                    }
+                }
+
+                ClCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                    Box(modifier = Modifier.height(200.dp)) {
+                        ClErrorRetry(message = "网络不太好，请稍后重试", onRetry = {})
+                    }
+                }
+
+                ClCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                    Box(modifier = Modifier.height(240.dp)) {
+                        ClPullRefreshList(
+                            items = demoItems,
+                            refreshing = refreshing,
+                            onRefresh = { refreshing = false },
+                            hasMore = false,
+                            itemContent = { item ->
+                                ClSettingRow(label = item, modifier = Modifier.clickable { })
+                            },
+                        )
+                    }
+                }
+
+                ClCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                    Box(modifier = Modifier.height(200.dp)) {
+                        ClImagePreview(
+                            urls = listOf("", ""),
+                            onDismiss = {},
+                        )
+                    }
+                }
+
+                if (showSheet) {
+                    ClBottomSheet(title = "余额不足", onClose = { showSheet = false }) {
+                        Box(modifier = Modifier.padding(horizontal = ClTheme.spacing.xl)) {
+                            Text(
+                                text = "本次操作需要 5 金币，还差 2 金币",
+                                style = ClTheme.typography.body,
+                                color = ClTheme.colors.inkSecondary,
+                            )
+                        }
+                    }
+                }
+
+                if (showDialog) {
+                    ClConfirmDialog(
+                        title = "退出登录",
+                        message = "确定要退出当前账号吗？",
+                        onConfirm = { showDialog = false },
+                        onDismiss = { showDialog = false },
+                        danger = true,
+                    )
+                }
+
+                if (showPreview) {
+                    ClImagePreview(urls = listOf(""), onDismiss = { showPreview = false })
+                }
             }
 
             Box(modifier = Modifier.height(ClTheme.spacing.xxxl).fillMaxWidth())
-            Box(modifier = Modifier.size(ClTheme.spacing.xxl))
         }
     }
 }
