@@ -6,16 +6,16 @@
 ## 当前状态
 
 - 当前阶段：**P1 后端基础**（P0 已完成）
-- 当前任务：T1.5 已完成 → 下一步 T1.6 钱包服务
+- 当前任务：T1.6 已完成 → 下一步 T1.7（P1 阶段验收，跑 check-all.sh）
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T1.5 图片上传完成（`StorageInterface` + `LocalStorage` + `POST /upload/image` + 静态读盘路由），`bash scripts/check-server.sh` 通过（**92 测试 / 1121 断言**、phpstan 无错误、资金扫描通过）。开发库无新表，后端已重启并冒烟通过（上传 200 / 伪装 jpg 30004 / 超 5MB 30004 / 未登录 401 / 返回的图片 URL 可直接访问）。下一步按 `docs/08` 做 T1.6（`cl_coin_log`/`cl_point_log`/`cl_platform_income` + `CoinWalletService`/`PointWalletService` 的增减/冻结/结算 + 对账测试）。
+- 上次停在哪：T1.6 钱包服务完成（3 张流水表 + `CoinWalletService`/`PointWalletService`/`PlatformIncomeService`），`bash scripts/check-server.sh` 通过（**100 测试 / 1160 断言**、phpstan 无错误、资金扫描通过）。开发库已迁移，后端已重启（登录 200）。下一步按 `docs/08` 做 T1.7：跑 `bash scripts/check-all.sh` 做 P1 阶段验收。
 
 ## 任务进度
 
 <!-- 做完一个，把 [ ] 改成 [x]，并在下方「任务记录」里写自检记录 -->
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
-- P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [ ] T1.6 [ ] T1.7
+- P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [ ] T1.7
 - P2：[ ] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
@@ -249,6 +249,26 @@
 - 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 92, Assertions: 1121**；phpstan `[OK] No errors`；money 通过）；重启后端后 curl 冒烟全部符合预期。
 - 对照设计图：不涉及
 - 遗留/疑问：返回的 URL 用的是 `APP_URL`（当前 `http://127.0.0.1:9501`）。安卓模拟器访问宿主要用 `10.0.2.2`，客户端做图片地址拼接时要注意（或将 `APP_URL` 配成对外可达地址）。
+
+### T1.6 钱包服务 —— ✅ 完成（2026-10-11）
+- 完成内容：
+  - 迁移 `2026_10_11_000004_create_cl_wallet_log_tables.php`：`cl_coin_log`、`cl_point_log`、`cl_platform_income`；两张流水表都有**唯一索引 (type, ref_type, ref_id)** 用于防重复记账。
+  - 枚举 `Cl\CoinLogType`（RECHARGE/MESSAGE/GIFT/VIP/TASK/ADMIN_DEDUCT）、`Cl\PointLogType`（7 种）、`Cl\PlatformIncomeSource`（MESSAGE/GIFT/VIP）；模型 `Cl\{CoinLog,PointLog,PlatformIncome}`。
+  - 仓储 `Cl\{CoinLogRepository,PointLogRepository,PlatformIncomeRepository}`；两个钱包仓储补 `lockByUserId()`（`lockForUpdate`）。
+  - 服务（**全项目唯一改余额入口**）：
+    - `CoinWalletService::increase/decrease`：事务内锁行 → 改余额 → 写流水（含 `balance_after`）；余额不足抛 **20001**（data 带 `balance`、`needed`）并整单回滚；只有 RECHARGE 计入 `total_recharge`，只有 MESSAGE/GIFT/VIP 计入 `total_spent`。
+    - `PointWalletService::increase/decrease/freeze/unfreeze/settleFrozen`：change/frozen_change 严格按 docs/04 第 4 节的表；不足抛 **20002**。
+    - `PlatformIncomeService::record`：写 `cl_platform_income`（含 `income_date` 按天）。
+- 验收对照：
+  1. 加减正确、`balance_after` 正确 —— ✅
+  2. 不能扣成负数 —— ✅（20001 + 回滚，失败不留流水）
+  3. 重复 ref 不重复记账 —— ✅（同 (type,ref_type,ref_id) 第二次直接跳过）
+  4. 并发扣减不出负数 —— ✅ **场景 8**：余额 10、并发扣 3×5 → 只成功 2 笔、余额 0（`parallel()` + `lockForUpdate`）
+  5. 提现三步（冻结/驳回退回/已打款）的 change、frozen_change、total_withdrawn —— ✅
+  6. **场景 34 对账** —— ✅ `ReconcileTest`：随机 100 次操作后校验「金币 balance = Σ金币流水 change」「积分 balance = Σ积分流水 change」「frozen = Σfrozen_change」
+- 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 100, Assertions: 1160**；phpstan `[OK] No errors`；money 通过）；开发库已迁移，后端重启后登录 200。
+- 对照设计图：不涉及
+- 遗留/疑问：`total_recharge` / `total_spent` 的归属口径（哪些 type 计入）文档没明说，按名字取最合理的口径实现，已记在此处备查。
 
 ## 阶段验收记录
 

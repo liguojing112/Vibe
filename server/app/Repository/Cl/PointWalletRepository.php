@@ -27,4 +27,12 @@ final class PointWalletRepository extends IRepository
     {
         return $this->model->newQuery()->where('user_id', $userId)->first();
     }
+
+    /**
+     * 取钱包并锁行（必须在事务里调用，改余额前一律走这里）。
+     */
+    public function lockByUserId(int $userId): ?PointWallet
+    {
+        return $this->model->newQuery()->where('user_id', $userId)->lockForUpdate()->first();
+    }
 }
