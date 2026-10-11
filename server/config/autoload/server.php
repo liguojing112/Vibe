@@ -40,11 +40,13 @@ return [
         Constant::OPTION_MAX_COROUTINE => 100000,
         Constant::OPTION_OPEN_HTTP2_PROTOCOL => true,
         Constant::OPTION_MAX_REQUEST => 100000,
+        // 上传最大为 10M
         Constant::OPTION_UPLOAD_MAX_FILESIZE => 10 * 1024 * 1024,
         Constant::OPTION_HTTP_INDEX_FILES => ['index.html'],
         Constant::OPTION_SOCKET_BUFFER_SIZE => 3 * 1024 * 1024,
-        // 上传最大为4M
-        Constant::OPTION_PACKAGE_MAX_LENGTH => 4 * 1024 * 1024,
+        // 整个请求体的上限，必须大于图片上限（chat.image_max_mb 默认 5MB）+ 表单开销，
+        // 否则超过这个值会在协议层被拒，走不到业务层的「图片不能超过 X MB」
+        Constant::OPTION_PACKAGE_MAX_LENGTH => 12 * 1024 * 1024,
     ],
     'callbacks' => [
         Event::ON_WORKER_START => [WorkerStartCallback::class, 'onWorkerStart'],

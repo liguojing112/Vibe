@@ -6,16 +6,16 @@
 ## 当前状态
 
 - 当前阶段：**P1 后端基础**（P0 已完成）
-- 当前任务：T1.4 已完成 → 下一步 T1.5 图片上传
+- 当前任务：T1.5 已完成 → 下一步 T1.6 钱包服务
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T1.4 启动配置与协议接口完成（`GET /app/config`、`GET /app/agreement/{type}`、`cl_tag`/`cl_city` 表 + 10 标签 10 城市种子），`bash scripts/check-server.sh` 通过（**87 测试 / 1112 断言**、phpstan 无错误、资金扫描通过）。开发库已迁移+种子，后端已重启并冒烟通过。下一步按 `docs/08` 做 T1.5（`StorageInterface` + `LocalStorage` + `POST /upload/image`）。
+- 上次停在哪：T1.5 图片上传完成（`StorageInterface` + `LocalStorage` + `POST /upload/image` + 静态读盘路由），`bash scripts/check-server.sh` 通过（**92 测试 / 1121 断言**、phpstan 无错误、资金扫描通过）。开发库无新表，后端已重启并冒烟通过（上传 200 / 伪装 jpg 30004 / 超 5MB 30004 / 未登录 401 / 返回的图片 URL 可直接访问）。下一步按 `docs/08` 做 T1.6（`cl_coin_log`/`cl_point_log`/`cl_platform_income` + `CoinWalletService`/`PointWalletService` 的增减/冻结/结算 + 对账测试）。
 
 ## 任务进度
 
 <!-- 做完一个，把 [ ] 改成 [x]，并在下方「任务记录」里写自检记录 -->
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
-- P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
+- P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [ ] T1.6 [ ] T1.7
 - P2：[ ] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
@@ -233,6 +233,22 @@
 - 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 87, Assertions: 1112**；phpstan `[OK] No errors`；money 通过）；开发库 `migrate` + `db:seed`，重启后端后 curl 冒烟：config 200（字段齐全）、agreement/user 200、非法 type 422。
 - 对照设计图：不涉及
 - 遗留/疑问：`version` 的语义待客户确认（Q0-13）。
+
+### T1.5 图片上传 —— ✅ 完成（2026-10-11）
+- 完成内容：
+  - `App\Service\Cl\Storage\StorageInterface`（`save()` / `url()`）+ `LocalStorage`：存到 `server/storage/uploads/cl/{yyyymm}/{32位随机}.{ext}`；**用 finfo 读真实 MIME**（只允许 jpg/png/webp，改后缀无效）；大小上限读配置 `chat.image_max_mb`（默认 5MB）。绑定在 `config/autoload/dependencies.php`。
+  - `App\Http\Api\Controller\V1\UploadController`：`POST /api/v1/upload/image`（**要登录**，`scene` 只接受 avatar/photo/chat/report/real_name，否则 422）；返回 `{url}`；图片不合法/超限用业务码 **30004**（05 第 3 节：30004 = 消息内容不合法，含「图片不合法」）。
+  - `config/routes.php` 增加 `GET /uploads/{path:.+}` 读盘路由：只读 `storage/uploads` 一个目录、`realpath` + 前缀校验防目录穿越 —— 这样 `StorageInterface::url()` 给出的地址真的能访问（生产建议改由 Nginx 托管）。
+  - `config/autoload/server.php`：`PACKAGE_MAX_LENGTH` 从 `4MB` 提到 `12MB`。**原来它比图片上限 5MB 还小**，超过 4MB 的请求会在 Swoole 协议层被拒，根本走不到业务层的「图片不能超过 X MB」。
+- 验收对照：
+  1. jpg 成功 —— ✅（返回 `.../uploads/cl/YYYYMM/xxxx.jpg`）
+  2. 伪装成 jpg 的文本文件被拒 —— ✅（30004「只支持 jpg / png / webp 图片」）
+  3. 超过 5MB 被拒 —— ✅（30004「图片不能超过 5MB」）
+  4. 未登录 401 —— ✅
+  5. 补充：scene 非法 422、返回的 URL 可静态访问（200 / 707 字节 / Cache-Control）—— ✅
+- 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 92, Assertions: 1121**；phpstan `[OK] No errors`；money 通过）；重启后端后 curl 冒烟全部符合预期。
+- 对照设计图：不涉及
+- 遗留/疑问：返回的 URL 用的是 `APP_URL`（当前 `http://127.0.0.1:9501`）。安卓模拟器访问宿主要用 `10.0.2.2`，客户端做图片地址拼接时要注意（或将 `APP_URL` 配成对外可达地址）。
 
 ## 阶段验收记录
 
