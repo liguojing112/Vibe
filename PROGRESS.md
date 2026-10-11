@@ -6,15 +6,15 @@
 ## 当前状态
 
 - 当前阶段：P0
-- 当前任务：T0.2（后端已装好并运行，仅剩 7 个上游测试失败待定）→ 下一步 T0.3 后台前端
+- 当前任务：T0.5 README（T0.4 等你装 Android Studio）
 - 任务状态：进行中 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T0.6、T0.1 完成。T0.2 后端已在 WSL2 里装好并跑通（PHP 8.3.6 + Swoole 5.1.8 + Redis 7.0.15 + Composer，MineAdmin 3.2.0 已装，库 `changliao`/`cl_test` 已建，管理员登录 200）。**`composer test` 已做到 cl_test 隔离**（不再污染开发库），但仍有 **7 个 MineAdmin 自带测试失败**（期望 422、实得 401，中间件优先级所致，见 Q0-9），等你决定怎么处理。T0.3（后台前端）环境就绪可做；T0.4 仍等 Android Studio。
+- 上次停在哪：T0.6 / T0.1 / T0.2 / T0.3 完成。后台前端 MineAdmin-Vue 3.2.1 已装（`admin-web/`），接口地址指向 `http://127.0.0.1:9501`，`pnpm build` 与 `pnpm lint` 均通过，dev 服务器 `http://localhost:2888/` 返回 200。为让上游自带的 lint 错误不阻断检查，放宽了 eslint/stylelint 对上游目录的规则（见 Q0-11）。**下一步 T0.4 需要 Android SDK**（等你装 Android Studio），或先做 T0.5 README。
 
 ## 任务进度
 
 <!-- 做完一个，把 [ ] 改成 [x]，并在下方「任务记录」里写自检记录 -->
 
-- P0：[x] T0.6 [x] T0.1 [~] T0.2 [ ] T0.3 [ ] T0.4 [ ] T0.5
+- P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [ ] T0.4 [ ] T0.5
 - P1：[ ] T1.1 [ ] T1.2 [ ] T1.3 [ ] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
 - P2：[ ] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
@@ -52,6 +52,7 @@
 
 | 端 | 名称 | 版本 | 用途 | 任务 |
 |---|---|---|---|---|
+| 后台 | postcss-html | 2.0.0 | stylelint 解析 `.vue` 的 `<style>` 所需；它是上游的隐式 peer 依赖，pnpm 严格布局下未被提升到根 node_modules，必须显式声明才能跑 `lint:stylelint` | T0.3 |
 
 ## 待确认问题
 
@@ -67,8 +68,9 @@
 | Q0-6 | token 存 DataStore 默认不加密，是否需要加密存储 | 客户确认：本期明文 DataStore 即可 | T2.6 | ✅ 已解决 |
 | Q0-7 | **本机（Windows）无 PHP/Composer/Redis，Hyperf+Swoole 不能原生运行** | 已解决：改用 **WSL2 Ubuntu 24.04** 跑后端（PHP 8.3 + 源码编译 Swoole + Redis）；并新建 `.wslconfig` 开 mirrored 网络解决 Clash 代理不通 | T0.2 | ✅ 已解决 |
 | Q0-8 | **本机无 Android SDK**（`ANDROID_HOME` 未设、无 `adb`），T0.4 建不了安卓工程 | 你已选择「装 Android Studio」，等你装好后我设 `ANDROID_HOME` | T0.4 | ⏳ 待你装 Android Studio |
-| Q0-9 | **`composer test` 有 7 个 MineAdmin 自带测试失败**（期望 422、实得 401）。根因：后台控制器 `AccessTokenMiddleware` 用 `#[Middleware(priority: 100)]`，优先级高于全局 `ValidationMiddleware`，先鉴权返回 401 | 待定：① 接受为上游问题，记录后继续；② 调高 ValidationMiddleware 优先级（改 `config/autoload/middlewares.php`，会改变全局鉴权/校验顺序）；③ 深挖其他原因。**我们的 01/05 文档规定业务错误码一律 HTTP 200，与这 7 个用例无关** | T0.2、T1.2 | ⏳ 待你决定 |
+| Q0-9 | **`composer test` 有 7 个 MineAdmin 自带测试失败**（期望 422、实得 401）。根因：后台控制器 `AccessTokenMiddleware` 用 `#[Middleware(priority: 100)]`，优先级高于全局 `ValidationMiddleware`，先鉴权返回 401 | 你已决定：**接受为上游已知偏差**，T0.2 标记完成并继续。未改任何 MineAdmin 代码；后续我自己的接口测试按 05 文档规范写 | T0.2、T1.2 | ✅ 已解决（接受偏差） |
 | Q0-10 | MineAdmin 自带测试默认连 `.env` 里的开发库，会 `truncate` 种子表 | 已解决：`composer test` 脚本前置 `DB_DATABASE=cl_test REDIS_DB=15`（Hyperf dotenv 是 immutable，shell 变量优先；phpunit 的 `<env>` 因测试引导先建容器而无效） | T0.2 | ✅ 已解决 |
+| Q0-11 | **MineAdmin-Vue 3.2.1 自带代码有大量 lint 错误**（eslint 13 error：未使用变量/`prefer-promise-reject-errors`；stylelint 328 error：单行声明数、重复选择器、空 style 块等），导致 `pnpm lint` 直接失败 | 你已决定：**在配置里给上游目录放宽**。已改 `admin-web/eslint.config.js`（`src/**` 放宽两条规则，`src/modules/cl/**` 重新收紧）与 `admin-web/stylelint.config.js`（对 `src/{components,layouts,plugins,assets,modules/base}/**` 用 overrides 关掉相关规则；`@apply` 加白名单；`.md` 加入 ignores）。**未改任何 MineAdmin 源码** | T0.3、T7.x | ✅ 已解决 |
 
 ## 任务记录
 
@@ -97,7 +99,7 @@
 - 自检命令：不涉及代码；`git ls-files | wc -l` = 52
 - 遗留/疑问：首次提交待确认；后端/安卓运行环境缺失（见 Q0-7、Q0-8）
 
-### T0.2 后端安装 —— 🔶 基本完成，7 个上游测试失败待定（2026-10-11）
+### T0.2 后端安装 —— ✅ 完成（2026-10-11，含 7 个上游已知失败）
 - 完成内容：在 **WSL2 Ubuntu 24.04** 里搭好后端环境并跑通 MineAdmin 3.2.0。
   - 环境：PHP 8.3.6（apt）+ Swoole 5.1.8（GitHub 源码编译，非 pecl）+ Redis 7.0.15 + Composer + libbrotli-dev/build-essential。
   - WSL 网络：新建 `C:\Users\34252\.wslconfig`（mirrored + autoProxy）解决 Clash 导致的外网 DNS 被劫持；apt 源换阿里云。
@@ -112,6 +114,21 @@
 - 自检命令：`composer test`（已改为连 cl_test，不再污染开发库）；`curl POST /admin/passport/login` → 200
 - 对照设计图：不涉及
 - 遗留/疑问：① 7 个上游测试失败（Q0-9）；② WSL 里跑着后端，**每次 `wsl --shutdown` 或空闲回收后需重新启动**；③ Redis 在 WSL 里以 daemonize 启动
+
+### T0.3 后台前端安装 —— ✅ 完成（2026-10-11，含对上游 lint 的放宽）
+- 完成内容：`git clone --branch v3.2.1` MineAdmin-Vue 到 `admin-web/`，删 `.git`，`pnpm install`（3m24s）。接口地址沿用上游默认值即为本机后端（`.env.development` 的 `VITE_APP_API_BASEURL=http://127.0.0.1:9501`），**无需改动**。
+- 为让检查通过所做的改动（均为配置文件，未改 MineAdmin 源码）：
+  - 新增 devDependency `postcss-html@2.0.0`（stylelint 解析 `.vue` `<style>` 所需）。
+  - `eslint.config.js`：`**/*.md` 加入 ignores；`src/**` 放宽 `unused-imports/no-unused-vars` 与 `prefer-promise-reject-errors`；紧随其后对 `src/modules/cl/**` 重新收紧为 error。
+  - `stylelint.config.js`：新增 `overrides`，对 `src/components|layouts|plugins|assets|modules/base/**` 关掉 `declaration-block-single-line-max-declarations`、`no-duplicate-selectors`、`scss/operator-no-unspaced`、`keyframes-name-pattern`、`selector-type-no-unknown`、`scss/at-rule-no-unknown`；全局关 `no-empty-source`；`scss/at-rule-no-unknown` 加 `@apply/@screen/...` 白名单。
+- 验收对照：
+  1. 接口地址指向本地后端 —— ✅（上游默认就是这个值）
+  2. `pnpm build` 成功 —— ✅（生成 `dist/`）
+  3. `pnpm lint`（= tsc + eslint + stylelint）通过 —— ✅（0 error / 19 warning）
+  4. 开发服务器能起并服务页面 —— ✅（`VITE ready in 29.4s`，`http://[::1]:2888/` 返回 200；**注意绑定在 IPv6，用 `localhost:2888` 而非 `127.0.0.1`**）
+- 自检命令：`pnpm build`、`pnpm lint`、`pnpm dev` + `curl http://[::1]:2888/`
+- 对照设计图：不涉及
+- 遗留/疑问：① **未能完成「浏览器登录后台看到菜单」的人工验证**（本会话无浏览器可用）；dev 日志里出现过一次客户端 Vue 运行时错误 `setAttribute ... Cannot convert object to primitive value`，需在 P0 阶段验收时用浏览器确认。② 上游 lint 放宽见 Q0-11。
 
 ## 阶段验收记录
 
