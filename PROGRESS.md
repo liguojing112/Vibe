@@ -6,16 +6,16 @@
 ## 当前状态
 
 - 当前阶段：**P1 后端基础**（P0 已完成）
-- 当前任务：T1.3 已完成 → 下一步 T1.4 启动配置与协议接口
+- 当前任务：T1.4 已完成 → 下一步 T1.5 图片上传
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T1.3 App 用户表与认证完成（`cl_user` + 两个钱包表、注册/登录/刷新/退出/改密码、App 专用 JWT scene、`AppAuthMiddleware`、锁定与限流），`bash scripts/check-server.sh` 通过（**80 测试 / 1078 断言**、phpstan 无错误、资金扫描通过）。开发库已迁移，后端已重启并冒烟通过（注册/登录 200、错密码 10001）。下一步按 `docs/08` 做 T1.4（`GET /app/config`、`GET /app/agreement/{type}`，`cl_tag`/`cl_city` 表 + 种子）。
+- 上次停在哪：T1.4 启动配置与协议接口完成（`GET /app/config`、`GET /app/agreement/{type}`、`cl_tag`/`cl_city` 表 + 10 标签 10 城市种子），`bash scripts/check-server.sh` 通过（**87 测试 / 1112 断言**、phpstan 无错误、资金扫描通过）。开发库已迁移+种子，后端已重启并冒烟通过。下一步按 `docs/08` 做 T1.5（`StorageInterface` + `LocalStorage` + `POST /upload/image`）。
 
 ## 任务进度
 
 <!-- 做完一个，把 [ ] 改成 [x]，并在下方「任务记录」里写自检记录 -->
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
-- P1：[x] T1.1 [x] T1.2 [x] T1.3 [ ] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
+- P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
 - P2：[ ] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
@@ -70,6 +70,7 @@
 | Q0-8 | **本机无 Android SDK**（`ANDROID_HOME` 未设、无 `adb`），T0.4 建不了安卓工程 | 你已选择「装 Android Studio」，等你装好后我设 `ANDROID_HOME` | T0.4 | ⏳ 待你装 Android Studio |
 | Q0-9 | **`composer test` 有 7 个 MineAdmin 自带测试失败**（期望 422、实得 401）。根因：后台控制器 `AccessTokenMiddleware` 用 `#[Middleware(priority: 100)]`，优先级高于全局 `ValidationMiddleware`，先鉴权返回 401 | 你决定：**排除这 7 个用例**。已改 `server/composer.json` 的 test 脚本，用 phpunit 的 filter 反向排除 `Menu/Role/UserControllerTest::{testCreate,testSave,testUpdateInfo}`；原因写在 `server/phpunit.xml.dist` 注释里。**未改任何 MineAdmin 源码**；401 先返回本就是正确行为。排除后 44 测试全过 | T0.2、T0.4、T1.2 | ✅ 已解决（排除） |
 | Q0-12 | **`composer analyse`（phpstan）在 MineAdmin 自带代码上报 5 个错**（`IRepository` 泛型模板返回值 3 处、`RoleService` 调 `Model::menus()` 1 处、`User::getPolicy()` 1 处） | 已用 PHPStan 官方 **baseline** 机制精确豁免这 5 条（`server/phpstan-baseline.neon` + `phpstan.neon.dist` 里 includes），以后新增的问题仍会让 analyse 失败。未改 MineAdmin 源码 | T0.4 | ✅ 已解决 |
+| Q0-13 | `docs/05` 第 4.1 节的 `GET /app/config` 要返回 `version`，但 06 的 key 清单与其它文档都没定义它是什么（客户端版本？配置版本？） | 按铁律 7「可调项从配置读」新增配置项 **`app.version`**（默认 `1.0.0`，group=feature，后台可改），当「启动配置版本号」用。若客户另有定义再改 | T1.4、T7.7 | ⏳ 待确认语义 |
 | Q0-10 | MineAdmin 自带测试默认连 `.env` 里的开发库，会 `truncate` 种子表 | 已解决：`composer test` 脚本前置 `DB_DATABASE=cl_test REDIS_DB=15`（Hyperf dotenv 是 immutable，shell 变量优先；phpunit 的 `<env>` 因测试引导先建容器而无效） | T0.2 | ✅ 已解决 |
 | Q0-11 | **MineAdmin-Vue 3.2.1 自带代码有大量 lint 错误**（eslint 13 error：未使用变量/`prefer-promise-reject-errors`；stylelint 328 error：单行声明数、重复选择器、空 style 块等），导致 `pnpm lint` 直接失败 | 你已决定：**在配置里给上游目录放宽**。已改 `admin-web/eslint.config.js`（`src/**` 放宽两条规则，`src/modules/cl/**` 重新收紧）与 `admin-web/stylelint.config.js`（对 `src/{components,layouts,plugins,assets,modules/base}/**` 用 overrides 关掉相关规则；`@apply` 加白名单；`.md` 加入 ignores）。**未改任何 MineAdmin 源码** | T0.3、T7.x | ✅ 已解决 |
 
@@ -214,6 +215,24 @@
   4. swagger 注解注册路由：新增控制器后要清 `runtime/container`（`composer test` 已自带）。
 - 对照设计图：不涉及
 - 遗留/疑问：注册请求接受一个**可选**的 `confirm_password`（01 P00 表单有「确认密码」，但 05 的接口表只列了 phone/password/gender/nickname，故做成可选 + `same:password`）。
+
+### T1.4 启动配置与协议接口 —— ✅ 完成（2026-10-11）
+- 完成内容：
+  - 迁移 `2026_10_11_000003_create_cl_tag_city_tables.php`：`cl_tag`（兴趣标签库）、`cl_city`（热门城市）。
+  - 模型 `App\Model\Cl\{Tag,City}`；仓储 `Cl\{TagRepository,CityRepository}`（都带 `enabledList()`，按 sort 排序、只取启用的）。
+  - 种子 `cl_tag_city_seeder_20261011.php`：**10 个标签**（旅行/音乐/电影/美食/健身/读书/摄影/游戏/咖啡/宠物）、**10 个城市**（北京/上海/广州/深圳/杭州/成都/重庆/武汉/西安/南京）。
+  - `App\Http\Api\Controller\V1\AppConfigController`：`GET /api/v1/app/config`、`GET /api/v1/app/agreement/{type}`（都免鉴权）。
+  - 新增配置项 `app.version`（见 Q0-13），并同步更新 T1.1 的 key 清单测试（现 **28** 个 key）。
+- 接口返回（docs/05 第 4.1 节）：
+  - `/app/config`：`call_enabled`(bool)、`compliance_disclosure`(string)、`service{wechat,qrcode_url,phone}`、`chat_max_length`(int)、`image_max_mb`(int)、`cities`(城市名字符串数组)、`tags`(`[{id,name}]`，因为 `cl_user.tags` 存的是标签 ID)、`version`。
+  - `/app/agreement/{type}`：`{type, content}`；type 只接受 `user`/`privacy`，其它返回 422。
+- 验收对照：
+  1. 返回字段与 05 一致 —— ✅（testConfigReturnsAllFieldsFromDoc 逐字段断言 8 个字段都在）
+  2. `compliance_disclosure` 永远非空 —— ✅（testComplianceDisclosureIsNeverEmpty，并断言含「付费聊天」）
+  3. 补充：10 标签 / 10 城市、协议正文非空、非法 type 422、免鉴权可访问 —— ✅
+- 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 87, Assertions: 1112**；phpstan `[OK] No errors`；money 通过）；开发库 `migrate` + `db:seed`，重启后端后 curl 冒烟：config 200（字段齐全）、agreement/user 200、非法 type 422。
+- 对照设计图：不涉及
+- 遗留/疑问：`version` 的语义待客户确认（Q0-13）。
 
 ## 阶段验收记录
 

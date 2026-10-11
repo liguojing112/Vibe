@@ -26,6 +26,7 @@ final class AppConfigServiceTest extends TestCase
         'coin.per_yuan',
         'point.per_yuan',
         'feature.call_enabled',
+        'app.version',
         'chat.message_max_length',
         'chat.image_max_mb',
         'chat.message_retention_months',
