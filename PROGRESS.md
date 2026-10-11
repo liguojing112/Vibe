@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P2 安卓基础**（P1 已完成）
-- 当前任务：T2.7 已完成 → 下一步 T2.8 公共工具
+- 当前任务：T2.8 已完成 → 下一步 T2.9 业务复用组件
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T2.7 导航与 App 骨架完成（`Routes.kt` 覆盖 01 文档 31 个页面 + P00、`ClNavHost`、`MainScreen` 底部导航受 `call_enabled` 控制、启动拉 `/app/config` 并落 DataStore、未实现页面统一占位），`check-android.sh` 通过（28 个单测）。下一步按 `docs/08` 做 T2.8（`TimeFormat`/`MoneyFormat`/`Validators`/`ImageCompressor` + 单元测试）。
+- 上次停在哪：T2.8 公共工具完成（`TimeFormat`/`MoneyFormat`/`Validators`/`ImageCompressor` + 34 个单元测试），`check-android.sh` 通过（62 个单测）。下一步按 `docs/08` 做 T2.9（`03` 第 5.4 节业务复用组件 + 预览，对照设计图 01/03/05/06/08/11/12/22/23/29）。
 
 ## 任务进度
 
@@ -16,7 +16,7 @@
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
-- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
+- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
@@ -374,6 +374,21 @@
 - **未做**：没有在模拟器/真机上跑过（本机只装了 Android Studio，没有启动过 AVD），所以「Tab 能点、能切」是靠 ViewModel 测试 + 编译通过保证的，真机观感待你跑一次再确认。
 - 对照设计图：不涉及（占位页）。
 - 遗留/疑问：底部导航的**未读角标**没做 —— 未读数要等 T4.x 消息数据，`ClBottomBar` 的 `badges` 参数已经就绪，到 T4.6 接上即可。
+
+### T2.8 公共工具 —— ✅ 完成（2026-10-12）
+- `core/common/TimeFormat.kt`：`friendly()` 按 `docs/03` 第 6 节第 5 条 —— 今天 `HH:mm`、昨天「昨天 HH:mm」、今年 `MM-dd HH:mm`、更早 `yyyy-MM-dd`；另有 `dateTime()`/`date()`/`parse()`（解析服务端 `yyyy-MM-dd HH:mm:ss`）。**昨天按日历天算，不是按 24 小时算**。
+- `core/common/MoneyFormat.kt`：金币「120 金币」、紧凑位置「120 币」、积分「15 积分」、价格「5 币/条」「60 币/分钟」（单位常量 `UNIT_PER_MESSAGE`/`UNIT_PER_MINUTE`）、流水「+15/-5」、人民币「¥12.50」（分 → 两位小数）。**只做显示**，任何金额/价格都由服务端算好（铁律 6）。
+- `core/common/Validators.kt`：手机号、密码（6~20 且同时含字母数字）、昵称（2~12）、身份证（18 位 + GB 11643 校验位，末位小写 x 也认）。**规则逐条对齐 `server/app/Http/Api/Request/V1/RegisterRequest.php`**（`^1[3-9]\d{9}$`、`min:6|max:20` + `(?=.*[A-Za-z])(?=.*\d)`、`min:2|max:12`），客户端校验只为少一次往返，服务端才是最终判定。
+- `core/common/ImageCompressor.kt`：读图 → `inSampleSize` 降采样（2 的幂）→ 按 EXIF 扳正方向（8 种方向）→ 精确缩放到长边 1080（**小图不放大**）→ JPEG 质量 80。用系统 `android.media.ExifInterface`（API 26+ 自带，不新增依赖）。
+- 验收对照（docs/08 T2.8「全部单元测试，边界值齐全」）：**34 个用例**全部通过
+  - `TimeFormatTest` 12：今天/昨天/今年/更早、**跨天边界**（23:59 与次日 00:30）、跨年边界、闰日、非法时间戳（0/负数）返回空串、时区参数生效、`dateTime`/`date` 格式、`parse` 往返与解析失败返回 null。
+  - `MoneyFormatTest` 7：金币/简写/积分/价格单位/带符号/人民币两位小数（含 0、0.05、1.00、负数）。
+  - `ValidatorsTest` 6：手机号（1 开头、第二位 3~9、长度、非数字）、密码（5/6/20/21 位、纯字母、纯数字）、昵称（1/2/12/13 字）、身份证（两个合法号 + 位数/字符/校验位错误）。
+  - `ImageCompressorTest` 9：降采样倍数、够小的图不降采样、非法参数、横图/竖图/正方形、不放大、极端长宽比不缩成 0。
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；**62 个单测**：公共工具 34 + AppConfig 4 + MainViewModel 8 + ApiResult 5 + AuthInterceptor 5 + 主题 5 + 图标 1；`lintDebug`、`assembleDebug`、`check-ui.sh` 通过）。
+- **未做**：`ImageCompressor.compress()` 本体（Bitmap 解码/编码）需要设备或 Robolectric，**没有测试**；单测只覆盖了它内部两个纯计算函数（`calculateInSampleSize`/`calculateTargetSize`）。第一次真机上传图片时要重点看这一步。
+- 对照设计图：不涉及。
+- 遗留/疑问：`Validators` 的身份证规则目前只对齐了 `docs/01` P29 的「18 位格式和校验位」；服务端的实名认证请求类要到 P6 才写，届时两边的规则要再核一次（出生日期合法性、年龄下限）。
 
 ## 阶段验收记录
 
