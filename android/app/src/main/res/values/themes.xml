@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 只做占位主题；真正的配色/字体由 core/designsystem 的 ClTheme 提供（见 docs/03） -->
+    <style name="Theme.ChangLiao" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

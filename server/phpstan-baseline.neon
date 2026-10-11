@@ -1,0 +1,31 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Method App\\Model\\Permission\\User\:\:getPolicy\(\) should return App\\Model\\DataPermission\\Policy\|null but returns Hyperf\\Database\\Model\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Model/Permission/User.php
+
+		-
+			message: '#^Method App\\Repository\\IRepository\:\:findByFilter\(\) should return \(T of Hyperf\\DbConnection\\Model\\Model\)\|null but returns Hyperf\\Database\\Model\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Repository/IRepository.php
+
+		-
+			message: '#^Method App\\Repository\\IRepository\:\:findById\(\) should return \(T of Hyperf\\DbConnection\\Model\\Model\)\|null but returns Hyperf\\Database\\Model\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Repository/IRepository.php
+
+		-
+			message: '#^Method App\\Repository\\IRepository\:\:saveById\(\) should return \(T of Hyperf\\DbConnection\\Model\\Model\)\|null but returns Hyperf\\Database\\Model\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Repository/IRepository.php
+
+		-
+			message: '#^Call to an undefined method Hyperf\\DbConnection\\Model\\Model\:\:menus\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Service/Permission/RoleService.php
