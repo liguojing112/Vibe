@@ -6,15 +6,15 @@
 ## 当前状态
 
 - 当前阶段：P0
-- 当前任务：T0.1（文件已完成，待首次提交）→ 下一步 T0.3（就绪）/ T0.2（阻塞）
+- 当前任务：T0.2（后端已装好并运行，仅剩 7 个上游测试失败待定）→ 下一步 T0.3 后台前端
 - 任务状态：进行中 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T0.6 完成；T0.1 已建 `changliao/` 仓库、复制 `docs/`、写 `.gitignore`、`git add` 暂存 52 个文件（**未 commit**，按全局规则等确认）。**环境探测发现两个阻塞**：① 后端缺 PHP/Composer/Redis（Hyperf+Swoole 无法在 Windows 原生运行，需 WSL2 或 Docker）；② 安卓缺 Android SDK。T0.3（后台前端）环境就绪可做。
+- 上次停在哪：T0.6、T0.1 完成。T0.2 后端已在 WSL2 里装好并跑通（PHP 8.3.6 + Swoole 5.1.8 + Redis 7.0.15 + Composer，MineAdmin 3.2.0 已装，库 `changliao`/`cl_test` 已建，管理员登录 200）。**`composer test` 已做到 cl_test 隔离**（不再污染开发库），但仍有 **7 个 MineAdmin 自带测试失败**（期望 422、实得 401，中间件优先级所致，见 Q0-9），等你决定怎么处理。T0.3（后台前端）环境就绪可做；T0.4 仍等 Android Studio。
 
 ## 任务进度
 
 <!-- 做完一个，把 [ ] 改成 [x]，并在下方「任务记录」里写自检记录 -->
 
-- P0：[x] T0.6 [ ] T0.1 [ ] T0.2 [ ] T0.3 [ ] T0.4 [ ] T0.5
+- P0：[x] T0.6 [x] T0.1 [~] T0.2 [ ] T0.3 [ ] T0.4 [ ] T0.5
 - P1：[ ] T1.1 [ ] T1.2 [ ] T1.3 [ ] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
 - P2：[ ] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
@@ -29,18 +29,23 @@
 
 > 2026-10-11 探测本机（Windows 11）结果：
 
-- MineAdmin 版本 / commit：未安装
-- MineAdmin-Vue 版本 / commit：未安装
-- PHP / Swoole / MySQL / Redis 版本：**PHP ❌未装、Composer ❌未装、Swoole ❌未装、Redis ❌未装**；MySQL 8.0.44 ✅已装（服务未启动）
-- Android Gradle Plugin / Kotlin / Compose BOM 版本：未建工程
-- 本地启动命令：（待补）
-- 测试账号：后台超级管理员 / 客服 / 财务 / 审核员；App 男号 / 女号（待补）
+- MineAdmin 版本 / commit：**v3.2.0**（git clone --branch v3.2.0，已删 server/.git）
+- MineAdmin-Vue 版本 / commit：未安装（T0.3）
+- PHP / Swoole / MySQL / Redis 版本：**PHP 8.3.6（WSL Ubuntu 24.04）；Swoole 5.1.8（GitHub 源码编译）；MySQL 8.0.44（Windows 宿主，WSL 经 mirrored localhost 连）；Redis 7.0.15（WSL）**
+- Android Gradle Plugin / Kotlin / Compose BOM 版本：未建工程（T0.4）
+- 本地启动命令：WSL 内 `cd /mnt/c/Workspace/android/vibe/changliao/server && setsid nohup php bin/hyperf.php start > /root/build/server.log 2>&1 &`（Hyperf 无 `-d`，不能用 `-d`）
+- 测试账号：后台 `admin` / `123456`（MineAdmin 默认）；App 男号 / 女号（待补）
 
-**本机已具备**：git 2.53、Node v24.14.1、pnpm 10.33、npm 11.11、JDK 17.0.19、MySQL 8.0.44、Docker 29.4.0（守护进程未启动）、WSL2 Ubuntu（已装、已停止）。
+**本机已具备**：git 2.53、Node v24.14.1、pnpm 10.33、npm 11.11、JDK 17.0.19、MySQL 8.0.44（MySQL80 服务运行中，root 密码 `root123`）、Docker 29.4.0（未启动）、WSL2 Ubuntu 24.04。
+
+**关键环境处理（重要，勿删）**：
+1. **WSL 网络**：本机装了 Clash，WSL 的 NAT 模式用不了 localhost 代理，外网域名被解析成 127.0.0.1。新建了 `C:\Users\34252\.wslconfig`（`networkingMode=mirrored` + `autoProxy=true` + `dnsTunneling=true`）并 `wsl --shutdown` 后，WSL 才能访问 github / getcomposer。
+2. **apt 源**已换成阿里云镜像；`/etc/apt/sources.list.d/ubuntu.sources`。
+3. **Swoole**：pecl 频道异常，改为 GitHub 源码编译（`/root/build/swoole-src`，`./configure --enable-openssl --enable-sockets`，需 `libbrotli-dev`）；并设 `swoole.use_shortname=Off`（否则 Hyperf 拒绝启动）。
+4. **测试库隔离**：`composer test` 脚本已改为 `DB_DATABASE=cl_test REDIS_DB=15 co-phpunit ...`，测试走 `cl_test`，不再 truncate 开发库。
 
 **缺失（阻塞对应任务）**：
-- 后端 → 需 PHP 8.2+ / Swoole / Composer / Redis（Windows 原生不可行，建议走 WSL2 或 Docker）：**阻塞 T0.2**
-- 安卓 → 需 Android SDK（`ANDROID_HOME` 未设置，无 `adb`）：**阻塞 T0.4**
+- 安卓 → 需 Android SDK（`ANDROID_HOME` 未设置，无 `adb`）：**阻塞 T0.4**，等你装 Android Studio
 - 后台前端 → Node/pnpm 就绪：**T0.3 可做**
 
 ## 新增依赖记录
@@ -60,8 +65,10 @@
 | Q0-4 | `01` 文档 P06 写的是「历史消息上拉加载（每页 30 条）」，与本地化方案矛盾 | 已改 `01` P06：历史消息以本地库为准，接口只做 `/chat/sync` 增量补拉（见 T0.6） | P06 | ✅ 已解决 |
 | Q0-5 | `02` 文档 4.3 安卓包结构里没有本地数据库目录 | 已在 `02` 4.3 新增 `core/data/local/db/` 与 `LocalCache.kt`（见 T0.6） | T0.4、T2.6 | ✅ 已解决 |
 | Q0-6 | token 存 DataStore 默认不加密，是否需要加密存储 | 客户确认：本期明文 DataStore 即可 | T2.6 | ✅ 已解决 |
-| Q0-7 | **本机（Windows）无 PHP/Composer/Redis，Hyperf+Swoole 不能原生运行**，T0.2 按 02 文档的 `composer install` 跑不通 | 待定：用 **WSL2 Ubuntu**（已装）或 **Docker Desktop**（已装）跑后端；等确认后更新 02 文档的安装章节 | T0.2 | ⏳ 待你决定 |
-| Q0-8 | **本机无 Android SDK**（`ANDROID_HOME` 未设、无 `adb`），T0.4 建不了安卓工程 | 待定：安装 Android Studio / 命令行工具并设 `ANDROID_HOME` | T0.4 | ⏳ 待你决定 |
+| Q0-7 | **本机（Windows）无 PHP/Composer/Redis，Hyperf+Swoole 不能原生运行** | 已解决：改用 **WSL2 Ubuntu 24.04** 跑后端（PHP 8.3 + 源码编译 Swoole + Redis）；并新建 `.wslconfig` 开 mirrored 网络解决 Clash 代理不通 | T0.2 | ✅ 已解决 |
+| Q0-8 | **本机无 Android SDK**（`ANDROID_HOME` 未设、无 `adb`），T0.4 建不了安卓工程 | 你已选择「装 Android Studio」，等你装好后我设 `ANDROID_HOME` | T0.4 | ⏳ 待你装 Android Studio |
+| Q0-9 | **`composer test` 有 7 个 MineAdmin 自带测试失败**（期望 422、实得 401）。根因：后台控制器 `AccessTokenMiddleware` 用 `#[Middleware(priority: 100)]`，优先级高于全局 `ValidationMiddleware`，先鉴权返回 401 | 待定：① 接受为上游问题，记录后继续；② 调高 ValidationMiddleware 优先级（改 `config/autoload/middlewares.php`，会改变全局鉴权/校验顺序）；③ 深挖其他原因。**我们的 01/05 文档规定业务错误码一律 HTTP 200，与这 7 个用例无关** | T0.2、T1.2 | ⏳ 待你决定 |
+| Q0-10 | MineAdmin 自带测试默认连 `.env` 里的开发库，会 `truncate` 种子表 | 已解决：`composer test` 脚本前置 `DB_DATABASE=cl_test REDIS_DB=15`（Hyperf dotenv 是 immutable，shell 变量优先；phpunit 的 `<env>` 因测试引导先建容器而无效） | T0.2 | ✅ 已解决 |
 
 ## 任务记录
 
@@ -89,6 +96,22 @@
   2. `git log` 有第一个提交 —— ⏳ **未提交**（按全局规则不自动 commit，等确认）
 - 自检命令：不涉及代码；`git ls-files | wc -l` = 52
 - 遗留/疑问：首次提交待确认；后端/安卓运行环境缺失（见 Q0-7、Q0-8）
+
+### T0.2 后端安装 —— 🔶 基本完成，7 个上游测试失败待定（2026-10-11）
+- 完成内容：在 **WSL2 Ubuntu 24.04** 里搭好后端环境并跑通 MineAdmin 3.2.0。
+  - 环境：PHP 8.3.6（apt）+ Swoole 5.1.8（GitHub 源码编译，非 pecl）+ Redis 7.0.15 + Composer + libbrotli-dev/build-essential。
+  - WSL 网络：新建 `C:\Users\34252\.wslconfig`（mirrored + autoProxy）解决 Clash 导致的外网 DNS 被劫持；apt 源换阿里云。
+  - 后端：`git clone --branch v3.2.0` 到 `server/`，删 `.git`，`composer install`（138 包），`mine:install -n`（迁移 + 种子），`composer require hyperf/websocket-server:3.2.*`。
+  - 数据库：建 `changliao`、`cl_test`（utf8mb4）；`.env` 指向 127.0.0.1:3306 root/root123，补 `CL_ID_CARD_KEY`/`CL_APP_JWT_SECRET`/`CL_WS_PORT`；`.env.example` 同步补这三个变量。
+  - 运行：Swoole 需 `swoole.use_shortname=Off`（已写 `/etc/php/8.3/cli/conf.d/20-swoole.ini`）；`setsid nohup php bin/hyperf.php start` 启动（Hyperf 无 `-d`）。
+- 验收对照：
+  1. `composer test` 跑通 —— ⚠️ **51 测试 / 996 断言 / 7 失败**（都是 401 vs 422，见 Q0-9）
+  2. `.env.example` 已补 `CL_ID_CARD_KEY`、`CL_APP_JWT_SECRET`、`CL_WS_PORT` —— ✅
+  3. 能启动并用默认管理员登录拿 token —— ✅（`POST /admin/passport/login`，admin/123456，返回 access_token）
+  4. 安装 `hyperf/websocket-server` —— ✅（v3.2.1）
+- 自检命令：`composer test`（已改为连 cl_test，不再污染开发库）；`curl POST /admin/passport/login` → 200
+- 对照设计图：不涉及
+- 遗留/疑问：① 7 个上游测试失败（Q0-9）；② WSL 里跑着后端，**每次 `wsl --shutdown` 或空闲回收后需重新启动**；③ Redis 在 WSL 里以 daemonize 启动
 
 ## 阶段验收记录
 

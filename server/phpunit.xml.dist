@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" backupGlobals="false" bootstrap="./tests/bootstrap.php" colors="true" processIsolation="false" stopOnFailure="false" xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd" cacheDirectory=".phpunit.cache" backupStaticProperties="false">
+  <php>
+    <!-- other PHP.ini or environment variables -->
+    <ini name="memory_limit" value="-1"/>
+    <!-- 注意：测试库隔离靠 composer test 脚本里的 DB_DATABASE=cl_test 生效。
+         测试引导会先构建容器，因此 phpunit 的 env 元素在此无效。见 docs/09 第 1.1 节。 -->
+  </php>
+  <testsuites>
+    <testsuite name="Tests">
+      <directory suffix="Test.php">./tests</directory>
+    </testsuite>
+
+  </testsuites>
+  <source>
+    <include>
+      <directory suffix=".php">./app</directory>
+      <directory suffix=".php">./databases</directory>
+      <directory suffix=".php">./plugin</directory>
+    </include>
+    <exclude>
+      <directory suffix=".php">./app/Schema</directory>
+      <directory suffix=".php">./databases</directory>
+    </exclude>
+  </source>
+</phpunit>
