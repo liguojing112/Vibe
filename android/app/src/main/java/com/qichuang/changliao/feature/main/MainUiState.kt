@@ -25,8 +25,9 @@ enum class MainTab(
     }
 }
 
-/** 主界面状态：[tabs] 已按开关过滤过，[selected] 一定在 [tabs] 里。 */
+/** 主界面状态：[tabs] 已按开关过滤过，[selected] 一定在 [tabs] 里，[badges] 只含非 0 的角标。 */
 data class MainUiState(
     val tabs: List<MainTab>,
     val selected: MainTab,
+    val badges: Map<String, Int>,
 )

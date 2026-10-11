@@ -72,6 +72,7 @@ fun MainScreen(onOpen: (String) -> Unit) {
                 ClBottomBarItem(key = tab.route, label = tab.label, icon = tab.icon)
             },
             selected = state.selected.route,
+            badges = state.badges,
             onSelect = viewModel::onTabSelected,
         )
     }

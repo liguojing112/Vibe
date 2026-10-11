@@ -373,7 +373,8 @@
 - 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；`testDebugUnitTest` **28 个用例**：AppConfig 4 + MainViewModel 8 + ApiResult 5 + AuthInterceptor 5 + 主题 5 + 图标 1；`lintDebug`、`assembleDebug`、`check-ui.sh` 均通过）。
 - **未做**：没有在模拟器/真机上跑过（本机只装了 Android Studio，没有启动过 AVD），所以「Tab 能点、能切」是靠 ViewModel 测试 + 编译通过保证的，真机观感待你跑一次再确认。
 - 对照设计图：不涉及（占位页）。
-- 遗留/疑问：底部导航的**未读角标**没做 —— 未读数要等 T4.x 消息数据，`ClBottomBar` 的 `badges` 参数已经就绪，到 T4.6 接上即可。
+- 遗留/疑问：底部导航的**未读角标**原计划留到 T4.x（未读数要等消息数据），**2026-10-12 已补做**：新增应用级 `core/data/local/UnreadStore.kt`（`StateFlow<Int>` + `set/clear`），`MainViewModel` 把它合进 `MainUiState.badges`（只挂消息 Tab、0 不显示），`ClBottomBar` 的 `badges` 参数接上。`UnreadStore` 只做落点，**真正的未读来源是 T4.6 的会话表 + WebSocket 推送**，届时由消息层调 `set()`。
+  - 角标测试（6 个）：无未读不显示 / 挂在消息 Tab 上 / 未读数变化跟着变 / 清零后消失 / 超过 99 原样交给 `ClBadgeDot` 显示「99+」/ 负数当 0。
 
 ### T2.8 公共工具 —— ✅ 完成（2026-10-12）
 - `core/common/TimeFormat.kt`：`friendly()` 按 `docs/03` 第 6 节第 5 条 —— 今天 `HH:mm`、昨天「昨天 HH:mm」、今年 `MM-dd HH:mm`、更早 `yyyy-MM-dd`；另有 `dateTime()`/`date()`/`parse()`（解析服务端 `yyyy-MM-dd HH:mm:ss`）。**昨天按日历天算，不是按 24 小时算**。
