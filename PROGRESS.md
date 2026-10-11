@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P2 安卓基础**（P1 已完成）
-- 当前任务：T2.6 已完成 → 下一步 T2.7 导航与 App 骨架
+- 当前任务：T2.7 已完成 → 下一步 T2.8 公共工具
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T2.6 网络层与本地存储完成（OkHttp+Retrofit 装配、`ApiResponse`/`ApiResult`、`AuthInterceptor`、`AuthApi`、`ClDataStore`、Room 本地库骨架），`check-android.sh` 与 `check-server.sh` 都通过。顺带把**服务端业务错误的 `data` 从 `[]` 改成 `null`**（客户端按 DTO 解析 data，空数组会解析失败）。下一步按 `docs/08` 做 T2.7（`Routes.kt` 全部页面路由、`ClNavHost`、底部导航受 `call_enabled` 控制、启动拉 `/app/config`、未实现页面占位）。
+- 上次停在哪：T2.7 导航与 App 骨架完成（`Routes.kt` 覆盖 01 文档 31 个页面 + P00、`ClNavHost`、`MainScreen` 底部导航受 `call_enabled` 控制、启动拉 `/app/config` 并落 DataStore、未实现页面统一占位），`check-android.sh` 通过（28 个单测）。下一步按 `docs/08` 做 T2.8（`TimeFormat`/`MoneyFormat`/`Validators`/`ImageCompressor` + 单元测试）。
 
 ## 任务进度
 
@@ -16,7 +16,7 @@
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
-- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
+- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
@@ -54,6 +54,8 @@
 |---|---|---|---|---|
 | 后台 | postcss-html | 2.0.0 | stylelint 解析 `.vue` 的 `<style>` 所需；它是上游的隐式 peer 依赖，pnpm 严格布局下未被提升到根 node_modules，必须显式声明才能跑 `lint:stylelint` | T0.3 |
 | 安卓 | androidx.compose.material:material-icons-extended | 1.7.8（Compose BOM 2026.09.00 钉的版本） | `ClIcons` 要用 Material Icons Rounded 全套。**注意**：Google 已弃用这个 artifact（建议自带矢量图），且它会明显增大包体 —— release 构建应打开 `isMinifyEnabled` 让 R8 裁掉没用到的图标，或以后把用到的图标改成自带 ImageVector | T2.2 |
+| 安卓 | androidx.lifecycle:lifecycle-runtime-compose | 2.11.0 | Compose 里用 `collectAsStateWithLifecycle()` 收 StateFlow（随生命周期停止收集） | T2.7 |
+| 安卓 | androidx.hilt:hilt-navigation-compose | 1.4.0 | `hiltViewModel()`：在 `composable(...)` 目的地里拿 @HiltViewModel（目的地的 ViewModelStoreOwner 不是 Activity，普通 `viewModel()` 拿不到 Hilt 工厂） | T2.7 |
 | 后台 | postcss-html | 2.0.0 | stylelint 解析 `.vue` 的 `<style>` 所需；它是上游的隐式 peer 依赖，pnpm 严格布局下未被提升到根 node_modules，必须显式声明才能跑 `lint:stylelint` | T0.3 |
 
 ## 待确认问题
@@ -354,6 +356,24 @@
 - 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；`testDebugUnitTest` 含上面 9 个用例；`check-ui.sh` 通过）；`bash scripts/check-server.sh` → 通过（**100 测试 / 1160 断言**）。
 - 对照设计图：不涉及
 - 遗留/疑问：业务错误的 `data` 结构和服务端成功时的 DTO 不一样（例如 20001 带 `balance`/`needed`），所以 `ApiResult.BizError.data` 保留原始 `JsonElement`，需要时自己取。
+
+### T2.7 导航与 App 骨架 —— ✅ 完成（2026-10-12）
+- 完成内容：
+  - `core/navigation/Routes.kt`：`docs/01` 第 5 节全部 31 个页面 + P00 登录/注册/协议的路由常量与带参构造函数（`userDetail(id)`、`chat(id)`、`callConfirm(id)`…）。**P30 余额不足、P31 聊天礼物是弹窗不是页面，所以没有路由**。
+  - `core/navigation/ClNavHost.kt`：全 App 唯一导航图。已实现的只有 `login`（占位）、`main`、`gallery`；其余 26 个页面统一挂 `PlaceholderPage`（`ClScaffold` + `ClTopBar` + `ClEmpty("开发中")`），后续任务把对应的 `placeholder(...)` 换成真页面即可。
+  - `MainScreen` / `MainViewModel` / `MainUiState`：底部导航 4 个 Tab（遇见/速配/消息/我），**速配 Tab 由 `feature.call_enabled` 控制**；Tab 各自是独立路由，切换用 `saveState/restoreState` 保留各自的滚动位置。
+  - 启动配置：`AppApi`（`/app/config`、`/app/agreement/{type}`）、`AppConfig` 模型（**字段名按服务端下划线风格加了 `@SerialName`**）、`AppConfigRepository`（`StateFlow<AppConfig?>` + 落 DataStore）、`ClApp.onCreate` 里后台拉一次。拿不到配置（首次安装 + 断网）时按 `call_enabled = false` 处理，与服务端默认值一致。
+  - `MainActivity`：起始页由本地 token 决定 —— 没 token 进登录页，有 token 直接进主界面。
+  - 底部安全区：在 `ClNavHost` 的 `NavHost` 上统一 `windowInsetsPadding(navigationBars)`（背景铺满、内容避开），页面不用各自操心；`ClBottomBar` 自己也带一份，靠 Compose 的 insets 消费机制不会重复留白（targetSdk 35+ 强制边到边）。
+- 验收对照（docs/08 T2.7）：
+  1. 能在 4 个 Tab 间切换 —— ✅ `MainViewModelTest`（8 个用例）
+  2. **开关关闭时只有 3 个 Tab**（ViewModel 测试）—— ✅ 另含：配置未加载按关闭处理 / 配置从关到开后多出速配且不打断当前 Tab / 关闭时点速配不生效 / 点不认识的路由不改变当前 Tab
+  3. `/app/config` 字段名契约 —— ✅ `AppConfigTest`（4 个用例，用**接口真实返回的 JSON** 钉住解析；另覆盖多返回未知字段、缺字段走默认值）
+- 实测：`curl http://127.0.0.1:9501/api/v1/app/config` 返回的字段与 `AppConfig` 一一对应（`call_enabled`/`compliance_disclosure`/`service.wechat`/`service.qrcode_url`/`service.phone`/`chat_max_length`/`image_max_mb`/`cities`/`tags[{id,name}]`/`version`）。
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；`testDebugUnitTest` **28 个用例**：AppConfig 4 + MainViewModel 8 + ApiResult 5 + AuthInterceptor 5 + 主题 5 + 图标 1；`lintDebug`、`assembleDebug`、`check-ui.sh` 均通过）。
+- **未做**：没有在模拟器/真机上跑过（本机只装了 Android Studio，没有启动过 AVD），所以「Tab 能点、能切」是靠 ViewModel 测试 + 编译通过保证的，真机观感待你跑一次再确认。
+- 对照设计图：不涉及（占位页）。
+- 遗留/疑问：底部导航的**未读角标**没做 —— 未读数要等 T4.x 消息数据，`ClBottomBar` 的 `badges` 参数已经就绪，到 T4.6 接上即可。
 
 ## 阶段验收记录
 

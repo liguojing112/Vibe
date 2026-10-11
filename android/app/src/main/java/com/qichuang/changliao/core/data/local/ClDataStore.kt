@@ -25,6 +25,7 @@ private val Context.clPreferences: DataStore<Preferences> by preferencesDataStor
 private val KEY_ACCESS_TOKEN = stringPreferencesKey("access_token")
 private val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
 private val KEY_REMINDER = booleanPreferencesKey("reminder_enabled")
+private val KEY_APP_CONFIG = stringPreferencesKey("app_config")
 
 /**
  * DataStore 本地小状态（docs/02 第 4.3 节、docs/10 第 7 节）：token、筛选条件、消息提醒开关。
@@ -45,12 +46,16 @@ class ClDataStore @Inject constructor(
     @Volatile
     private var cachedRefreshToken: String? = null
 
+    @Volatile
+    private var cachedAppConfig: String? = null
+
     init {
-        // 启动时同步预热一次，保证第一个请求就带得上 token
+        // 启动时同步预热一次，保证第一个请求就带得上 token，首个界面就能用上配置
         runBlocking {
             val prefs = context.clPreferences.data.first()
             cachedAccessToken = prefs[KEY_ACCESS_TOKEN]
             cachedRefreshToken = prefs[KEY_REFRESH_TOKEN]
+            cachedAppConfig = prefs[KEY_APP_CONFIG]
         }
     }
 
@@ -102,6 +107,19 @@ class ClDataStore @Inject constructor(
     fun setReminderEnabled(enabled: Boolean) {
         scope.launch {
             context.clPreferences.edit { prefs -> prefs[KEY_REMINDER] = enabled }
+        }
+    }
+
+    /**
+     * 启动配置的本地缓存（docs/02 第 4.4 节）：接口拿不到时先把上次的配置用起来，
+     * 保证「速配」这类开关不会因为断网而乱跳。配置与账号无关，退出登录不清。
+     */
+    fun appConfigJson(): String? = cachedAppConfig
+
+    fun saveAppConfig(json: String) {
+        cachedAppConfig = json
+        scope.launch {
+            context.clPreferences.edit { prefs -> prefs[KEY_APP_CONFIG] = json }
         }
     }
 }
