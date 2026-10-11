@@ -5,17 +5,17 @@
 
 ## 当前状态
 
-- 当前阶段：**P1 后端基础**（P0 已完成）
-- 当前任务：T1.6 已完成 → 下一步 T1.7（P1 阶段验收，跑 check-all.sh）
+- 当前阶段：**P1 后端基础 已完成**，下一阶段 P2 安卓基础
+- 当前任务：（P1 全部完成）下一步 T2.1 主题
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T1.6 钱包服务完成（3 张流水表 + `CoinWalletService`/`PointWalletService`/`PlatformIncomeService`），`bash scripts/check-server.sh` 通过（**100 测试 / 1160 断言**、phpstan 无错误、资金扫描通过）。开发库已迁移，后端已重启（登录 200）。下一步按 `docs/08` 做 T1.7：跑 `bash scripts/check-all.sh` 做 P1 阶段验收。
+- 上次停在哪：**P1 七个任务（T1.1~T1.7）全部完成**，`bash scripts/check-all.sh` 全绿（server 100 测试 / admin-web / android）。后端已具备：配置中心、统一响应与错误码、App 用户表与认证（注册/登录/刷新/退出/改密码 + JWT api 场景）、启动配置与协议接口、图片上传、钱包服务（流水 + 增减/冻结/结算 + 对账）。下一步进入 P2（安卓基础，从 T2.1 主题开始），这一阶段是 UI 统一的关键，要按 docs/03 逐个 token 落地。
 
 ## 任务进度
 
 <!-- 做完一个，把 [ ] 改成 [x]，并在下方「任务记录」里写自检记录 -->
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
-- P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [ ] T1.7
+- P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
 - P2：[ ] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
@@ -280,6 +280,12 @@
 - 本阶段无 UI 页面，故未做设计图走查。
 - 发现并处理的问题（详见各任务记录与「待确认问题」表）：WSL 网络（Clash）、Swoole 编译与 `use_shortname`、测试库隔离、MineAdmin 上游 7 个测试 + 5 个 phpstan 报错、MineAdmin-Vue 上游 lint、AGP 9 内置 Kotlin 的三处适配、Google Maven 不可达改阿里云镜像。
 - 遗留：后台「浏览器登录看到菜单」的人工验证未做（无人可用浏览器）；见 T0.3 记录。
+
+### P1 后端基础 —— ✅ 通过（2026-10-11）
+- `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（rc=0）：server **100 测试 / 1160 断言** + phpstan + check-money；admin-web lint+build；android testDebugUnitTest+lintDebug+assembleDebug+check-ui。
+- 本阶段只做后端，没有新增页面、也没有后台菜单，故无设计图走查与菜单走查。
+- 产出：T1.1 配置中心（`cl_config`/`cl_level_config` + `AppConfigService`）、T1.2 统一响应与错误码（`ApiResult`/`BizCode`/`ClBusinessException`）、T1.3 App 用户与认证（`cl_user` + 两个钱包表 + JWT `api` 场景 + `AppAuthMiddleware`）、T1.4 启动配置与协议（`cl_tag`/`cl_city` + `/app/config`、`/app/agreement/{type}`）、T1.5 图片上传（`StorageInterface`/`LocalStorage` + `/upload/image`）、T1.6 钱包服务（3 张流水表 + 钱包服务 + 对账测试）。
+- 发现并处理的问题：见 T1.1~T1.6 各任务记录（注解扫描缓存导致 `ConstantsCollector` 读不到、phpunit 容器里翻译器取不到 key、`FormRequest` 没有 `ip()`、`check-money.sh` 抓到绕过钱包服务、`PACKAGE_MAX_LENGTH` 比图片上限还小等）。
 
 ## 页面与设计图对照表（T9.2 填写）
 
