@@ -1,0 +1,29 @@
+# ---- 通用 ----
+.env
+.env.local
+*.log
+.DS_Store
+.idea/
+*.iml
+.vscode/
+
+# ---- 后端 server/ (MineAdmin / Hyperf) ----
+vendor/
+runtime/
+storage/uploads/
+server/.env
+
+# ---- 后台 admin-web/ (MineAdmin-Vue) ----
+node_modules/
+dist/
+admin-web/.env
+
+# ---- 安卓 android/ ----
+build/
+.gradle/
+local.properties
+.kotlin/
+*.apk
+*.aab
+android/app/release/
+android/captures/
