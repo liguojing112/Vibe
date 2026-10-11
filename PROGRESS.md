@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P2 安卓基础**（P1 已完成）
-- 当前任务：T2.3 已完成 → 下一步 T2.4 展示类组件
+- 当前任务：T2.4 已完成 → 下一步 T2.5 输入类与反馈类组件
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T2.3 结构类与按钮类组件完成（`ClScaffold`/`ClTopBar`/`ClPageHeader`/`ClBottomBar`/`ClSectionHeader`/`ClFixedBottomArea` + 6 个按钮 + `ClToast`，组件预览页已能展示全部）。`bash scripts/check-android.sh` 通过。下一步按 `docs/08` 做 T2.4（`core/designsystem/component/` 的 5.3 展示类组件 + 预览）。
+- 上次停在哪：T2.4 展示类组件完成（19 个 5.3 组件 + 预览页），`bash scripts/check-android.sh` 通过。下一步按 `docs/08` 做 T2.5（5.5 输入类 + 5.6 反馈类组件；注意 `ClToast` 已在 T2.3 提前做了）。
 
 ## 任务进度
 
@@ -16,7 +16,7 @@
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
-- P2：[x] T2.1 [x] T2.2 [x] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
+- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
@@ -309,6 +309,17 @@
   1. `ClSoftButton` 三种底色的映射见 Q0-14。
   2. 原型 `.page-title` 是 26px/800，而 docs/03 第 3 节写 25sp/Bold —— 按**文档**取 25sp（03 是规范）。
   3. `ClBottomBar` 里的未读角标是临时私有实现，等 T2.4 的 `ClBadgeDot` 出来后改为复用它。
+
+### T2.4 展示类组件 —— ✅ 完成（2026-10-12）
+- 完成内容（`core/designsystem/component/`，19 个）：`ClAvatar`（Coil 加载、在线点右下 / VIP 角标右上）、`ClTag`（Green/Gold/Pink）、`ClLevelBadge`（紫色渐变）、`ClVipBadge`、`ClCoinPill`、`ClCard`（统一卡片阴影）、`ClNoticeCard`（可高亮）、`ClGradientHero`、`ClBalanceCard`、`ClPriceGrid`、`ClBillRow`+`ClBillGroup`、`ClRecordRow`（金额 +绿/-黑）、`ClMenuRow`+`ClMenuGroup`（55dp 高）、`ClSettingRow`+`ClSwitch`（开关用主题色）、`ClStatCell`+`ClStatRow`、`ClBadgeDot`（>99 显示 99+）、`ClFeeStrip`、`ClProgressBar`、`ClDemoLabel`。
+- 顺带改动：`ClBottomBar` 的未读角标改为**复用 `ClBadgeDot`**（消除 T2.3 的临时实现）；`ClTextButton` 增加可选 `color` 参数（`ClFeeStrip` 要用收费条的文字色）。
+- 验收对照：
+  1. 预览页能看到每个组件 —— ✅（`check-ui.sh` 逐个确认 `component/*.kt` 都出现在预览页，本次通过）
+  2. `check-ui.sh` 通过 —— ✅
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；lint、单测、打包、`check-ui.sh` 全通过）
+- 对照设计图：本阶段无页面；样式按 docs/03 第 5.3 节 + 原型 CSS（`.notice-card`/`.balance-hero`/`.bill-grid`/`.record-line`/`.menu-row`/`.demo-label` 等）落地。
+- 踩到的坑：`ClSettingRow(label, desc, trailing, onClick)` 这种「可组合参数后面还有普通参数」的签名，**调用时尾随 lambda 会绑到最后一个参数（onClick）**而不是 `trailing` —— 必须写成 `trailing = { ... }`。
+- 遗留/疑问：两个原型色不在 docs/03 的颜色 token 表里，作为**组件内私有常量**并注明出处：头像占位色 `#E8D8C7`（03 第 6 节第 7 条）、次按钮底色 `#F4EEE3`（03 第 5.2 节）、卡片阴影色 `#F5F1EB`（03 第 4 节）。
 
 ## 阶段验收记录
 

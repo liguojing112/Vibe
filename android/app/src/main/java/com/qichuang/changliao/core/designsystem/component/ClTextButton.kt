@@ -7,6 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
 
@@ -18,12 +19,13 @@ fun ClTextButton(
     text: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    color: Color? = null,
     onClick: (() -> Unit)? = null,
 ) {
     Text(
         text = text,
         style = ClTheme.typography.caption,
-        color = if (enabled) ClTheme.colors.primaryText else ClTheme.colors.muted,
+        color = color ?: if (enabled) ClTheme.colors.primaryText else ClTheme.colors.muted,
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .clickable(enabled = enabled && onClick != null) { onClick?.invoke() }

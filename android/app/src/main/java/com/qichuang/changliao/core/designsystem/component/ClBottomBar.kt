@@ -90,7 +90,7 @@ fun ClBottomBar(
                         )
                         val count = badges[item.key] ?: 0
                         if (count > 0) {
-                            ClBottomBadge(
+                            ClBadgeDot(
                                 count = count,
                                 modifier = Modifier.align(Alignment.TopEnd),
                             )
@@ -109,26 +109,3 @@ fun ClBottomBar(
         }
     }
 }
-
-/** 未读数角标（>99 显示 99+）。等 T2.4 的 ClBadgeDot 出来后会改为复用它。 */
-@Composable
-private fun ClBottomBadge(count: Int, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .widthIn(min = BadgeMinSize)
-            .height(BadgeMinSize)
-            .clip(ClTheme.shapes.pill)
-            .background(ClTheme.colors.danger)
-            .padding(horizontal = ClTheme.spacing.xxs),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = if (count > 99) "99+" else count.toString(),
-            style = ClTheme.typography.micro,
-            color = ClTheme.colors.surface,
-            maxLines = 1,
-        )
-    }
-}
-
-private val BadgeMinSize = 16.dp
