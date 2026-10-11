@@ -12,6 +12,7 @@ declare(strict_types=1);
 use App\Exception\Handler\AppExceptionHandler;
 use App\Exception\Handler\BusinessExceptionHandler;
 use App\Exception\Handler\ClBusinessExceptionHandler;
+use App\Exception\Handler\ClUnauthorizedExceptionHandler;
 use App\Exception\Handler\JwtExceptionHandler;
 use App\Exception\Handler\ModeNotFoundHandler;
 use App\Exception\Handler\UnauthorizedExceptionHandler;
@@ -21,6 +22,8 @@ return [
     'handler' => [
         'http' => [
             ModeNotFoundHandler::class,
+            // App 接口未登录 / token 失效 → HTTP 401（docs/05 第 1 节）
+            ClUnauthorizedExceptionHandler::class,
             // 处理 App 接口业务异常（畅撩交友，docs/05 第 3 节）
             ClBusinessExceptionHandler::class,
             // 处理业务异常

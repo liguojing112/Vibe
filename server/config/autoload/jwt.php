@@ -46,4 +46,16 @@ return [
     'application' => [
         // jwt 配置 https://lcobucci-jwt.readthedocs.io/en/latest/
     ],
+    // App 用户专用场景：密钥与后台不同，所以后台 token 打不开 App 接口，反之亦然（docs/02 第 2.4 节）
+    'api' => [
+        'key' => InMemory::base64Encoded(env('CL_APP_JWT_SECRET')),
+        // access_token 有效期 7 天（docs/05 第 2 节）
+        'ttl' => 604800,
+        // refresh_token 有效期 30 天
+        'refresh_ttl' => 2592000,
+        'blacklist' => [
+            'prefix' => 'cl_jwt_blacklist',
+            'ttl' => 2592001,
+        ],
+    ],
 ];

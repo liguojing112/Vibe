@@ -6,16 +6,16 @@
 ## 当前状态
 
 - 当前阶段：**P1 后端基础**（P0 已完成）
-- 当前任务：T1.2 已完成 → 下一步 T1.3 App 用户表与认证
+- 当前任务：T1.3 已完成 → 下一步 T1.4 启动配置与协议接口
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T1.2 统一响应与错误码完成（`ApiResult`、`BizCode`、`ClBusinessException` + 处理器、分页工具），`bash scripts/check-server.sh` 通过（**63 测试 / 1037 断言**、phpstan 无错误）。后端已重启、登录正常。下一步按 `docs/08` 做 T1.3（`cl_user` 迁移、注册/登录/刷新/退出/改密码、App 专用 JWT scene、`AppAuthMiddleware`、登录锁定与限流、注册时建钱包表）。
+- 上次停在哪：T1.3 App 用户表与认证完成（`cl_user` + 两个钱包表、注册/登录/刷新/退出/改密码、App 专用 JWT scene、`AppAuthMiddleware`、锁定与限流），`bash scripts/check-server.sh` 通过（**80 测试 / 1078 断言**、phpstan 无错误、资金扫描通过）。开发库已迁移，后端已重启并冒烟通过（注册/登录 200、错密码 10001）。下一步按 `docs/08` 做 T1.4（`GET /app/config`、`GET /app/agreement/{type}`，`cl_tag`/`cl_city` 表 + 种子）。
 
 ## 任务进度
 
 <!-- 做完一个，把 [ ] 改成 [x]，并在下方「任务记录」里写自检记录 -->
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
-- P1：[x] T1.1 [x] T1.2 [ ] T1.3 [ ] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
+- P1：[x] T1.1 [x] T1.2 [x] T1.3 [ ] T1.4 [ ] T1.5 [ ] T1.6 [ ] T1.7
 - P2：[ ] T2.1 [ ] T2.2 [ ] T2.3 [ ] T2.4 [ ] T2.5 [ ] T2.6 [ ] T2.7 [ ] T2.8 [ ] T2.9 [ ] T2.10
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
@@ -187,6 +187,33 @@
   2. **phpunit 容器里翻译器取不到 key**（直接 `php` 跑能取到），同一份翻译两种上下文行为不一致。考虑到这些是固定的中文用户文案、不做多语言，`BizCode` 改为**把文案直接写在枚举里**，删除了 `storage/languages/zh_CN/cl.php`。以后若真要 i18n 再迁。
 - 对照设计图：不涉及
 - 遗留/疑问：无
+
+### T1.3 App 用户表与认证 —— ✅ 完成（2026-10-11）
+- 完成内容：
+  - 迁移 `2026_10_11_000002_create_cl_user_tables.php`：`cl_user`（04 第 1 节全部字段 + 3 个索引）、`cl_coin_wallet`、`cl_point_wallet`（含 MySQL 8 的 `CHECK (balance >= 0)` / `CHECK (frozen >= 0)`）。
+  - 模型 `App\Model\Cl\{User,CoinWallet,PointWallet}`；仓储 `Cl\UserRepository`（账号/手机号/账号或手机号查询）、`Cl\CoinWalletRepository`、`Cl\PointWalletRepository`。
+  - 服务 `App\Service\Cl\Auth\AppAuthService`（注册/登录/刷新/退出/改密码、封号检查、密码错误 5 次锁 15 分钟、登录按 IP 限流 10 次/分钟）；`App\Service\Cl\Wallet\{CoinWalletService,PointWalletService}`（T1.3 先只做「开户」，T1.6 补增减流水）。
+  - `App\Http\Api\Middleware\AppAuthMiddleware`：Bearer token（scene `api`）+ 黑名单 + 用户存在/未注销，封禁抛 10004；未登录/token 失效 → `ClUnauthorizedException` + `ClUnauthorizedExceptionHandler` → **HTTP 401**。
+  - `App\Http\Api\Controller\V1\AuthController` + 4 个 Request；`config/autoload/jwt.php` 新增 `api` 场景（密钥 = `CL_APP_JWT_SECRET`，access 7 天 / refresh 30 天，黑名单前缀 `cl_jwt_blacklist`）。
+- 验收对照（9 项 + 补充）：
+  1. 注册成功（且密码 bcrypt、男号自动建金币钱包、女号建积分钱包）—— ✅
+  2. 手机号重复 10002 —— ✅
+  3. 密码规则（无数字 / 太短 / 手机号格式错 → 422）—— ✅
+  4. 登录成功 —— ✅
+  5. 密码错误 10001 —— ✅
+  6. 连续错 5 次后锁定 10003（第 6 次即使密码正确也被锁）—— ✅
+  7. 封号登录 10004（data 带 reason、until）—— ✅
+  8. **后台 token 不能访问 App 接口** —— ✅（401）
+  9. **App token 不能访问后台接口** —— ✅（401）
+  10. 补充：改密码（旧密码错 10006）、退出后 token 进黑名单、刷新 token、无 token 401 —— ✅
+- 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 80, Assertions: 1078**；phpstan `[OK] No errors`；money 通过）；开发库已 `migrate`，重启后端后 curl 冒烟：注册 200 / 登录 200 / 错密码 10001。
+- 踩到的坑（都已处理）：
+  1. `Hyperf\HttpServer\Request` **没有 `ip()`**（MineAdmin 的 `ClientIpRequestTrait` 只提供 `getClientIps()`）→ 控制器改用 `getClientIps()[0]`。原来用 `$request->ip()` 会 500。
+  2. `scripts/check-money.sh` **先抓到注册时直接 `CoinWallet::create`**，随后又抓到「在 Service 里注入钱包仓储」→ 按 docs/02 的架构改成注入 `CoinWalletService`/`PointWalletService`（服务类名不在扫描正则里）。**这条检查很有用，别绕过。**
+  3. phpstan：`Hyperf\Database\Exception\UniqueConstraintViolationException`（不是 `DbConnection\...\QueryException`）；模型日期字段 docblock 要写 `Carbon\Carbon`；PSR-7 请求用 `withAttribute()` 而不是 Swoke 的 `setAttribute()`。
+  4. swagger 注解注册路由：新增控制器后要清 `runtime/container`（`composer test` 已自带）。
+- 对照设计图：不涉及
+- 遗留/疑问：注册请求接受一个**可选**的 `confirm_password`（01 P00 表单有「确认密码」，但 05 的接口表只列了 phone/password/gender/nickname，故做成可选 + `same:password`）。
 
 ## 阶段验收记录
 
