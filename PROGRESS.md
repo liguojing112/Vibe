@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P2 安卓基础**（P1 已完成）
-- 当前任务：T2.9 已完成 → 下一步 T2.10 P2 阶段验收
+- 当前任务：T2.10 已完成 → 下一步 T2.11 列表缓存封装
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T2.9 业务复用组件完成（`03` 第 5.4 节的 15 个组件 + 预览页新增一节 + 3 个新图标），`check-android.sh` 通过。下一步按 `docs/08` 做 T2.10（`09` 第 5 节，把组件预览页从头到尾检查一遍 + P2 阶段验收）。
+- 上次停在哪：**P2 阶段验收通过**（`bash scripts/check-all.sh` → `✅✅✅ 全部检查通过`，rc=0；server 100 测试 / 1160 断言 + phpstan 无错 + money 检查通过；admin lint+build 通过；android 62 单测 + lint + assemble + UI 检查通过）。P2 的 11 个任务只剩 T2.11（列表缓存封装）没做，下一步做它，然后进 P3。
 
 ## 任务进度
 
@@ -16,7 +16,7 @@
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
-- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [ ] T2.10 [ ] T2.11
+- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [ ] T2.11
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
@@ -417,9 +417,38 @@
 - 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；`check-ui.sh` 的「每个组件都要出现在预览页」逐个通过；单测仍为 62 个，本次没新增测试）。
 - 遗留/疑问：`ClMiniProfileRow` 的 `blurred`（P09 非会员看不全）用的 `Modifier.blur` **在 API 31 以下是空操作**（Compose 的限制），所以低版本手机上打码不生效；如果要保证所有机型都糊，得改成画一层遮罩或换成打码文字。记入待确认。
 
+### T2.10 P2 阶段验收 —— ✅ 完成（2026-10-12）
+- `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（rc=0）：
+  - server：`Tests: 100, Assertions: 1160`（含 7 个上游用例按 Q0-9 排除）+ phpstan `[OK] No errors`（5 条上游问题走 baseline）+ `✅ money 检查通过`。
+  - admin-web：`pnpm lint`（vue-tsc + eslint + stylelint）与 `pnpm build` 通过。
+  - android：`testDebugUnitTest` **62 个用例全绿**、`lintDebug`、`assembleDebug`、`✅ UI 检查通过`。
+- **组件预览页从头到尾检查**：
+  - `docs/03` 第 5.1~5.6 节列的组件**全部实现**：5.1 结构类 6、5.2 按钮类 6、5.3 展示类 23、5.4 业务复用 15、5.5 输入类 6、5.6 反馈类 8。`core/designsystem/component/` 下 **60 个文件**（一个文件里放同族组件，如 `ClMenuRow.kt` 含 `ClMenuGroup`）。
+  - 写了个静态核对：除 `check-ui.sh` 的「文件名要出现在预览页」之外，再逐个确认**预览页里真的有调用**（`ClXxx(`）。60 个文件全部有实际预览，其中 `ClFixedBottomArea` 是尾随 lambda 写法（`ClFixedBottomArea { ... }`），第一版脚本误报，已确认是脚本的正则问题不是缺陷。
+  - 预览页分 6 节（结构/按钮/展示/业务复用/输入/反馈），每节都有多状态样例（禁用、loading、错误、空、发送中/失败、选中/未选中等）。
+  - **未做的部分**：没有在模拟器/真机上把预览页从头滚到尾点一遍（本机没有可用 AVD），所以「打开不崩、滚动不卡、点击有响应」只能靠编译 + lint + 代码审阅保证，**没有目视确认**。`ClPullRefreshList` 放在有界高度容器里这条已知约束在预览页里仍然遵守。
+- **本阶段没有可走查的页面**：P2 只做基础件，`docs/01` 的 31 个页面在本阶段全是占位页（「开发中」），所以「按 01 文档逐页检查（男号/女号各走一遍）」这一步无从做起，留到 P3 开始有真页面后逐阶段做。
+- **本阶段没有后台菜单**：P2 没动后台，`check-admin.sh` 只验证了 lint + build。
+- 遗留/疑问：无新增。P2 累积的待确认项见「待确认问题」表（Q0-6 token 明文、Q0-13 `app.version` 语义、Q0-14 `ClSoftButton` 三色、Q0-15 `Modifier.blur` 低版本无效）。
+
 ## 阶段验收记录
 
 <!-- 每个阶段结束写一段：check-all 结果、走查了哪些页面、发现并修复了什么 -->
+
+### P2 安卓基础 —— ✅ 通过（2026-10-12）
+- `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（rc=0）：server 100 测试 / 1160 断言 + phpstan + check-money；admin-web lint+build；android 62 单测 + lintDebug + assembleDebug + check-ui。
+- 产出（11 个任务，除 T2.11 顺延到本阶段末尾之外全部完成）：
+  - T2.1 主题（`ClColors`/`ClTypography`/`ClSpacing`/`ClSize`/`ClShapes`/`ClElevation`/`ClGradients` + `ClTheme` 与 `clCardShadow`/`clTopWash*`）
+  - T2.2 图标（`ClIcons`，本阶段末共 30 个）
+  - T2.3~T2.5 六类公共组件 45 个文件（含 `UiState`、`ClPullRefreshList` 分页失败重试）
+  - T2.6 网络层与本地存储（`ApiResponse`/`ApiResult`/`safeApiCall`/`AuthInterceptor` 401 自动刷新、`AuthApi`、`ClDataStore`、Room 骨架）
+  - T2.7 导航与 App 骨架（`Routes` 覆盖 31 个页面 + P00、`ClNavHost`、底部导航受 `call_enabled` 控制、启动拉 `/app/config`、未读角标）
+  - T2.8 公共工具（`TimeFormat`/`MoneyFormat`/`Validators`/`ImageCompressor` + 34 单测）
+  - T2.9 业务复用组件 15 个 + 预览页新增一节
+  - T2.10 阶段验收（本记录）
+- **UI 统一这条命脉已经立住**：所有页面只能用 `core/designsystem` 的 token 与组件，`check-ui.sh` 会扫 `feature/` 里的硬编码色值/尺寸和原生组件，也会检查每个组件有没有进预览页。
+- 发现并处理的问题：AGP 9 内置 Kotlin 的三处适配（已在 P0 记录）、Room 需要至少一个实体所以先用 `sync_state` 起库（T2.6）、服务端业务错误的 `data` 从 `[]` 改成 `null`（T2.6）、`hiltViewModel` 新包名（T2.7）、写单测时抓到自己两处笔误（身份证校验位用例填错、通话圆钮颜色用错 token，均已修）。
+- 遗留（不阻塞 P3，已记入待确认表或对应任务）：Q0-13 `app.version` 语义、Q0-14 `ClSoftButton` 三种底色的最终归属、Q0-15 `Modifier.blur` 在 API 31 以下无效、`ImageCompressor.compress()` 本体未测、**真机/模拟器尚未跑过一次**（本机没有可用 AVD）。
 
 ### P0 准备与骨架 —— ✅ 通过（2026-10-11）
 - `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（rc=0）：server 44 测试 + phpstan + check-money；admin-web lint+build；android testDebugUnitTest+lintDebug+assembleDebug+check-ui。
