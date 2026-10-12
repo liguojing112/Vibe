@@ -6,6 +6,7 @@ namespace App\Repository\Cl;
 
 use App\Model\Cl\Message;
 use App\Repository\IRepository;
+use Hyperf\Carbon\Carbon;
 use Hyperf\Collection\Collection;
 
 /**
@@ -66,5 +67,35 @@ final class MessageRepository extends IRepository
             ->get();
 
         return $rows;
+    }
+
+    /**
+     * 按 id 批量取（会话列表要显示每条会话的「最后一条消息」，一次查完，别在循环里查库）。
+     *
+     * @param array<int,int> $ids
+     * @return Collection<int,Message>
+     */
+    public function byIds(array $ids): Collection
+    {
+        if ($ids === []) {
+            return new Collection([]);
+        }
+
+        /** @var Collection<int,Message> $rows */
+        $rows = $this->model->newQuery()->whereIn('id', $ids)->get();
+
+        return $rows;
+    }
+
+    /**
+     * 把我收到的、这个会话里的消息标记成已读（`read_at` 是监管留痕，未读数在会话表上）。
+     */
+    public function markRead(int $conversationId, int $receiverId): int
+    {
+        return $this->model->newQuery()
+            ->where('conversation_id', $conversationId)
+            ->where('receiver_id', $receiverId)
+            ->whereNull('read_at')
+            ->update(['read_at' => Carbon::now()]);
     }
 }

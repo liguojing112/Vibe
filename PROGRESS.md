@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P4 私信与计费**（P3 已完成）
-- 当前任务：T4.2 已完成 → 下一步 T4.3 会话、消息查询与已读
+- 当前任务：T4.3 已完成 → 下一步 T4.4 WebSocket 推送
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T4.2 发消息计费完成（`MessageBillingService::send` 按 `06` §3.3 七步 + `POST /chat/send` + 敏感词标记 + `fee`/收费条文案 + 等级升级检查，**`06` 第 10 节场景 1~13 全过**），`check-server.sh` 通过（**225 测试 / 1659 断言**）。下一步按 `docs/08` 做 T4.3（会话列表、删除会话、`with/{userId}`、消息分页、已读、未读数、`sync`、`fee-rules`）。
+- 上次停在哪：T4.3 会话、消息查询与已读完成（会话列表 / 删会话 / `with/{userId}` / 历史消息分页 / 已读 / 未读总览 / `sync` 增量补拉 / `fee-rules` 共 8 个接口，验收三项全过：未读数按「发给自己」分边统计、删掉会话后对方来新消息会重新出现、女用户 `fee` 为 `null`），`check-server.sh` 通过（**255 测试 / 1799 断言**）。下一步按 `docs/08` 做 T4.4（WS 服务、token 鉴权、fd 映射、心跳、`PushService`、发消息事务提交后推 `message.new` 与 `unread.update`）。
 
 ## 任务进度
 
@@ -18,7 +18,7 @@
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
 - P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [x] T2.11
 - P3：[x] T3.1 [x] T3.2 [x] T3.3 [x] T3.4 [x] T3.5 [x] T3.6 [x] T3.7 [x] T3.8 [x] T3.9 [x] T3.10
-- P4：[x] T4.1 [x] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8 [ ] T4.9
+- P4：[x] T4.1 [x] T4.2 [x] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8 [ ] T4.9
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
 - P6：[ ] T6.1 [ ] T6.2 [ ] T6.3 [ ] T6.4 [ ] T6.5 [ ] T6.6 [ ] T6.7
 - P7：[ ] T7.1 [ ] T7.2 [ ] T7.3 [ ] T7.4 [ ] T7.5 [ ] T7.6 [ ] T7.7 [ ] T7.8 [ ] T7.9
@@ -758,6 +758,41 @@
 - 顺手修了一处**测试间污染**：我新加的 HTTP 用例把 `chat.free_count_per_pair` 改成 0 却没在收尾还原，导致 T3.6 的一个用例（`free_hint`）挂了 —— 是测试的问题不是代码退化，收尾补上了还原。
 - 自检命令：`bash scripts/check-server.sh` → 通过（**225 测试 / 1659 断言**；phpstan `[OK] No errors`；money 通过 —— 资金动作全部走钱包服务，`check-money.sh` 没报）。
 - 未做 / 有意为之：**WebSocket 推送**（步骤 7）在 T4.4；**升级通知**在 P6 通知系统建好后接；礼物计费（场景 14~16）在 P5。
+
+### T4.3 会话、消息查询与已读 —— ✅ 完成（2026-10-13）
+
+- 读：`05` §4.5（8 个接口）、`01` P03/P06、`10`（本地化口径）
+- 接口（全部 `#[Middleware(AppAuthMiddleware::class)]`，都在 `ChatController`，路由前缀一样就不另开 Controller）：
+  - `GET /chat/conversations` —— 分页外壳（`page_size = 20`），每项 = 对方简要资料 + 最后一条消息 + 未读数
+  - `DELETE /chat/conversations/{id}` —— 只对自己隐藏，重复删当成功
+  - `GET /chat/conversations/with/{userId}` —— `conversation_id`（没有则 `null`）+ `peer` + `unread` + `fee`
+  - `GET /chat/messages` —— `conversation_id` / `before_id` / `limit`（默认 30、上限 100），**倒序**返回 + `has_more`
+  - `POST /chat/read` —— 清未读 + 打 `read_at`，**顺便把最新未读总览带回来**（客户端不用再打一次）
+  - `GET /chat/unread` —— 会话 / 访客 / 通知分别返回 + `total`
+  - `GET /chat/sync` —— 我收到的、`id > after_id` 的消息，升序 + `max_id` 游标 + `has_more` + `unread`
+  - `GET /chat/fee-rules` —— 收费说明弹窗条目，按当前配置现算
+- **出参形状只写一次**：新增 `ChatPresenter`（`message` / `messages` / `fee` / `peer`）。同一条消息会从
+  `/chat/send` 返回值、`/chat/messages` 与 `/chat/sync` 列表、以及 T4.4 的 WS 推送三条路发给客户端，
+  三处字段必须一致，所以 `MessageBillingService` 里原来那份私有的 `messagePayload()` 也换成它了。
+- **删除会话靠时间戳不靠删数据**：给自己那侧的 `*_deleted_at` 盖时间戳 + 未读清零；`touchConversation()`（T4.2 写的）
+  会在对方来新消息时把两侧的时间戳都清空 → 会话重新出现，且**未读从 0 重新数**（不是把删之前的捡回来）。
+  删除时不清未读的话，底部角标会指向一个列表里看不见的会话，所以一并清了。
+- **拉黑即不可见**：会话列表、未读总数、`with/{userId}` 都过滤任一方向拉黑的人（`with` 直接当对方不存在，返回 30001）。
+- 权限口径：`requireParticipant()` 对「会话不存在」和「不是你的会话」返回**同一个** 30001，
+  免得拿 id 就能探出别人有没有会话。
+- `fee-rules` 按性别给不同条目：男方看「怎么扣钱」（免费条数 / 互关免费 / 会员每日额度 / 各级单价 / 图片同价 / 充值比例），
+  女方看「怎么分成」（免费发送 / 各级分成比例 / 未实名系数 / 积分兑换）。后台把 `chat.free_count_per_pair` 改成 0，
+  第一句文案跟着变成「每对用户之间不设免费条数，第 1 条即计费」（客户要求的「第一条就收费」可配）。
+- **未读数三源**：会话（会话表 `low_unread` / `high_unread` 按我是哪一侧求和）、访客（`cl_visit.read_at` 为空）、
+  系统通知。`cl_notice` 表要到 P6 的 T6.6 才建，这里先恒为 0 占住字段位置，**P6 要回来把它接上**。
+- 踩坑：加完注解路由后第一次跑 HTTP 测试**全 500**（`testConversationsRequireLogin` 期望 401 拿到 500）——
+  是 `runtime/container` 里的注解路由缓存还是旧扫描结果，`rm -rf runtime/container` 后就好了。
+  所以在 WSL 里跑测试前，改了 Controller 注解就要清一次容器缓存。
+- 自检：`bash scripts/check-server.sh` → **255 测试 / 1799 断言**、phpstan `[OK] No errors`、`check-money.sh` 通过。
+- 新增测试：`tests/Feature/Cl/Chat/ChatQueryTest.php`（22 例，服务层）、
+  `tests/Feature/Cl/Api/ChatQueryControllerTest.php`（8 例，HTTP 层）。
+- 留给后面的：WS 推送 `message.new` / `unread.update` → T4.4；安卓侧 Room 落库与聊天页 → T4.5 / T4.6；
+  `cl_notice` 未读数 → T6.6；消息留存清理 → T4.9。
 
 ## 阶段验收记录
 

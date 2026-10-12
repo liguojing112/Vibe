@@ -81,6 +81,18 @@ class Conversation extends MineModel
         return (int) $this->{$this->unreadColumnFor($userId)};
     }
 
+    /** 会话里「不是我的」那一方（会话列表要显示对方的资料）。 */
+    public function peerIdFor(int $userId): int
+    {
+        return $userId === $this->user_low_id ? (int) $this->user_high_id : (int) $this->user_low_id;
+    }
+
+    /** 我是不是这个会话的参与者。 */
+    public function involves(int $userId): bool
+    {
+        return $userId === $this->user_low_id || $userId === $this->user_high_id;
+    }
+
     /** 我在这个会话里对应哪个「删除时间」列（删了之后来新消息会话要重新出现）。 */
     public function deletedAtColumnFor(int $userId): string
     {

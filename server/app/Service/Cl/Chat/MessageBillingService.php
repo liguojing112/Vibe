@@ -61,6 +61,7 @@ final class MessageBillingService
         private readonly BlockRepository $blockRepository,
         private readonly UserRepository $userRepository,
         private readonly AppConfigService $configService,
+        private readonly ChatPresenter $presenter,
     ) {}
 
     /**
@@ -277,7 +278,7 @@ final class MessageBillingService
     {
         if (! $sender->isMale()) {
             return [
-                'message' => $this->messagePayload($message),
+                'message' => $this->presenter->message($message),
                 'fee' => null,
                 'balance' => $this->pointWalletService->summaryOf($sender->id)['balance'],
             ];
@@ -285,42 +286,13 @@ final class MessageBillingService
 
         $conversation = $this->conversationRepository->findByPair($sender->id, $receiver->id);
         $sentCount = $conversation === null ? 0 : (int) $conversation->male_sent_count;
-        // 发完这条之后的「下一条」报价（docs/05 第 4.5 节的 fee 结构）
-        $next = $this->pricingService->quote($sender, $receiver, $sentCount);
         $balance = $this->coinWalletService->balanceOf($sender->id);
 
         return [
-            'message' => $this->messagePayload($message),
-            'fee' => [
-                'next_price' => $next->price,
-                'free_reason' => $next->freeReason,
-                'pair_free_left' => $next->pairFreeRemaining,
-                'vip_free_left' => $next->vipFreeRemaining,
-                'balance' => $balance,
-                'strip_text' => $this->pricingService->stripText($next, $balance),
-            ],
+            'message' => $this->presenter->message($message),
+            // 发完这条之后的「下一条」报价（docs/05 第 4.5 节的 fee 结构）
+            'fee' => $this->presenter->fee($sender, $receiver, $sentCount),
             'balance' => $balance,
-        ];
-    }
-
-    /**
-     * @return array<string,mixed>
-     */
-    private function messagePayload(Message $message): array
-    {
-        return [
-            'id' => (int) $message->id,
-            'conversation_id' => (int) $message->conversation_id,
-            'sender_id' => (int) $message->sender_id,
-            'receiver_id' => (int) $message->receiver_id,
-            'client_msg_id' => (string) $message->client_msg_id,
-            'type' => (int) $message->type,
-            'content' => (string) $message->content,
-            'price_coins' => (int) $message->price_coins,
-            'free_reason' => $message->free_reason,
-            'receiver_points' => (int) $message->receiver_points,
-            'sensitive_hit' => (int) $message->sensitive_hit,
-            'created_at' => $message->created_at?->format('Y-m-d H:i:s'),
         ];
     }
 

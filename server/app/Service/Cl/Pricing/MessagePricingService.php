@@ -180,6 +180,90 @@ final class MessagePricingService
         };
     }
 
+    /**
+     * 收费说明弹窗的条目（docs/05 第 4.5 节 `/chat/fee-rules`，入口在 `01` P06 的收费条右侧）。
+     *
+     * **按当前配置现算**，不是写死的文案：后台把免费条数改成 0，这里第一句就跟着变。
+     * 男女看到的不一样 —— 男方看「怎么扣钱」，女方看「怎么分成」。
+     *
+     * @return array<int,string>
+     */
+    public function feeRuleItems(User $user): array
+    {
+        return $user->isFemale() ? $this->femaleRuleItems() : $this->maleRuleItems();
+    }
+
+    /** @return array<int,string> */
+    private function maleRuleItems(): array
+    {
+        $items = [];
+
+        $pairFree = max(0, (int) $this->configService->get('chat.free_count_per_pair', 0));
+        $items[] = $pairFree > 0
+            ? sprintf('每对用户之间，前 %d 条私信免费', $pairFree)
+            : '每对用户之间不设免费条数，第 1 条即计费';
+
+        if ((bool) $this->configService->get('chat.mutual_follow_free', 1)) {
+            $items[] = '互相关注后，私信免费';
+        }
+
+        $vipFree = max(0, (int) $this->configService->get('vip.daily_free_messages', 0));
+        if ($vipFree > 0) {
+            $items[] = sprintf('会员每天额外 %d 条免费私信（不限对象）', $vipFree);
+        }
+
+        $prices = [];
+        foreach ($this->levelConfigRepository->allOrdered() as $level) {
+            $prices[] = sprintf('Lv%d %d 币/条', (int) $level->level, (int) $level->message_price);
+        }
+        if ($prices !== []) {
+            $items[] = '私信按对方等级计价：' . implode('、', $prices);
+        }
+
+        if ((bool) $this->configService->get('chat.image_same_price', 1)) {
+            $items[] = '图片消息与文字消息同价';
+        }
+
+        $coinPerYuan = (int) $this->configService->get('coin.per_yuan', 0);
+        if ($coinPerYuan > 0) {
+            $items[] = sprintf('充值比例：1 元 = %d 金币，余额不足时无法发送', $coinPerYuan);
+        }
+
+        return $items;
+    }
+
+    /** @return array<int,string> */
+    private function femaleRuleItems(): array
+    {
+        $items = ['女用户发送私信免费，不扣金币'];
+
+        $rates = [];
+        foreach ($this->levelConfigRepository->allOrdered() as $level) {
+            $rates[] = sprintf('Lv%d %s', (int) $level->level, $this->percent((int) $level->message_share_rate));
+        }
+        if ($rates !== []) {
+            $items[] = '收到男用户的付费私信，按你的等级分成：' . implode('、', $rates);
+        }
+
+        $factor = (int) $this->configService->get('share.unverified_factor', 10000);
+        if ($factor > 0 && $factor < 10000) {
+            $items[] = sprintf('未完成实名认证时，分成按 %s 计算', $this->percent($factor));
+        }
+
+        $pointPerYuan = (int) $this->configService->get('point.per_yuan', 0);
+        if ($pointPerYuan > 0) {
+            $items[] = sprintf('分成以积分结算，%d 积分 = 1 元，可在「我的收益」提现', $pointPerYuan);
+        }
+
+        return $items;
+    }
+
+    /** 万分比 → 百分数文案（3000 → `30%`，3456 → `34.56%`）。只用于显示。 */
+    private function percent(int $rate): string
+    {
+        return rtrim(rtrim(number_format($rate / 100, 2, '.', ''), '0'), '.') . '%';
+    }
+
     private function vipRemaining(User $male): int
     {
         if (! $male->isVip()) {
