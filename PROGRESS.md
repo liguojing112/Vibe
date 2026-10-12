@@ -5,10 +5,10 @@
 
 ## 当前状态
 
-- 当前阶段：**P2 安卓基础**（P1 已完成）
-- 当前任务：T2.10 已完成 → 下一步 T2.11 列表缓存封装
+- 当前阶段：**P2 安卓基础（已全部完成）→ 进入 P3 登录·资料·发现·关系**
+- 当前任务：T2.11 已完成 → 下一步 T3.1 App 登录注册页（P00）
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：**P2 阶段验收通过**（`bash scripts/check-all.sh` → `✅✅✅ 全部检查通过`，rc=0；server 100 测试 / 1160 断言 + phpstan 无错 + money 检查通过；admin lint+build 通过；android 62 单测 + lint + assemble + UI 检查通过）。P2 的 11 个任务只剩 T2.11（列表缓存封装）没做，下一步做它，然后进 P3。
+- 上次停在哪：T2.11 列表缓存封装完成（`LocalCache` + `CacheKeys` + stale-while-revalidate + 60 秒节流，24 个单测），**P2 的 11 个任务全部做完**，`check-android.sh` 通过（92 个单测）。下一步按 `docs/08` 做 T3.1（P00 登录/注册/协议页；验收：ViewModel 测试覆盖校验错误提示、登录成功保存 token、10003/10004 提示）。
 
 ## 任务进度
 
@@ -16,7 +16,7 @@
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
-- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [ ] T2.11
+- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [x] T2.11
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
@@ -431,13 +431,34 @@
 - **本阶段没有后台菜单**：P2 没动后台，`check-admin.sh` 只验证了 lint + build。
 - 遗留/疑问：无新增。P2 累积的待确认项见「待确认问题」表（Q0-6 token 明文、Q0-13 `app.version` 语义、Q0-14 `ClSoftButton` 三色、Q0-15 `Modifier.blur` 低版本无效）。
 
+### T2.11 列表缓存封装 —— ✅ 完成（2026-10-12）
+- `core/data/local/LocalCache.kt`：
+  - `save/load/remove`（按 key 落成 JSON 文件）+ `clearMemory()`（切号 / 退出登录用）。
+  - **原子写**：先写 `.json.tmp` 再改名，避免写到一半被杀留下半个 JSON。
+  - **解码失败当没缓存**（`runCatching` 包住解析）—— 对应 docs/10 第 3 节规则 2。
+  - `CacheKeys`：把 docs/10 第 5 节那张表变成函数，**键自带版本号前缀 + userId**（`v1.list.discover.推荐.7`），页面不自己拼字符串；改结构就把 `CacheKeys.VERSION` +1，旧版本文件在启动时被清掉（`pruneOldVersions`），旧缓存自然作废。
+  - 键里的 `/`、空格等会被转义，**不会写到缓存目录外面**。
+  - `staleWhileRevalidate(key, serializer, force, fetch): Flow<ApiResult<T>>` —— 有缓存先发缓存，网络成功覆盖缓存并发新数据；**有缓存时网络失败不发错误**（页面继续显示缓存，符合「静默刷新」），没缓存时才把错误交给页面转错误页。
+  - 节流：同一 key **60 秒内切回来不重复请求**；`force = true`（下拉刷新）跳过节流（规则 6）。节流表只在内存里，重启 App 后第一次打开一定刷新。
+- `core/data/local/CacheModule.kt`：只注入**缓存目录**（`filesDir/cl_cache`，用 `@CacheDir` 限定符）而**不是 `Context`** —— 这样 `LocalCache` 是纯 JVM 类，单测直接传临时目录就能跑，不用 Robolectric。
+- 验收对照（docs/08 T2.11：存取、解码失败当无缓存、切号清内存）：**24 个用例**全部通过
+  - 存取 6：存读往返、没存过返回 null、确实落盘、新实例能读到旧实例写的、不留 `.tmp` 残骸、remove 后读不到。
+  - 解码/版本 5：文件被写坏当没缓存、结构变了读不出来、缺字段但有默认值还能读出、启动清掉旧版本文件、键里带斜杠不越界。
+  - 切号 2：清内存后磁盘还在（能再读回来）、不会读到上一个账号的内存数据。
+  - 缓存键 2：8 个键形状对（含版本号与 userId）、不同账号同一个列表不串。
+  - stale-while-revalidate 5：先缓存后新数据并落盘、没缓存只发网络、有缓存时网络失败不发错误、没缓存时失败要发错误、业务错误按失败处理。
+  - 节流 4：60 秒内不重复请求、`force` 不受限、没缓存时不受节流影响、不同列表互不影响。
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；`testDebugUnitTest` **92 个用例**：LocalCache 24 + 公共工具 34 + MainViewModel 14 + 其余 20；`lintDebug`、`assembleDebug`、`check-ui.sh` 通过）。
+- 对照设计图：不涉及。
+- 遗留/疑问：`LocalCache` 目前**还没有调用方** —— 各列表页在 P3~P6 逐个接（发现页 T3.7、访客/喜欢我 T3.9、消息 T4.6、金币与明细 T5.2、会员 T5.6、任务 T5.8、收益/提现 T6.5、系统消息 T6.6）；`clearMemory()` 由 T3.1 的退出登录 / 切号流程调用。届时若发现用法不合适再改封装。
+
 ## 阶段验收记录
 
 <!-- 每个阶段结束写一段：check-all 结果、走查了哪些页面、发现并修复了什么 -->
 
 ### P2 安卓基础 —— ✅ 通过（2026-10-12）
-- `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（rc=0）：server 100 测试 / 1160 断言 + phpstan + check-money；admin-web lint+build；android 62 单测 + lintDebug + assembleDebug + check-ui。
-- 产出（11 个任务，除 T2.11 顺延到本阶段末尾之外全部完成）：
+- `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（rc=0）：server 100 测试 / 1160 断言 + phpstan + check-money；admin-web lint+build；android 单测 + lintDebug + assembleDebug + check-ui。
+- 产出（**11 个任务全部完成**）：
   - T2.1 主题（`ClColors`/`ClTypography`/`ClSpacing`/`ClSize`/`ClShapes`/`ClElevation`/`ClGradients` + `ClTheme` 与 `clCardShadow`/`clTopWash*`）
   - T2.2 图标（`ClIcons`，本阶段末共 30 个）
   - T2.3~T2.5 六类公共组件 45 个文件（含 `UiState`、`ClPullRefreshList` 分页失败重试）
@@ -446,6 +467,7 @@
   - T2.8 公共工具（`TimeFormat`/`MoneyFormat`/`Validators`/`ImageCompressor` + 34 单测）
   - T2.9 业务复用组件 15 个 + 预览页新增一节
   - T2.10 阶段验收（本记录）
+  - T2.11 列表缓存封装（`LocalCache` + `CacheKeys` + stale-while-revalidate + 60 秒节流，24 单测；验收后补齐）→ **全阶段 android 单测 92 个**
 - **UI 统一这条命脉已经立住**：所有页面只能用 `core/designsystem` 的 token 与组件，`check-ui.sh` 会扫 `feature/` 里的硬编码色值/尺寸和原生组件，也会检查每个组件有没有进预览页。
 - 发现并处理的问题：AGP 9 内置 Kotlin 的三处适配（已在 P0 记录）、Room 需要至少一个实体所以先用 `sync_state` 起库（T2.6）、服务端业务错误的 `data` 从 `[]` 改成 `null`（T2.6）、`hiltViewModel` 新包名（T2.7）、写单测时抓到自己两处笔误（身份证校验位用例填错、通话圆钮颜色用错 token，均已修）。
 - 遗留（不阻塞 P3，已记入待确认表或对应任务）：Q0-13 `app.version` 语义、Q0-14 `ClSoftButton` 三种底色的最终归属、Q0-15 `Modifier.blur` 在 API 31 以下无效、`ImageCompressor.compress()` 本体未测、**真机/模拟器尚未跑过一次**（本机没有可用 AVD）。
