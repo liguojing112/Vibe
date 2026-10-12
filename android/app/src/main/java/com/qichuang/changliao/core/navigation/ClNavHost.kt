@@ -22,6 +22,8 @@ import com.qichuang.changliao.feature.discover.FilterRoute
 import com.qichuang.changliao.feature.main.MainScreen
 import com.qichuang.changliao.feature.profile.EditProfileRoute
 import com.qichuang.changliao.feature.profile.UserDetailRoute
+import com.qichuang.changliao.feature.relation.FansRoute
+import com.qichuang.changliao.feature.relation.VisitorsRoute
 
 /**
  * 全 App 唯一导航图（docs/02 第 4.3 节）：所有页面的路由都在这里注册。
@@ -85,8 +87,20 @@ fun ClNavHost(
         composable(Routes.FILTER) {
             FilterRoute(onBack = { navController.popBackStack() })
         }
-        placeholder(navController, Routes.VISITORS, "最近访客（P08）")
-        placeholder(navController, Routes.LIKED_ME, "喜欢我的人（P09）")
+        composable(Routes.VISITORS) {
+            VisitorsRoute(
+                onBack = { navController.popBackStack() },
+                onOpenUser = { navController.navigate(Routes.userDetail(it)) },
+                onOpenVip = { navController.navigate(Routes.VIP) },
+            )
+        }
+        composable(Routes.LIKED_ME) {
+            FansRoute(
+                onBack = { navController.popBackStack() },
+                onOpenUser = { navController.navigate(Routes.userDetail(it)) },
+                onOpenVip = { navController.navigate(Routes.VIP) },
+            )
+        }
         placeholder(navController, Routes.NOTICES, "系统消息（P10）")
         placeholder(navController, Routes.DAILY_TASK, "每日任务（P11）")
         placeholder(navController, Routes.VIP, "会员中心（P12）")

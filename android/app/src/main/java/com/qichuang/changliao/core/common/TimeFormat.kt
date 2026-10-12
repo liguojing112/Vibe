@@ -20,6 +20,7 @@ object TimeFormat {
     private val serverFormatter = DateTimeFormatter.ofPattern(SERVER_PATTERN)
     private val hourMinute = DateTimeFormatter.ofPattern("HH:mm")
     private val monthDayTime = DateTimeFormatter.ofPattern("MM-dd HH:mm")
+    private val monthDay = DateTimeFormatter.ofPattern("MM-dd")
     private val yearMonthDay = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
     /**
@@ -60,6 +61,30 @@ object TimeFormat {
             return ""
         }
         return Instant.ofEpochSecond(epochSeconds).atZone(zone).format(yearMonthDay)
+    }
+
+    /**
+     * 只说到「哪一天」：今天 / 昨天 / `MM-dd` / `yyyy-MM-dd`。
+     * P08、P09 的「今天看了你的资料 · 上海」这种句子用它（[friendly] 是带时分的，不适合）。
+     */
+    fun dayLabel(
+        epochSeconds: Long,
+        nowSeconds: Long = System.currentTimeMillis() / 1000,
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): String {
+        if (epochSeconds <= 0) {
+            return ""
+        }
+        val at = Instant.ofEpochSecond(epochSeconds).atZone(zone)
+        val today = Instant.ofEpochSecond(nowSeconds).atZone(zone).toLocalDate()
+        val date = at.toLocalDate()
+
+        return when {
+            date == today -> "今天"
+            date == today.minusDays(1) -> "昨天"
+            date.year == today.year -> at.format(monthDay)
+            else -> at.format(yearMonthDay)
+        }
     }
 
     /** 把服务端的 `yyyy-MM-dd HH:mm:ss` 转成秒级时间戳；解析不了返回 null。 */

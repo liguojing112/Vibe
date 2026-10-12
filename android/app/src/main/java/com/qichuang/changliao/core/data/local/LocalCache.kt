@@ -35,6 +35,9 @@ object CacheKeys {
 
     fun visitors(userId: Long): String = build("list.visitors.$userId")
 
+    /** 「喜欢我的人」（P09）。docs/10 第 5 节的表里没有这一项，但它和访客是同一类列表，一并缓存。 */
+    fun fans(userId: Long): String = build("list.fans.$userId")
+
     fun notices(userId: Long): String = build("list.notices.$userId")
 
     fun profile(viewerId: Long, targetId: Long): String = build("profile.$viewerId.$targetId")

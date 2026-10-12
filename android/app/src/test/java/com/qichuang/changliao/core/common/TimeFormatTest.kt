@@ -103,4 +103,21 @@ class TimeFormatTest {
         assertNull(TimeFormat.parse("2026-10-12", zone))
         assertNull(TimeFormat.parse("2026-13-40 25:70:00", zone))
     }
+
+    @Test
+    fun `只说到哪一天`() {
+        // P08、P09 的「今天看了你的资料」用的是这个，不是带时分的 friendly
+        assertEquals("今天", TimeFormat.dayLabel(now, now, zone))
+        assertEquals("今天", TimeFormat.dayLabel(at(2026, 10, 12, 0, 0), now, zone))
+        assertEquals("昨天", TimeFormat.dayLabel(at(2026, 10, 11, 23, 59), now, zone))
+        assertEquals("10-10", TimeFormat.dayLabel(at(2026, 10, 10, 8, 0), now, zone))
+        assertEquals("01-01", TimeFormat.dayLabel(at(2026, 1, 1, 0, 0), now, zone))
+        assertEquals("2025-12-31", TimeFormat.dayLabel(at(2025, 12, 31, 23, 59), now, zone))
+    }
+
+    @Test
+    fun `dayLabel 对非法时间戳返回空串`() {
+        assertEquals("", TimeFormat.dayLabel(0, now, zone))
+        assertEquals("", TimeFormat.dayLabel(-1, now, zone))
+    }
 }

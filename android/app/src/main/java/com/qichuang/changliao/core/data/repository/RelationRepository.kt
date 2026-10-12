@@ -1,5 +1,9 @@
 package com.qichuang.changliao.core.data.repository
 
+import com.qichuang.changliao.core.data.local.CacheKeys
+import com.qichuang.changliao.core.data.local.LocalCache
+import com.qichuang.changliao.core.data.model.RelationKind
+import com.qichuang.changliao.core.data.model.RelationPage
 import com.qichuang.changliao.core.data.model.RelationState
 import com.qichuang.changliao.core.network.ApiResult
 import com.qichuang.changliao.core.network.RelationApi
@@ -7,6 +11,7 @@ import com.qichuang.changliao.core.network.dto.RelationStateDto
 import com.qichuang.changliao.core.network.dto.RelationTargetDto
 import com.qichuang.changliao.core.network.safeApiCall
 import com.qichuang.changliao.core.network.safeApiCallUnit
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,6 +24,7 @@ import javax.inject.Singleton
 @Singleton
 class RelationRepository @Inject constructor(
     private val relationApi: RelationApi,
+    private val localCache: LocalCache,
 ) {
 
     suspend fun follow(targetId: Long): ApiResult<RelationState> =
@@ -34,6 +40,36 @@ class RelationRepository @Inject constructor(
 
     suspend fun unblock(targetId: Long): ApiResult<Unit> =
         safeApiCallUnit { relationApi.unblock(RelationTargetDto(targetId)) }
+
+    // ---------- 列表（P08 最近访客 / P09 喜欢我的人） ----------
+
+    /**
+     * 第一页：先发本地缓存让页面秒开，再静默刷新（docs/10 第 3 节）；
+     * 下拉刷新传 `force = true`。注意缓存键按用户分。
+     */
+    fun firstPage(kind: RelationKind, userId: Long, force: Boolean = false): Flow<ApiResult<RelationPage>> =
+        localCache.staleWhileRevalidate(
+            key = cacheKeyOf(kind, userId),
+            serializer = RelationPage.serializer(),
+            force = force,
+        ) {
+            fetch(kind, page = 1)
+        }
+
+    /** 加载更多（第 2 页起，不读缓存）。 */
+    suspend fun more(kind: RelationKind, page: Int): ApiResult<RelationPage> = fetch(kind, page)
+
+    private suspend fun fetch(kind: RelationKind, page: Int): ApiResult<RelationPage> = safeApiCall {
+        when (kind) {
+            RelationKind.VISITORS -> relationApi.visitors(page)
+            RelationKind.FANS -> relationApi.fans(page)
+        }
+    }
+
+    private fun cacheKeyOf(kind: RelationKind, userId: Long): String = when (kind) {
+        RelationKind.VISITORS -> CacheKeys.visitors(userId)
+        RelationKind.FANS -> CacheKeys.fans(userId)
+    }
 
     private fun ApiResult<RelationStateDto>.mapToState(): ApiResult<RelationState> = when (this) {
         is ApiResult.Success -> ApiResult.Success(
