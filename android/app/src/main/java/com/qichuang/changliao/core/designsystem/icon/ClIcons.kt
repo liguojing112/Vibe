@@ -2,15 +2,19 @@ package com.qichuang.changliao.core.designsystem.icon
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.CallEnd
 import androidx.compose.material.icons.rounded.Cameraswitch
 import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Home
@@ -62,4 +66,8 @@ object ClIcons {
     val spark: ImageVector = Icons.Rounded.AutoAwesome
     val speaker: ImageVector = Icons.Rounded.VolumeUp
     val flip: ImageVector = Icons.Rounded.Cameraswitch
+    val add: ImageVector = Icons.Rounded.Add
+    val close: ImageVector = Icons.Rounded.Close
+    val hangup: ImageVector = Icons.Rounded.CallEnd
+    val warning: ImageVector = Icons.Rounded.ErrorOutline
 }

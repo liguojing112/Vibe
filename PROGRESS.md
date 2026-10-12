@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P2 安卓基础**（P1 已完成）
-- 当前任务：T2.8 已完成 → 下一步 T2.9 业务复用组件
+- 当前任务：T2.9 已完成 → 下一步 T2.10 P2 阶段验收
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T2.8 公共工具完成（`TimeFormat`/`MoneyFormat`/`Validators`/`ImageCompressor` + 34 个单元测试），`check-android.sh` 通过（62 个单测）。下一步按 `docs/08` 做 T2.9（`03` 第 5.4 节业务复用组件 + 预览，对照设计图 01/03/05/06/08/11/12/22/23/29）。
+- 上次停在哪：T2.9 业务复用组件完成（`03` 第 5.4 节的 15 个组件 + 预览页新增一节 + 3 个新图标），`check-android.sh` 通过。下一步按 `docs/08` 做 T2.10（`09` 第 5 节，把组件预览页从头到尾检查一遍 + P2 阶段验收）。
 
 ## 任务进度
 
@@ -16,7 +16,7 @@
 
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
-- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [ ] T2.9 [ ] T2.10 [ ] T2.11
+- P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [ ] T2.10 [ ] T2.11
 - P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
@@ -78,6 +78,7 @@
 | Q0-14 | `ClSoftButton` 的三种底色（docs/03 第 5.2 节只说 Yellow/Peach/Gray，对应语音/视频/私信）在原型 CSS 里找不到确切的三组值（原型有几十种相近暖色底） | 先映射到最接近的颜色 token：Yellow = primarySoft/primaryText、Peach = tagGoldBg/tagGoldText、Gray = bgInput/inkSecondary。等做 P01 卡片时对着设计图定哪种按钮用哪种 | T2.3、T3.7 | ⏳ 待对着设计图确认 |
 | Q0-10 | MineAdmin 自带测试默认连 `.env` 里的开发库，会 `truncate` 种子表 | 已解决：`composer test` 脚本前置 `DB_DATABASE=cl_test REDIS_DB=15`（Hyperf dotenv 是 immutable，shell 变量优先；phpunit 的 `<env>` 因测试引导先建容器而无效） | T0.2 | ✅ 已解决 |
 | Q0-11 | **MineAdmin-Vue 3.2.1 自带代码有大量 lint 错误**（eslint 13 error：未使用变量/`prefer-promise-reject-errors`；stylelint 328 error：单行声明数、重复选择器、空 style 块等），导致 `pnpm lint` 直接失败 | 你已决定：**在配置里给上游目录放宽**。已改 `admin-web/eslint.config.js`（`src/**` 放宽两条规则，`src/modules/cl/**` 重新收紧）与 `admin-web/stylelint.config.js`（对 `src/{components,layouts,plugins,assets,modules/base}/**` 用 overrides 关掉相关规则；`@apply` 加白名单；`.md` 加入 ignores）。**未改任何 MineAdmin 源码** | T0.3、T7.x | ✅ 已解决 |
+| Q0-15 | `ClMiniProfileRow` 的 `blurred`（P09 非会员看不全是谁）用 `Modifier.blur`，但它在 **API 31 以下是空操作**，低版本手机上打码不生效 | 先用着（minSdk 26，Android 12+ 生效）；要全机型都糊就得改成盖一层遮罩或直接换成打码文字。做 P09 时决定 | T2.9、T3.9 | ⏳ 待确认 |
 
 ## 任务记录
 
@@ -390,6 +391,31 @@
 - **未做**：`ImageCompressor.compress()` 本体（Bitmap 解码/编码）需要设备或 Robolectric，**没有测试**；单测只覆盖了它内部两个纯计算函数（`calculateInSampleSize`/`calculateTargetSize`）。第一次真机上传图片时要重点看这一步。
 - 对照设计图：不涉及。
 - 遗留/疑问：`Validators` 的身份证规则目前只对齐了 `docs/01` P29 的「18 位格式和校验位」；服务端的实名认证请求类要到 P6 才写，届时两边的规则要再核一次（出生日期合法性、年龄下限）。
+
+### T2.9 业务复用组件 —— ✅ 完成（2026-10-12）
+- `03` 第 5.4 节 15 个组件全部落地（一个组件一个文件，文件名 = 组件名）：
+  `ClPersonCard`(P01)、`ClMatchCard`(P02)、`ClMiniProfileRow`(P08/P09/P16/黑名单)、`ClConversationRow`(P03)、`ClEntryRow`(P03)、`ClChatBubble`(P06)、`ClChatInputBar`(P06)、`ClChatToolBar`(P06)、`ClGiftGrid`(P23/P31)、`ClRechargePackGrid`(P22)、`ClTaskCard`(P11)、`ClBenefitGrid`(P12)、`ClStepList`(P29)、`ClPhotoGrid`(P05/P14)、`ClCallControls`(P19/P20)。
+- **组件层不依赖业务模型**：每个组件自带一个小的展示数据类（`ClPersonCardData`、`ClConversationItem`、`ClGiftItem`…），跟 T2.7 的 `ClBottomBarItem` 一个路子。`core/designsystem` 不 import `core/data/model`，也不 import `core/common`（所以**金额/时间文案由页面先格式化好再传字符串**，例如 `ClGiftItem.priceText`），保持设计系统自洽。
+- `ClIcons` 新增 4 个：`add`、`close`、`hangup`(CallEnd)、`warning`(ErrorOutline，气泡发送失败用)。
+- 预览页新增一节「业务复用组件」，15 个组件全部有假数据预览（`check-ui.sh` 会逐个检查是否出现）。
+- **设计图对照**（逐个打开 `docs/页面设计图/` 对应图核对）：
+  | 组件 | 设计图 | 结论 |
+  |---|---|---|
+  | ClPersonCard | 01 | 布局一致（头像+绿点/昵称+标签/「26 岁 · 上海 · 品牌设计师」/简介两行/三颗操作按钮）。差异：设计图里「私信」按钮比语音/视频宽，`ClPersonCard` 的 actions 是 `RowScope` 插槽、权重由页面给（T3.7 里给 weight 即可） |
+  | ClMatchCard | 02 | 一致（照片铺满、左上「可视频」胶囊、底部渐隐白字+黄色操作按钮）。差异：「可视频」胶囊设计图是半透明白底，我用不透明 `surface`（避免照片颜色干扰可读性） |
+  | ClMiniProfileRow | 08 | 一致（头像/昵称/「今天看了你的资料 · 上海」/右侧描边「查看」） |
+  | ClEntryRow | 03 | 一致（圆形彩底图标+标题+说明+右侧时间或未读角标）。差异：圆形底色我用**传入色的 18% 透明度**自动生成，设计图各行的柔和底色是逐个指定的，观感接近但色值未必逐像素相同 |
+  | ClChatBubble / InputBar / ToolBar | 06 | 一致（左右气泡+尾巴圆角、头像在外侧、日期分隔；工具栏三颗等宽奶黄按钮；输入框胶囊+黄色发送）。差异：**「发送中」设计图没画**，我用了小转圈（失败态是红色感叹号 `warning`，可点击重发） |
+  | ClGiftGrid | 23 | 一致（三列、选中金色描边） |
+  | ClRechargePackGrid | 22 | 一致（三列、数值大字+「金币」+金色价格、选中金色描边+奶黄底） |
+  | ClTaskCard | 11 | 一致（图标方块+标题+说明+右侧奶黄按钮），额外做了 `done` 置灰态 |
+  | ClBenefitGrid | 12 | 一致（两列奶白卡片、表情+标题+说明） |
+  | ClStepList | 29 | 一致（奶黄序号圆+标题+说明+分割线） |
+  | ClPhotoGrid | 05/14 | 一致（三列方形、8dp 圆角占位色 `#E8D8C7`），编辑态右上角删除+末尾「+」 |
+  | ClCallControls | 19 | 一致（三个圆钮+下方标签+红色「结束通话」）。差异：未选中圆钮设计图是半透明白，我原来误用了 `mask`（暖褐色遮罩）→ **已改成 `surface` 16% 透明度** |
+- **未做截图**：本机没有可用的模拟器/真机，也没装 Robolectric/Paparazzi 这类能在 JVM 里渲染 Compose 的工具，所以「组件预览页截图 vs 设计图」这一步**没有截图可比**，上表的结论是把设计图逐张打开、对照组件代码和 token 得出的。要真正确认观感，需要在 Android Studio 里跑一次 debug 包（`我` Tab → 组件预览页）。
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；`check-ui.sh` 的「每个组件都要出现在预览页」逐个通过；单测仍为 62 个，本次没新增测试）。
+- 遗留/疑问：`ClMiniProfileRow` 的 `blurred`（P09 非会员看不全）用的 `Modifier.blur` **在 API 31 以下是空操作**（Compose 的限制），所以低版本手机上打码不生效；如果要保证所有机型都糊，得改成画一层遮罩或换成打码文字。记入待确认。
 
 ## 阶段验收记录
 
