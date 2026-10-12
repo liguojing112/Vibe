@@ -11,9 +11,12 @@ use App\Http\Api\Request\V1\UpdateProfileRequest;
 use App\Http\Api\Request\V1\UpdateSettingsRequest;
 use App\Model\Cl\User;
 use App\Service\Cl\User\ProfileService;
+use App\Service\Cl\User\UserDetailService;
 use Hyperf\Context\Context;
 use Hyperf\HttpServer\Annotation\Middleware;
+use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\Swagger\Annotation as OA;
+use Hyperf\Validation\ValidationException;
 
 /**
  * App 用户资料（docs/05 第 4.2 节）。四个接口都要登录。
@@ -26,6 +29,7 @@ final class UserController
 {
     public function __construct(
         private readonly ProfileService $profileService,
+        private readonly UserDetailService $userDetailService,
     ) {}
 
     #[OA\Get(
@@ -38,6 +42,23 @@ final class UserController
     public function me(): ApiResult
     {
         return ApiResult::success($this->profileService->me($this->currentUser()));
+    }
+
+    #[OA\Get(
+        path: '/api/v1/user/{id}',
+        operationId: 'clUserDetail',
+        summary: '他人主页（算一次访客；男看女带价格与免费提示）',
+        tags: ['app:user']
+    )]
+    #[Middleware(AppAuthMiddleware::class)]
+    public function detail(RequestInterface $request): ApiResult
+    {
+        $targetId = (int) $request->route('id');
+        if ($targetId <= 0) {
+            throw ValidationException::withMessages(['id' => ['用户不存在']]);
+        }
+
+        return ApiResult::success($this->userDetailService->detail($this->currentUser(), $targetId));
     }
 
     #[OA\Post(

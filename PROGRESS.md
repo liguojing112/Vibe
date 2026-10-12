@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P3 登录·资料·发现·关系**（P2 已完成）
-- 当前任务：T3.5 已完成 → 下一步 T3.6 他人主页接口
+- 当前任务：T3.6 已完成 → 下一步 T3.7 发现页、筛选页（P01、P07）
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T3.5 发现接口完成（`/discover`、`/discover/search` + `DiscoverRepository`/`DiscoverService`，27 个新单测），`check-server.sh` 通过（**164 测试 / 1411 断言** + phpstan 无错 + money 通过）。下一步按 `docs/08` 做 T3.6（`/user/{id}` 他人主页：资料 + 价格 + 关系 + `free_hint`，**本任务先建 `MessagePricingService::quote()`** 并按 `06` 第 3.2 节写单元测试；顺带把「打开别人主页记一条访客」接上）。
+- 上次停在哪：T3.6 他人主页接口完成（`MessagePricingService::quote()` 按 `06` §3.2 四步判断 + `UserDetailService` + `GET /user/{id}`，27 个新单测），`check-server.sh` 通过（**191 测试 / 1510 断言** + phpstan 无错 + money 通过）。**P3 的服务端任务（T3.1~T3.6）已全部做完**，剩下 T3.7~T3.9 是安卓页面、T3.10 阶段验收。下一步按 `docs/08` 做 T3.7（发现页 P01 + 筛选页 P07，男女视角 + 开关两种状态，对照设计图 01、07）。
 
 ## 任务进度
 
@@ -17,7 +17,7 @@
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
 - P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [x] T2.11
-- P3：[x] T3.1 [x] T3.2 [x] T3.3 [x] T3.4 [x] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
+- P3：[x] T3.1 [x] T3.2 [x] T3.3 [x] T3.4 [x] T3.5 [x] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
 - P6：[ ] T6.1 [ ] T6.2 [ ] T6.3 [ ] T6.4 [ ] T6.5 [ ] T6.6 [ ] T6.7
@@ -602,6 +602,35 @@
   - **「视频」「语音」两个 tab 没做** —— `docs/05` 第 4.3 节只定义了 `recommend/new/city` 三个，视频/语音是「只做页面」的入口且本期开关关闭，所以传这两个值直接 422。
   - 「在线」的判定（多久没活跃算离线）`docs` 没写，先用 `DiscoverRepository::ONLINE_MINUTES = 15` 分钟（见 Q0-19）。
 - 对照设计图：不涉及（纯接口）。
+
+### T3.6 他人主页接口 —— ✅ 完成（2026-10-12）
+- 新增 `Service\Cl\Pricing\MessagePricingService`（+ `MessageQuote` 值对象、`VipFreeQuota` Redis 计数）和 `Service\Cl\User\UserDetailService`，`UserController` 加 `GET /api/v1/user/{id}`。
+- **`MessagePricingService::quote()` 严格按 `06` 第 3.2 节四步、命中就停**：
+  1. 互关 且 `chat.mutual_follow_free=1` → 免费 `MUTUAL_FOLLOW`
+  2. 这对男女已发条数 < `chat.free_count_per_pair` → 免费 `PAIR_FREE`
+  3. 有效会员 且 今天会员免费没用完 → 免费 `VIP_FREE`
+  4. 都不是 → 收费 = 女方当前等级单价
+  顺序是有意义的：**第 1、2 步命中了就不碰会员额度**（场景 5）。所以 `quote()` **只读不写** —— 会员额度由发消息那一步（T4.2）在确认 `freeReason = VIP_FREE` 时才 `increment`。这一点写进注释了，T4.2 别忘。
+- `quote(User $male, User $female, int $maleSentCount = 0)`：**多了一个「已发条数」参数**。因为那个数存在会话表的 `male_sent_count`，而会话表是 P4 的 T4.1 才建的 —— 与其抢建表，不如让调用方传进来：现在没人聊过就是 0，T4.2 传真实条数。这样 quote 本身是纯函数，也好测。
+- 免费提示 `freeHint()`：互关 → 「互相关注，私信免费」；对子 → 「还可免费发送 N 条」；会员 → 「会员今日还剩 N 条免费」；收费 → `null`（页面直接显示单价）。
+- **`/user/{id}`**：
+  - **别人看到的永远是审核通过的内容**（`cl_user` 里的昵称/头像/简介），相册**只给已通过的**（待审/驳回的只有本人看得到）。
+  - 男看女才有 `price`（`message_price` + `free_hint`；语音/视频开关关着时**不返回**后两项）。
+  - 关系：`is_following` / `is_mutual` / `is_blocked`。
+  - **看别人的主页写一条访客**（同一天同一人只留一条是 T3.4 的规则）；**自己看自己不算**。
+  - **被拉黑时 `is_blocked=true`、不给价格、也不写访客**（写访客等于告诉对方"我来过"）。封号/已注销/不存在一律 30001，不暴露封禁状态。
+- 验收对照（docs/08 T3.6）：**`06` 第 10 节场景 1~5 里 quote 相关判断全部有单测**（`MessagePricingServiceTest` 13 例）：
+  1. 前 3 条免费、第 4 条按 Lv1 单价 5 收费 ✅
+  2. `free_count_per_pair=0` → 第 1 条就收费 ✅
+  3. 互关免费；关掉开关后恢复收费 ✅（另补单向关注不算互关）
+  4. 会员 10 条免费、第 11 条开始收费、**第二天重新计数**（用带日期的 Redis key 验证）✅
+  5. **互关免费时不消耗会员额度；对子免费没用完时也不消耗** —— 断言理由分别是 `MUTUAL_FOLLOW`/`PAIR_FREE` 而不是 `VIP_FREE`，且额度计数没变 ✅
+  另覆盖：价格随女方等级（Lv1/3/5）、非会员与过期会员没有额度、三种免费提示文案 + 收费时无提示。
+- `UserDetailControllerTest` 14 例：资料与派生标记（在线/新人/已认证）、**只看已通过相册**、男看女带价格与提示、开关关时不返回语音视频价、女看男不带价格、关系字段、被拉黑标记且不写访客、看别人写访客（同天只一条）、看自己不写访客、封号/已注销/不存在 30001、未登录 401。
+- **加了个回归测试**：`/user/me` 不能被 `/user/{id}` 抢走（静态路由段优先），`testMeRouteStillWorksAfterAddingIdRoute` 专门盯这个。
+- 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 191, Assertions: 1510**，比 T3.5 后多 27 个；phpstan `[OK] No errors`；money 通过）。
+- 踩到的坑：`level` 在**内存里新建的 User** 上是 null（表默认值 1 不会回填到模型对象），`findByLevel(null)` 直接 TypeError —— 11 个用例一起报错。服务里兜底成 1（和表默认值一致），测试里也显式传 `level`。
+- 未做 / 有意为之：`quote()` **没有算分成比例**（`share_rate`，含未实名系数）—— 那是 `06` 第 3.4 节、T4.2 扣费时的事，这里只做报价，不提前建。
 
 ## 阶段验收记录
 
