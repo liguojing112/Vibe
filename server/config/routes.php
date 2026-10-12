@@ -23,6 +23,16 @@ Router::get('/favicon.ico', static function () {
 });
 
 /**
+ * WebSocket 握手路由（docs/05 第 5 节）。
+ *
+ * 路由必须挂在 `ws` 这个名字上，Hyperf 才会用 WebSocket 的 CoreMiddleware 去做 101 升级；
+ * 类本身要实现 OnOpen / OnMessage / OnClose 三个接口。
+ */
+Router::addServer('ws', static function () {
+    Router::get('/ws', \App\WebSocket\ChatWsController::class);
+});
+
+/**
  * 上传的图片直接读盘返回，让 StorageInterface::url() 给出的地址真的能访问
  * （docs/02 第 2.4 节）。生产环境建议改由 Nginx 托管 server/storage/uploads。
  * 只读 storage/uploads 一个目录，并做了目录穿越防护。

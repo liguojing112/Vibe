@@ -23,4 +23,8 @@ parameters:
     - '#.with no value type specified in iterable type array.*#'
     - '#.return type specified.*#'
     - '#Access to an undefined property.*#'
+    # T4.4：Hyperf 的 OnOpenInterface / OnMessageInterface 的签名里写了
+    # Swow\Psr7\Server\ServerConnection。本项目只跑 Swoole（没装 Swow），
+    # phpstan 找不到这个类，会在所有实现类上报 class.notFound。
+    - '#has invalid type Swow#'
     - '#Call to an undefined static method App\\Kernel\\Casbin\\Rule\\Rule::getModel\(\)#'

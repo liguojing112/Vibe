@@ -20,6 +20,7 @@ use App\Service\Cl\Level\LevelService;
 use App\Service\Cl\Pricing\MessagePricingService;
 use App\Service\Cl\Pricing\MessageQuote;
 use App\Service\Cl\Pricing\VipFreeQuota;
+use App\Service\Cl\Push\PushService;
 use App\Service\Cl\Wallet\CoinWalletService;
 use App\Service\Cl\Wallet\PlatformIncomeService;
 use App\Service\Cl\Wallet\PointWalletService;
@@ -36,7 +37,7 @@ use Hyperf\DbConnection\Db;
  * 4. 收费：扣男方金币 → 加女方积分 → 记平台收入 → 女方累计收益 + 升级检查
  * 5. 写消息（价格、免费原因、分成、积分都存下来，方便对账）
  * 6. 会话表 `male_sent_count` + 1、更新最后一条消息、对方未读 + 1
- * 7. 事务提交后推送 WebSocket（**T4.4 做**，这里先留口子）
+ * 7. 事务提交后推送 WebSocket `message.new` + `unread.update`（T4.4）
  *
  * 钱只在服务端算（铁律 6），客户端只显示。
  */
@@ -62,6 +63,7 @@ final class MessageBillingService
         private readonly UserRepository $userRepository,
         private readonly AppConfigService $configService,
         private readonly ChatPresenter $presenter,
+        private readonly PushService $pushService,
     ) {}
 
     /**
@@ -166,6 +168,10 @@ final class MessageBillingService
             }
             throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '消息发送失败，请重试');
         }
+
+        // ⑦ 推送（**必须在事务提交之后** —— 提前推客户端可能先收到推送、再查到「消息不存在」）
+        // 推不出去不影响发消息：客户端回到前台会靠 /chat/sync 补拉（PushService 内部吞异常）
+        $this->pushService->messageReceived($message, $receiver);
 
         return $this->buildResult($message, $sender, $receiver);
     }

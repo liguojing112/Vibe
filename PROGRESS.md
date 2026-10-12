@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P4 私信与计费**（P3 已完成）
-- 当前任务：T4.3 已完成 → 下一步 T4.4 WebSocket 推送
+- 当前任务：T4.4 已完成 → 下一步 T4.5 安卓聊天数据层（Room 本地库 + ChatSocket）
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T4.3 会话、消息查询与已读完成（会话列表 / 删会话 / `with/{userId}` / 历史消息分页 / 已读 / 未读总览 / `sync` 增量补拉 / `fee-rules` 共 8 个接口，验收三项全过：未读数按「发给自己」分边统计、删掉会话后对方来新消息会重新出现、女用户 `fee` 为 `null`），`check-server.sh` 通过（**255 测试 / 1799 断言**）。下一步按 `docs/08` 做 T4.4（WS 服务、token 鉴权、fd 映射、心跳、`PushService`、发消息事务提交后推 `message.new` 与 `unread.update`）。
+- 上次停在哪：T4.4 WebSocket 推送完成（`ws` 服务跑在 9502 + query token 鉴权 + Redis fd↔userId 映射 + ping/pong 心跳 + `PushService` 在发消息事务提交后推 `message.new`/`unread.update`），端到端脚本 `scripts/ws-check.php` **19 项全过**，`check-server.sh` 通过（**268 测试 / 1828 断言**）。下一步按 `docs/08` 做 T4.5（`ChatSocket` 心跳/重连/重连后 sync + `ChatRepository` 本地优先 + Room `message`/`conversation`/`sync_state` 三张表 + `client_msg_id` 重发不变）。
 
 ## 任务进度
 
@@ -18,7 +18,7 @@
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
 - P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [x] T2.11
 - P3：[x] T3.1 [x] T3.2 [x] T3.3 [x] T3.4 [x] T3.5 [x] T3.6 [x] T3.7 [x] T3.8 [x] T3.9 [x] T3.10
-- P4：[x] T4.1 [x] T4.2 [x] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8 [ ] T4.9
+- P4：[x] T4.1 [x] T4.2 [x] T4.3 [x] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8 [ ] T4.9
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
 - P6：[ ] T6.1 [ ] T6.2 [ ] T6.3 [ ] T6.4 [ ] T6.5 [ ] T6.6 [ ] T6.7
 - P7：[ ] T7.1 [ ] T7.2 [ ] T7.3 [ ] T7.4 [ ] T7.5 [ ] T7.6 [ ] T7.7 [ ] T7.8 [ ] T7.9
@@ -53,7 +53,26 @@
    `apiBaseUrl` 是 `app/build.gradle.kts` 里给 debug 包加的可覆盖项，**不传就还是 docs/02 写的 `10.0.2.2`**，所以正常构建不受影响；真机调试同样走 `adb reverse` 这条路。
 2. 演示数据：`php scripts/seed-demo.php`（在 WSL 里跑，连开发库 `changliao`）。会造 5 个账号，**密码统一 `abc12345`**：`13800000001` 阿宁（男，金币 360）、`13800000002` 小满（女，积分 1200）、`13800000003` 晚晴（女，Lv3）、`13800000004` 星野（女，Lv2）、`13800000005` 林川（男）。已经顺手造好：小满 ↔ 阿宁互关、晚晴关注阿宁、小满今天来访、晚晴昨天来访。
    - 注意脚本用 PHP 的 `date()` 写 `last_active_at`，**CLI 的时区可能是 UTC**，所以造出来的用户「在线」状态不准（服务端按 Asia/Shanghai 比）。要测「在线」标签就手动把 `last_active_at` 改成 `NOW()`。
-3. 后端地址只有一个 `API_BASE_URL`，**WebSocket 地址（`WS_URL`）还是 10.0.2.2**，P4 做 WebSocket 时同样要处理。
+3. **WebSocket 也要 `adb reverse`**（T4.4 做完了）。后端 WS 服务在 **9502**，地址 `ws://{host}:9502/ws?token={access_token}`
+   （`CL_WS_PORT` 在 `server/.env` 里，默认 9502）。模拟器同 9501 一样连不上 `10.0.2.2`，所以：
+   ```bash
+   adb reverse tcp:9501 tcp:9501
+   adb reverse tcp:9502 tcp:9502
+   cd android && ./gradlew assembleDebug -PapiBaseUrl=http://127.0.0.1:9501
+   ```
+   客户端 `WS_URL` 同样要能覆盖（T4.5 做 `ChatSocket` 时按这个来，别再写死 `10.0.2.2`）。
+4. **⚠️ 删了 `runtime/container` 之后第一次启动，注解路由会整片 404**（T4.4 排查出来的）：
+   `/` 能通、`/api/v1/...` 全 `{"code":500,"message":"Not Found"}`。原因是 Hyperf 的注解扫描在**子进程**里做，
+   父进程不等它 —— 冷缓存那一次启动，swagger 注册注解路由时 `AnnotationCollector` 还是空的，于是路由表里一条都没有；
+   扫描结果会写进 `runtime/container/scan.cache`，**再启动一次就好了**（热缓存）。
+   所以重启后端的正确顺序是：
+   ```bash
+   pkill -9 -x php
+   rm -rf runtime/container          # 只在改了注解/路由后才需要
+   php bin/hyperf.php start          # 冷缓存这一次路由是空的
+   # 觉得不对劲就再杀一次重启（热缓存），然后 curl 冒烟一句：
+   curl -s localhost:9501/api/v1/app/config | head -c 60
+   ```
 
 **缺失（阻塞对应任务）**：
 - 安卓 → 需 Android SDK（`ANDROID_HOME` 未设置，无 `adb`）：**阻塞 T0.4**，等你装 Android Studio
@@ -793,6 +812,48 @@
   `tests/Feature/Cl/Api/ChatQueryControllerTest.php`（8 例，HTTP 层）。
 - 留给后面的：WS 推送 `message.new` / `unread.update` → T4.4；安卓侧 Room 落库与聊天页 → T4.5 / T4.6；
   `cl_notice` 未读数 → T6.6；消息留存清理 → T4.9。
+
+### T4.4 WebSocket 推送 —— ✅ 完成（2026-10-13）
+
+- 读：`05` §5、`02` §2.4
+- 做的东西：
+  - `config/autoload/server.php` 加 **`ws` 服务（`SERVER_WEBSOCKET`，端口取 `CL_WS_PORT` 默认 9502）**；
+    `config/routes.php` 用 `Router::addServer('ws', ...)` 把 `/ws` 指到 `App\WebSocket\ChatWsController`。
+  - `ChatWsController` 实现 `OnOpen`/`OnMessage`/`OnClose` 三个接口：
+    **onOpen** 拿 `?token=` 鉴权，无效就**先完成握手再发关闭帧踢掉（4001 + reason）**；有效就登记 fd；
+    **onMessage** 只认 `{"event":"ping"}` → 回 `pong`（`05` §5：App 只发心跳，发消息一律走 HTTP）；
+    **onClose** 注销登记 + 更新 `last_active_at`（还有别的连接就不更新）。
+  - `WsAuthenticator`：和 HTTP 的 `AppAuthMiddleware` **同一套 JWT（scene=api）**，黑名单/注销/封禁都算无效；
+    这里只返回 null 不抛异常 —— 握手阶段抛异常会变成 400，客户端只知道「连不上」，而我们要的是连上再明确踢掉。
+  - `OnlineRegistry`：`ws:fd:{fd} → userId`（由连接反查人）和 `online:{userId} → fd 集合`（由人反查连接）。
+    用**集合**是因为同一个人可能开着多台设备；断开时集合空了要顺手删 key，否则 `isOnline()` 永远说人在线。
+  - `PushService`：**所有推送的唯一出口**。三条纪律写进了类注释：
+    ① 推不出去**绝不抛**（钱扣了、消息落库了，客户端靠 `/chat/sync` 补拉就行），每次 push 都吞异常只记日志；
+    ② 不在线就直接返回，不做无谓的 Redis/DB 查询；
+    ③ 组包只认 `ChatPresenter`，保证推送里的消息结构和 `/chat/messages` 完全一致。
+    `messageReceived()` 推 `message.new` + `unread.update`（未读结构和 `/chat/unread` 一样）。
+  - 接进 `MessageBillingService`：**在事务提交之后**推（提前推会出现「客户端先收到推送、再查到消息不存在」）。
+- **端口/写法确认**：9503 是 swagger 文档服务，9502 空着；`hyperf/websocket-server` 本来就在 `composer.json` 里。
+  Hyperf 会把 ws 服务排在服务器列表最前面，所以主 server 对象是 `Swoole\WebSocket\Server`，
+  于是 **HTTP worker 里也能用 `Sender::push()` 跨进程推到 ws 连接**（这正是选 `PushService` 走 `Sender` 的原因）。
+- **踩坑（重要，已记进环境信息）**：加完 ws 服务后，HTTP 接口整片 404（`/` 却正常）。
+  排查结论：**不是 ws 服务的问题，是「删了 `runtime/container` 后第一次启动」的问题** ——
+  Hyperf 的注解扫描在子进程里做、父进程不等，冷缓存那一次启动 swagger 注册注解路由时扫描结果还是空的，
+  路由表里就只有 `config/routes.php` 里手写的那几条。**再启动一次（热缓存）就正常**。
+  顺手把「重启后端的正确顺序」写进了环境信息，避免以后每次重启都要重新怀疑人生。
+- 验收（`scripts/ws-check.php`，**19 项全过**）：两个客户端连上，男方发消息**女方收到 `message.new` + `unread.update`**、
+  消息内容与 id 和 HTTP 返回一致、**发送方自己收不到自己的消息**、ping→pong、**无效 token 被以 4001 踢下线**、
+  断开后消息照发不误。
+  跑法（WSL，后端要先起来）：`cd server && php ../scripts/ws-check.php`
+  —— 这个脚本要真进程 + 两个客户端，单元测试里没有真 server 测不出真东西，所以走脚本（`08` 允许「集成测试或脚本」）。
+- 单元测试：`tests/Feature/Cl/Push/OnlineRegistryTest.php`（6 例：多设备、断开、重复断开、空集合清理）、
+  `tests/Feature/Cl/Push/PushServiceTest.php`（7 例：下发的 JSON 结构、中文不转义、离线不查未读、
+  `pong` 的 data 必须是 `{}` 不能是 `[]`、**推送失败被吞掉**）。替身 `SenderSpy` 覆盖 `__call` 记账，不真写 socket。
+- phpstan：Hyperf 的 `OnOpenInterface` 签名里引用了 `Swow\Psr7\Server\ServerConnection`（本项目没装 Swow），
+  会在所有实现类上报 `class.notFound`，按既有方式在 `phpstan.neon.dist` 加了一条精确豁免。
+- 自检：`bash scripts/check-server.sh` → **268 测试 / 1828 断言**、phpstan `[OK] No errors`、`check-money.sh` 通过。
+- 留给后面的：安卓侧 `ChatSocket`（心跳 30s、重连 1/2/4…最大 30s、重连后 sync）→ T4.5；
+  `cl_notice` 的 `notice.new` 与 `account.banned` 推送 → P6；礼物消息的推送 → P5（现在只推普通消息）。
 
 ## 阶段验收记录
 

@@ -14,6 +14,7 @@ use Hyperf\Framework\Bootstrap\WorkerExitCallback;
 use Hyperf\Framework\Bootstrap\WorkerStartCallback;
 use Hyperf\Server\Event;
 use Hyperf\Server\Server;
+use Hyperf\WebSocketServer\Server as WebSocketServer;
 use Swoole\Constant;
 
 return [
@@ -27,6 +28,24 @@ return [
             'sock_type' => \SWOOLE_SOCK_TCP,
             'callbacks' => [
                 Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
+            ],
+        ],
+        [
+            // 实时推送（docs/02 第 2.4 节、docs/05 第 5 节）：ws://{host}:9502/ws?token=xxx
+            // **只推不收**：发消息一律走 HTTP /chat/send，这里只回心跳 pong。
+            // 路由在 config/routes.php 里用 Router::addServer('ws', ...) 注册。
+            //
+            // 注：Hyperf 会把 ws 服务排在最前面，所以主 server 对象是 Swoole\WebSocket\Server，
+            // 于是 HTTP worker 里也能用 Hyperf\WebSocketServer\Sender::push() 跨进程推到 ws 连接。
+            'name' => 'ws',
+            'type' => Server::SERVER_WEBSOCKET,
+            'host' => '0.0.0.0',
+            'port' => (int) env('CL_WS_PORT', 9502),
+            'sock_type' => \SWOOLE_SOCK_TCP,
+            'callbacks' => [
+                Event::ON_HAND_SHAKE => [WebSocketServer::class, 'onHandShake'],
+                Event::ON_MESSAGE => [WebSocketServer::class, 'onMessage'],
+                Event::ON_CLOSE => [WebSocketServer::class, 'onClose'],
             ],
         ],
     ],
