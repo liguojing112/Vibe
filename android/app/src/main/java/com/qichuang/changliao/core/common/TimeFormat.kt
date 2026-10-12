@@ -1,8 +1,10 @@
 package com.qichuang.changliao.core.common
 
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 /**
@@ -66,5 +68,17 @@ object TimeFormat {
         zone: ZoneId = ZoneId.systemDefault(),
     ): Long? = runCatching {
         LocalDateTime.parse(text.trim(), serverFormatter).atZone(zone).toEpochSecond()
+    }.getOrNull()
+
+    /**
+     * 日期选择器给的 **UTC 零点毫秒** → `yyyy-MM-dd`。
+     * Material3 的 `DatePicker` 用的是 UTC 零点，所以这里也必须按 UTC 取日期，否则会差一天。
+     */
+    fun utcMillisToDate(utcMillis: Long): String =
+        Instant.ofEpochMilli(utcMillis).atZone(ZoneOffset.UTC).toLocalDate().toString()
+
+    /** `yyyy-MM-dd` → 日期选择器要的 UTC 零点毫秒；解析不了返回 null。 */
+    fun dateToUtcMillis(date: String): Long? = runCatching {
+        LocalDate.parse(date.trim()).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
     }.getOrNull()
 }

@@ -90,6 +90,7 @@ import com.qichuang.changliao.core.designsystem.component.ClChatToolBar
 import com.qichuang.changliao.core.designsystem.component.ClChatToolItem
 import com.qichuang.changliao.core.designsystem.component.ClConversationItem
 import com.qichuang.changliao.core.designsystem.component.ClConversationRow
+import com.qichuang.changliao.core.designsystem.component.ClDatePickerDialog
 import com.qichuang.changliao.core.designsystem.component.ClEntryRow
 import com.qichuang.changliao.core.designsystem.component.ClGiftGrid
 import com.qichuang.changliao.core.designsystem.component.ClGiftItem
@@ -601,6 +602,9 @@ fun DesignSystemGalleryScreen(onBack: (() -> Unit)? = null) {
                         onAdd = { photoList = photoList + "" },
                         onRemove = { index -> photoList = photoList.filterIndexed { i, _ -> i != index } },
                         onClick = {},
+                        onMove = { from, to ->
+                            photoList = photoList.toMutableList().also { it.add(to, it.removeAt(from)) }
+                        },
                     )
                 }
 
@@ -679,6 +683,7 @@ fun DesignSystemGalleryScreen(onBack: (() -> Unit)? = null) {
                 var showSheet by remember { mutableStateOf(false) }
                 var showDialog by remember { mutableStateOf(false) }
                 var showPreview by remember { mutableStateOf(false) }
+                var showDatePicker by remember { mutableStateOf(false) }
                 var refreshing by remember { mutableStateOf(false) }
                 val demoItems = remember { (1..8).map { "列表项 $it" } }
 
@@ -691,6 +696,7 @@ fun DesignSystemGalleryScreen(onBack: (() -> Unit)? = null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(ClTheme.spacing.m)) {
                     ClOutlineSmallButton(text = "图片预览", onClick = { showPreview = true })
                     ClOutlineSmallButton(text = "下拉刷新", onClick = { refreshing = true })
+                    ClOutlineSmallButton(text = "选日期", onClick = { showDatePicker = true })
                 }
 
                 ClCard {
@@ -759,6 +765,17 @@ fun DesignSystemGalleryScreen(onBack: (() -> Unit)? = null) {
 
                 if (showPreview) {
                     ClImagePreview(urls = listOf(""), onDismiss = { showPreview = false })
+                }
+
+                if (showDatePicker) {
+                    ClDatePickerDialog(
+                        title = "选择生日",
+                        onConfirm = {
+                            toast.show("选了：$it")
+                            showDatePicker = false
+                        },
+                        onDismiss = { showDatePicker = false },
+                    )
                 }
             }
 

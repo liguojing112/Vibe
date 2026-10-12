@@ -19,6 +19,7 @@ import com.qichuang.changliao.feature.auth.LoginRoute
 import com.qichuang.changliao.feature.auth.RegisterRoute
 import com.qichuang.changliao.feature.common.PlaceholderPage
 import com.qichuang.changliao.feature.main.MainScreen
+import com.qichuang.changliao.feature.profile.EditProfileRoute
 
 /**
  * 全 App 唯一导航图（docs/02 第 4.3 节）：所有页面的路由都在这里注册。
@@ -79,7 +80,9 @@ fun ClNavHost(
         placeholder(navController, Routes.DAILY_TASK, "每日任务（P11）")
         placeholder(navController, Routes.VIP, "会员中心（P12）")
         placeholder(navController, Routes.COIN_WALLET, "金币钱包（P13）")
-        placeholder(navController, Routes.EDIT_PROFILE, "编辑资料（P14）")
+        composable(Routes.EDIT_PROFILE) {
+            EditProfileRoute(onBack = { navController.popBackStack() })
+        }
         placeholder(navController, Routes.SETTINGS, "设置（P15）")
         placeholder(navController, Routes.VOICE_HALL, "语音大厅（P16）")
         placeholder(navController, Routes.CALL_CONFIRM, "拨打前价格确认（P17）")

@@ -65,3 +65,22 @@ suspend inline fun <reified T : Any> safeApiCall(
 } catch (e: Exception) {
     ApiResult.NetworkError(NETWORK_ERROR_MESSAGE)
 }
+
+/**
+ * 给「成功时 `data` 是 null」的接口用（写操作、开关这类）。
+ *
+ * [safeApiCall] 看到 code=200 但 data 为空会当成错误形状，这里把这种情况收回到 [ApiResult.Success]；
+ * 真正的业务错误和网络错误照旧往下传。
+ */
+suspend inline fun safeApiCallUnit(
+    crossinline block: suspend () -> ApiResponse<JsonElement?>,
+): ApiResult<Unit> = when (val result = safeApiCall<JsonElement>(block)) {
+    is ApiResult.Success -> ApiResult.Success(Unit)
+    is ApiResult.BizError -> if (result.code == API_CODE_SUCCESS) {
+        ApiResult.Success(Unit)
+    } else {
+        result
+    }
+
+    is ApiResult.NetworkError -> result
+}

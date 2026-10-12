@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P3 登录·资料·发现·关系**（P2 已完成）
-- 当前任务：T3.2 已完成 → 下一步 T3.3 编辑资料页（P14）
+- 当前任务：T3.3 已完成 → 下一步 T3.4 关系接口
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T3.2 资料接口与审核数据完成（迁移建 `cl_user_photo`/`cl_profile_audit`、`/user/me`、`/user/profile`、`/user/photos`、`/user/settings` + `ProfileService`，18 个新单测），`check-server.sh` 通过（**118 测试 / 1243 断言** + phpstan 无错 + money 通过），并用 curl 对真实后端冒烟验证了「本人看得到待审内容、别人看到旧值」和「性别传了不生效」。下一步按 `docs/08` 做 T3.3（P14 编辑资料页 + 头像相册上传压缩 + 审核中角标）。
+- 上次停在哪：T3.3 编辑资料页完成（P14 真页面 + 选图压缩上传 + 长按拖动排序相册 + 审核中角标，30 个新单测），`check-android.sh` 通过（**150 个单测**）。下一步按 `docs/08` 做 T3.4（关系接口：关注/取关/拉黑/访客/粉丝/好友/黑名单 + 非会员打码；**顺带把 T3.2 欠的 `/user/me` 统计数补上**；自检 `S`）。
 
 ## 任务进度
 
@@ -17,7 +17,7 @@
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
 - P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [x] T2.11
-- P3：[x] T3.1 [x] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
+- P3：[x] T3.1 [x] T3.2 [x] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
 - P6：[ ] T6.1 [ ] T6.2 [ ] T6.3 [ ] T6.4 [ ] T6.5 [ ] T6.6 [ ] T6.7
@@ -80,6 +80,7 @@
 | Q0-11 | **MineAdmin-Vue 3.2.1 自带代码有大量 lint 错误**（eslint 13 error：未使用变量/`prefer-promise-reject-errors`；stylelint 328 error：单行声明数、重复选择器、空 style 块等），导致 `pnpm lint` 直接失败 | 你已决定：**在配置里给上游目录放宽**。已改 `admin-web/eslint.config.js`（`src/**` 放宽两条规则，`src/modules/cl/**` 重新收紧）与 `admin-web/stylelint.config.js`（对 `src/{components,layouts,plugins,assets,modules/base}/**` 用 overrides 关掉相关规则；`@apply` 加白名单；`.md` 加入 ignores）。**未改任何 MineAdmin 源码** | T0.3、T7.x | ✅ 已解决 |
 | Q0-15 | `ClMiniProfileRow` 的 `blurred`（P09 非会员看不全是谁）用 `Modifier.blur`，但它在 **API 31 以下是空操作**，低版本手机上打码不生效 | 先用着（minSdk 26，Android 12+ 生效）；要全机型都糊就得改成盖一层遮罩或直接换成打码文字。做 P09 时决定 | T2.9、T3.9 | ⏳ 待确认（**2026-10-12 模拟器实测：API 37 上打码正常生效**） |
 | Q0-16 | `ClRangeSlider`（`docs/03` 第 5.5 节）是双滑块，但设计图 07 画的是**单滑块**（原型 HTML 也是一个 `<input type=range>`） | 行为以 `docs/01` P07「双滑块 18~60」为准，实现不改；外观差异（M3 竖条 thumb vs 设计图圆 thumb）留到 T3.8 做 P07 时对着设计图定 | T2.5、T3.8 | ⏳ 待 T3.8 定 |
+| Q0-18 | P14 的「学历」`docs/01` 只写「选择」，没给选项清单（原型里只出现过「本科」「硕士」两个值） | 先定成 `高中及以下 / 大专 / 本科 / 硕士 / 博士` 五项；服务端只校验 `string|max:16` 不限制取值，客户给清单后改客户端常量 `EDUCATION_OPTIONS` 即可 | T3.3 | ⏳ 待确认 |
 | Q0-17 | 注册页要不要也放「我已阅读并同意协议」勾选？`docs/01` P00 只在**登录**那条里要求勾选，「注册」那条只列了字段 | 按文档来：**只在登录页勾选**，注册页不放。客户若要求注册也勾，加一个 `ClCheckboxAgreement` 即可 | T3.1 | ⏳ 待确认 |
 
 ## 任务记录
@@ -530,6 +531,26 @@
   4. 新增 Controller 后必须 `rm -rf runtime/container` 再启，否则注解路由扫不进去（T1.x 记过，这次又验证了一遍）。
 - **未做 / 有意为之**：`/user/me` 的**统计数（关注 / 好友 / 粉丝 / 访客未读）没返回** —— 这些要 `cl_follow`/`cl_visitor` 等关系表，是 **T3.4** 的活；现在返回 0 或编造数字都是假的，所以干脆先不放这个字段，**T3.4 做完关系接口后要把它们补进 `/user/me`**。
 - 对照设计图：不涉及（纯接口）。
+
+### T3.3 编辑资料页（P14）—— ✅ 完成（2026-10-12）
+- 数据层：`UserApi`（四个资料接口）、`UploadApi`（multipart 图片上传）、`dto/UserDto.kt`（请求体）、`data/model/UserProfile.kt`（含 `UserPhoto`、`PhotoListResult`、`ProfileUpdate`）、`UserRepository`、`ImageUploader`（**选图 → 压缩 → 上传**，把 `Context`/`Uri` 关在这一层，ViewModel 不碰 Android API）。
+- 设计系统补了两处：
+  - 新增 `ClDatePickerDialog`（生日选择器）。**用 M3 的 DatePicker 但包在 design system 里**，页面不直接碰 M3 的弹窗；年份范围可传，生日直接卡到「今年往前推 18 年」，不该选的年份根本选不到。已加进组件预览页。
+  - `ClPhotoGrid` 增加 `onMove`：**长按拖动排序**（长按触发，避免和页面上下滚动打架），拖动中的格子放大跟着手指走。落点换算抽成纯函数 `photoDragTarget()` 单独测。
+  - `core/common/TimeFormat` 加了 `utcMillisToDate()` / `dateToUtcMillis()`（M3 的 DatePicker 是 UTC 零点口径，不按 UTC 取会差一天）。
+- 页面（`feature/profile/` 四件套）：女用户顶部固定提示「请使用本人真实照片和资料，虚假资料将被封号」；头像点击换图；昵称、生日、城市、身高、职业、学历、交友期待、自我介绍、兴趣标签、相册；右上角「保存」+ 底部「保存资料」。头像/昵称/自我介绍/相册在审核中时打**「审核中」角标**（昵称、自我介绍用输入框的 `trailingIcon` 塞了个 `ClTag`，不用改组件 API）。
+- 两个关键设计：
+  1. **只提交用户真的改过的字段** —— 服务端 `sometimes` 是「没传就不改」，把没动过的头像/昵称一起发过去会平白多一条待审记录还得等审核。`buildUpdate()` 逐字段和原始资料比，没改的留 null（`clJson` 配了 `explicitNulls = false`，null 不会编码）。
+  2. 相册是**整体提交**的另一个接口，也是「变了才发」。
+- 验收对照（docs/08 T3.3 只要求 `D`）：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；**150 个单测**，T3.3 新增 30 个：EditProfileViewModel 20 + PhotoGridDrag 10；`lintDebug`、`assembleDebug`、`check-ui.sh` 通过 —— 页面只用 designsystem 组件与 token）。
+- 单测覆盖：加载时**待审内容优先**（看到的是新昵称）、加载失败文案、昵称/生日（不满 18、刚好 18 放行）/自我介绍/标签/身高五处校验拦住时不发请求、**只把改过的字段发出去**（断言没改的字段是 null）、保存成功刷新 `auditing` 并提示、保存失败显示服务端文案、相册改了才调相册接口、拖动排序与删除、标签名字换回后台 id、不认识的名字不落库；拖动落点 10 个边界（跨行、贴边、只有一张）。
+- 写测试时抓到**自己两个真 bug**（不写测试就漏过去了）：
+  1. `heightError` 用 `toIntOrNull()?.let { 合法就 null } ?: "错误"` —— `let` 返回的 null 既是「合法」又是「没值」，结果**每个填了身高的用户都被判成身高有问题，保存直接被拦下**；
+  2. 标签越界时我在 `onTagNamesChanged` 里提前 return（不存这次选择），但 `validate()` 又按 `tags.size` 重算，把刚提示的错误**覆盖成 null** —— 两处判断不一致。现在统一成「照存 + 一处算错误」。
+- **未做 / 有意为之**：
+  - **没有在模拟器上目视这个页面**（你让先关模拟器了）。选图/拖动/日期选择这三个交互都只在单测层面验证过（拖动落点有纯函数测试，选图和上传没测），**P3 阶段验收（T3.10）时一定要真机走一遍这个页面**。
+  - 学历的选项清单 `docs/01` P14 只说「选择」没给具体项，我先定了 `高中及以下 / 大专 / 本科 / 硕士 / 博士`（见 Q0-18）。
+  - `ImageUploader.upload()` 本体（压缩 + multipart）没写单测 —— 要 `Uri`/`Context`，纯 JVM 测不了。
 
 ## 阶段验收记录
 

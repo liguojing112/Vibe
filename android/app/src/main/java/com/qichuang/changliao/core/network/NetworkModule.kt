@@ -66,4 +66,12 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAppApi(retrofit: Retrofit): AppApi = retrofit.create(AppApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideUserApi(retrofit: Retrofit): UserApi = retrofit.create(UserApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideUploadApi(retrofit: Retrofit): UploadApi = retrofit.create(UploadApi::class.java)
 }
