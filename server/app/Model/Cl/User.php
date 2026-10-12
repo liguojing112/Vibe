@@ -87,6 +87,14 @@ final class User extends MineModel
         return $this->status === self::STATUS_BANNED;
     }
 
+    /** 会员是否还在有效期内（docs/04 第 1 节 `vip_expire_at`）。 */
+    public function isVip(): bool
+    {
+        $expireAt = $this->vip_expire_at;
+
+        return $expireAt !== null && $expireAt->isFuture();
+    }
+
     public function verifyPassword(string $plain): bool
     {
         return password_verify($plain, $this->password);

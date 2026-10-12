@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P3 登录·资料·发现·关系**（P2 已完成）
-- 当前任务：T3.1 已完成 → 下一步 T3.2 资料接口与审核数据
+- 当前任务：T3.2 已完成 → 下一步 T3.3 编辑资料页（P14）
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T3.1 登录注册页完成（P00 登录 / 注册 / 协议三个真页面 + `AuthRepository`，28 个新单测），`check-android.sh` 通过（**120 个单测**）。另按你 2026-10-12 的决定：**视频/语音功能本期不做**（`feature.call_enabled` 保持 0，所有入口隐藏，P8 三个任务标记为本期不做）。下一步按 `docs/08` 做 T3.2（`/user/me`、`/user/profile`、`/user/photos`、`/user/settings` + 审核字段写 `cl_profile_audit`；自检 `S`）。
+- 上次停在哪：T3.2 资料接口与审核数据完成（迁移建 `cl_user_photo`/`cl_profile_audit`、`/user/me`、`/user/profile`、`/user/photos`、`/user/settings` + `ProfileService`，18 个新单测），`check-server.sh` 通过（**118 测试 / 1243 断言** + phpstan 无错 + money 通过），并用 curl 对真实后端冒烟验证了「本人看得到待审内容、别人看到旧值」和「性别传了不生效」。下一步按 `docs/08` 做 T3.3（P14 编辑资料页 + 头像相册上传压缩 + 审核中角标）。
 
 ## 任务进度
 
@@ -17,7 +17,7 @@
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
 - P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [x] T2.11
-- P3：[x] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
+- P3：[x] T3.1 [x] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
 - P6：[ ] T6.1 [ ] T6.2 [ ] T6.3 [ ] T6.4 [ ] T6.5 [ ] T6.6 [ ] T6.7
@@ -499,6 +499,37 @@
   - **注册页没放协议勾选** —— `docs/01` P00 只要求登录页勾选，「注册」那条只列了字段，所以按文档来。（如果客户要求注册也勾，加一个 `ClCheckboxAgreement` 即可，改动很小。）
   - **没有在模拟器上目视这两个页面**（你让先关掉模拟器了）。表单布局、错误文案的观感留到 P3 阶段验收时一起走查。
 - 踩到的坑：Kotlin 的块注释**可以嵌套**，KDoc 里写路径 `.../V1/*` 会打开一个嵌套注释，编译器报「Unclosed comment」——已改成不写星号。
+
+### T3.2 资料接口与审核数据 —— ✅ 完成（2026-10-12）
+- 迁移 `2026_10_12_000005_create_cl_profile_tables.php`：`cl_user_photo`（相册，带 `audit_status`/`reject_reason`）、`cl_profile_audit`（资料修改审核）。**开发库和 `cl_test` 都跑过 migrate**。
+- 新增：`Model\Cl\UserPhoto`、`Model\Cl\ProfileAudit`（含字段名/状态常量与 `AUDIT_FIELDS`）、`UserPhotoRepository`、`ProfileAuditRepository`、`Service\Cl\User\ProfileService`、三个 Request、`Controller\V1\UserController`。
+- 四个接口（都要登录）：
+  - `GET /user/me`：完整资料 + **`pending`（待审的新内容）** + **`auditing`（哪些字段在审核中）** + 相册（含 `audit_status`）+ 金币余额（男）/ 积分余额（女）+ `is_vip`。
+  - `POST /user/profile`：**头像 / 昵称 / 自我介绍进审核**（写 `cl_profile_audit`，**不动 `cl_user`**）；生日、城市、身高、职业、学历、交友期待、标签**直接生效**。
+  - `POST /user/photos`：相册整体提交，整批进审核；`urls` 去空去重、顺序即排序，最多 9 张。
+  - `POST /user/settings`：`show_in_nearby` / `show_in_recommend` 直接生效。
+- 几个想清楚了才写的规则：
+  1. **同一字段只留一条待审记录**（重复提交覆盖，`upsertPending`）；
+  2. **改回原值就撤销待审**（`deletePending`），不让用户白等一次审核；
+  3. **相册没真改就不重新进审核**（比对当前提交的 URL 列表），否则用户点一次保存就把自己的相册打回待审；
+  4. 相册审核：新一批进待审，**已通过的旧相册留着**（别人看到的还是旧的），等这批通过后由后台替换（P7）；
+  5. 字段用**白名单**（`Arr::only`），所以 `gender`、`level`、`status`、`real_name_status`、`account`、`phone` 客户端传了也不生效。
+- 覆盖掉一个脚手架文件：`app/Http/Api/Controller/V1/UserController.php` 原本是 MineAdmin 的示例（一个不干活、任何请求都返回成功的假 `/api/v1/login`）——这文件在 `app/` 下、属于我们的代码，已换成真实的资料接口；App 登录一直在 `AuthController`。`app/Http/Api/Request/V1/UserRequest.php`（同样没人引用的示例）留着没动。
+- 验收对照（docs/08 T3.2）：
+  1. **改头像后 `/user/me` 返回待审内容** —— ✅ `testAvatarGoesToAuditAndOwnerSeesPendingValue`：`pending.avatar` 是新值、`auditing` 含 `avatar`，而 `avatar`（已通过、别人看到的）还是旧值。
+  2. **他人看到旧头像** —— ✅ 同上，断言 `cl_user.avatar` 数据库里没变 + `cl_profile_audit` 里有状态 0 的记录（old_value=旧、new_value=新）。
+  3. **年龄不满 18 被拒** —— ✅ `testUnder18BirthdayIsRejected`（422，提示含「18」）+ `testExactly18TodayIsAccepted`（刚好今天满 18 放行）。
+  4. **性别字段传了也不生效** —— ✅ `testGenderChangeIsIgnored`：传 `gender=2`，返回和数据库都还是 1。
+  5. 另覆盖：未登录 401、女用户返回积分余额、昵称也走审核、重复提交只留一条待审、改回原值撤销、直接生效字段不进审核表、标签必须存在且最多 5 个、相册去重/清空/超 9 张 422、开关直接生效且非法值 422。
+- 自检命令：`bash scripts/check-server.sh` → 通过（**Tests: 118, Assertions: 1243**，比 T3.1 后多 18 个；phpstan `[OK] No errors`；money 通过）。
+- curl 对真实后端冒烟（跑完已把测试账号和临时脚本删掉）：`/user/me` 200 字段齐全；改头像后 `pending.avatar` 出现、`auditing:["avatar"]`、`avatar` 仍为空；`gender:2` 不生效；相册返回 2 张 `audit_status:0`；未登录 401。
+- 踩到的坑：
+  1. **`birthday` cast 出来的是 `\Carbon\Carbon`，不是 `Hyperf\Carbon\Carbon`** —— 一开始用 `instanceof Hyperf\Carbon\Carbon` 判空，导致 `age` 一直是 null，改成 `Carbon::parse($birthday->format('Y-m-d'))` 再算。
+  2. **phpstan 泛型**：`$model->newQuery()->get()` 推出来是 `Collection<int,object>`，声明了 `@return Collection<int,UserPhoto>` 就会报错，要加 `@var` 注解；`Collection::map()` 的回调同理（改用 foreach 收集更省事）。
+  3. **重启后端的坑（又踩一次）**：Swoole 会改进程标题，`pkill -f 'hyperf'` 匹配不到，得按端口杀；而且**pkill 的模式和启动命令写在同一条命令里会把自己的 shell 一起杀掉**（`pkill -f '[h]yperf.php start'` 匹配到了同一条命令行里的启动串）。以后重启后端分两步：先按端口杀，再单独启动。
+  4. 新增 Controller 后必须 `rm -rf runtime/container` 再启，否则注解路由扫不进去（T1.x 记过，这次又验证了一遍）。
+- **未做 / 有意为之**：`/user/me` 的**统计数（关注 / 好友 / 粉丝 / 访客未读）没返回** —— 这些要 `cl_follow`/`cl_visitor` 等关系表，是 **T3.4** 的活；现在返回 0 或编造数字都是假的，所以干脆先不放这个字段，**T3.4 做完关系接口后要把它们补进 `/user/me`**。
+- 对照设计图：不涉及（纯接口）。
 
 ## 阶段验收记录
 
