@@ -6,6 +6,7 @@ namespace App\Repository\Cl;
 
 use App\Model\Cl\User;
 use App\Repository\IRepository;
+use Hyperf\Collection\Collection;
 
 /**
  * @extends IRepository<User>
@@ -43,5 +44,23 @@ final class UserRepository extends IRepository
     public function findById(mixed $id): mixed
     {
         return $this->model->newQuery()->whereKey($id)->first();
+    }
+
+    /**
+     * 按 id 批量取用户（关系列表把 id 换成资料用），返回以 id 为键的集合。
+     *
+     * @param array<int,int> $ids
+     * @return Collection<int,User>
+     */
+    public function listByIds(array $ids): Collection
+    {
+        if ($ids === []) {
+            return new Collection([]);
+        }
+
+        /** @var Collection<int,User> $users */
+        $users = $this->model->newQuery()->whereIn('id', $ids)->get();
+
+        return $users->keyBy('id');
     }
 }

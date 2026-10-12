@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Model\Cl;
 
+use Hyperf\Carbon\Carbon;
 use Hyperf\DbConnection\Model\Model as MineModel;
 
 /**
@@ -93,6 +94,24 @@ final class User extends MineModel
         $expireAt = $this->vip_expire_at;
 
         return $expireAt !== null && $expireAt->isFuture();
+    }
+
+    /**
+     * 年龄（由 `birthday` 算，没填返回 null）。
+     *
+     * 注意 `birthday` cast 出来的是 `\Carbon\Carbon`，不是 Hyperf 的 Carbon 子类，
+     * 所以不判断类型、直接 parse 一份出来算；两边都取当天零点，避免时区差一天。
+     */
+    public function age(): ?int
+    {
+        $birthday = $this->birthday;
+        if ($birthday === null) {
+            return null;
+        }
+
+        return (int) Carbon::parse($birthday->format('Y-m-d'))
+            ->startOfDay()
+            ->diffInYears(Carbon::now()->startOfDay());
     }
 
     public function verifyPassword(string $plain): bool

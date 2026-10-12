@@ -9,9 +9,9 @@ use App\Model\Cl\User;
 use App\Model\Cl\UserPhoto;
 use App\Repository\Cl\ProfileAuditRepository;
 use App\Repository\Cl\UserPhotoRepository;
+use App\Service\Cl\Relation\RelationService;
 use App\Service\Cl\Wallet\CoinWalletService;
 use App\Service\Cl\Wallet\PointWalletService;
-use Hyperf\Carbon\Carbon;
 use Hyperf\Collection\Arr;
 use Hyperf\DbConnection\Db;
 use Hyperf\Validation\ValidationException;
@@ -47,6 +47,7 @@ final class ProfileService
         private readonly ProfileAuditRepository $auditRepository,
         private readonly CoinWalletService $coinWalletService,
         private readonly PointWalletService $pointWalletService,
+        private readonly RelationService $relationService,
     ) {}
 
     /**
@@ -71,7 +72,7 @@ final class ProfileService
             'avatar' => $user->avatar,
             'bio' => $user->bio,
             'birthday' => $user->birthday?->format('Y-m-d'),
-            'age' => $this->ageOf($user),
+            'age' => $user->age(),
             'city' => $user->city,
             'height' => $user->height,
             'job' => $user->job,
@@ -91,6 +92,8 @@ final class ProfileService
             'auditing' => array_keys($pendingValues),
             'coin_balance' => $user->isMale() ? $this->coinWalletService->balanceOf($user->id) : null,
             'point_balance' => $user->isFemale() ? $this->pointWalletService->summaryOf($user->id)['balance'] : null,
+            // 关系统计（关注 / 好友 / 粉丝 / 访客），P04 我的页四格用
+            'stats' => $this->relationService->stats($user),
         ];
     }
 
@@ -270,20 +273,5 @@ final class ProfileService
             }
         }
         return $clean;
-    }
-
-    private function ageOf(User $user): ?int
-    {
-        $birthday = $user->birthday;
-        if ($birthday === null) {
-            return null;
-        }
-
-        // 生日是 date 字段；两边都取当天零点再比，避免时区差一天。
-        // 注意 `birthday` cast 出来的是 `Carbon\Carbon`，不是 Hyperf 的 Carbon 子类，
-        // 所以这里别用 instanceof 判断，直接 parse 一份出来用。
-        return (int) Carbon::parse($birthday->format('Y-m-d'))
-            ->startOfDay()
-            ->diffInYears(Carbon::now()->startOfDay());
     }
 }
