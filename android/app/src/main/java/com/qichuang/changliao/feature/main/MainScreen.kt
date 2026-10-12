@@ -16,7 +16,10 @@ import androidx.navigation.compose.rememberNavController
 import com.qichuang.changliao.BuildConfig
 import com.qichuang.changliao.core.designsystem.component.ClBottomBar
 import com.qichuang.changliao.core.designsystem.component.ClBottomBarItem
+import com.qichuang.changliao.core.designsystem.icon.ClIcons
 import com.qichuang.changliao.core.navigation.Routes
+import com.qichuang.changliao.feature.common.DevEntriesPage
+import com.qichuang.changliao.feature.common.DevEntry
 import com.qichuang.changliao.feature.common.PlaceholderPage
 import com.qichuang.changliao.feature.discover.DiscoverRoute
 
@@ -64,15 +67,21 @@ fun MainScreen(onOpen: (String) -> Unit) {
             composable(Routes.TAB_MATCH) { PlaceholderPage(title = "速配（P02）") }
             composable(Routes.TAB_MESSAGE) { PlaceholderPage(title = "消息（P03）") }
             composable(Routes.TAB_MINE) {
-                PlaceholderPage(
-                    title = "我（P04）",
-                    actionText = if (BuildConfig.DEBUG) "查看组件预览页" else null,
-                    onAction = if (BuildConfig.DEBUG) {
-                        { onOpen(Routes.GALLERY) }
-                    } else {
-                        null
-                    },
-                )
+                if (BuildConfig.DEBUG) {
+                    // P04「我的」还没做（T5.x），但 P14/P08/P09 已经写完却没有入口，
+                    // 先在 debug 包放个开发入口页，P04 做完后连 DevEntriesPage 一起删掉
+                    DevEntriesPage(
+                        title = "我（P04 开发中）",
+                        entries = listOf(
+                            DevEntry("编辑资料（P14）", ClIcons.edit) { onOpen(Routes.EDIT_PROFILE) },
+                            DevEntry("最近访客（P08）", ClIcons.eye) { onOpen(Routes.VISITORS) },
+                            DevEntry("喜欢我的人（P09）", ClIcons.heart) { onOpen(Routes.LIKED_ME) },
+                            DevEntry("组件预览页", ClIcons.spark) { onOpen(Routes.GALLERY) },
+                        ),
+                    )
+                } else {
+                    PlaceholderPage(title = "我（P04）")
+                }
             }
         }
 

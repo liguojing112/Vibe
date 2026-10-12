@@ -16,6 +16,15 @@ error_reporting(E_ALL);
 
 require BASE_PATH . '/vendor/autoload.php';
 
+/*
+ * 时区统一成 Asia/Shanghai。
+ *
+ * 不设的话 PHP 默认 UTC，而 MySQL 那边用的是宿主机的时区（本机是 +08），
+ * 于是「在线」「今天」这类判断会整体偏 8 小时 ——
+ * 例如 docs/06 要求会员免费额度按 **Asia/Shanghai 自然日** 重置，UTC 下会变成早上 8 点才重置。
+ */
+date_default_timezone_set(($_ENV['APP_TIMEZONE'] ?? $_SERVER['APP_TIMEZONE'] ?? '') ?: 'Asia/Shanghai');
+
 // Self-called anonymous function that creates its own scope and keep the global namespace clean.
 (function () {
     Plugin::init();

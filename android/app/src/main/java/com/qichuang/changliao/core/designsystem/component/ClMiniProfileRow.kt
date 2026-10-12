@@ -19,7 +19,10 @@ import com.qichuang.changliao.core.designsystem.theme.ClTheme
  * 小头像 + 昵称 + 说明 + 右侧小按钮的一行（docs/03 第 5.4 节，设计图 08）。
  *
  * P08 最近访客、P09 喜欢我的人、P16 语音大厅、黑名单共用。
- * [blurred] = true 时把文字打糊（非会员看不全是谁，P09）。
+ *
+ * [blurred] = true 时把**头像**糊掉（非会员看不全是谁，P08/P09）。
+ * 注意文档的口径是「昵称打码 + 头像模糊」：昵称由**服务端**打成「小*」，
+ * 客户端只管把头像糊掉 —— 别再糊文字，那样连打码后的首字都看不清了。
  */
 @Composable
 fun ClMiniProfileRow(
@@ -47,13 +50,13 @@ fun ClMiniProfileRow(
                 size = ClTheme.size.avatarS,
                 online = online,
                 contentDescription = name,
+                modifier = if (blurred) Modifier.blur(ClTheme.spacing.s) else Modifier,
             )
 
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = ClTheme.spacing.m)
-                    .then(if (blurred) Modifier.blur(ClTheme.spacing.s) else Modifier),
+                    .padding(start = ClTheme.spacing.m),
                 verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.xxs),
             ) {
                 Text(

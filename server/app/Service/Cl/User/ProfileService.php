@@ -87,7 +87,9 @@ final class ProfileService
             // 自己看到的是「我最近提交的那一版」相册（待审优先）
             'photos' => $this->photoList($user->id),
             // 待审的新内容，键是字段名
-            'pending' => $pendingValues,
+            // 注意：**必须转成对象**，PHP 空数组 json_encode 出来是 `[]`，
+            // 客户端按 Map 解析会直接失败（当成网络错误）。同理适用于其它 map 字段。
+            'pending' => (object) $pendingValues,
             // 正在审核中的字段名，页面据此打「审核中」角标
             'auditing' => array_keys($pendingValues),
             'coin_balance' => $user->isMale() ? $this->coinWalletService->balanceOf($user->id) : null,

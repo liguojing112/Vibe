@@ -20,8 +20,15 @@ android {
 
     buildTypes {
         debug {
-            // 模拟器访问宿主机：10.0.2.2 = 宿主机 127.0.0.1（见 docs/02 第 4.4 节）
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:9501\"")
+            // 模拟器访问宿主机：10.0.2.2 = 宿主机的 127.0.0.1（见 docs/02 第 4.4 节）
+            //
+            // 但后端跑在 WSL 里时，模拟器的 10.0.2.2 走不通（连不上，超时）。这时可以改用
+            // `adb reverse tcp:9501 tcp:9501` + 构建时覆盖地址：
+            //   ./gradlew assembleDebug -PapiBaseUrl=http://127.0.0.1:9501
+            // 真机调试也走这条路（真机同样连不到 10.0.2.2）。
+            val apiBaseUrl = providers.gradleProperty("apiBaseUrl")
+                .getOrElse("http://10.0.2.2:9501")
+            buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
             buildConfigField("String", "WS_URL", "\"ws://10.0.2.2:9502/ws\"")
         }
         release {

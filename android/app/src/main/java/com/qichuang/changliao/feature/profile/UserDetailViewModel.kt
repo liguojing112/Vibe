@@ -171,6 +171,10 @@ class UserDetailViewModel @Inject constructor(
                 detail = current.detail?.copy(
                     isFollowing = state.isFollowing,
                     isMutual = state.isMutual,
+                    // 关注关系变了，原来那条免费提示（「互相关注，私信免费」之类）就不作数了。
+                    // 新报价只有服务端算得出来，而重新拉整页会多记一条访客，所以这里先不显示，
+                    // 宁可少一句话，也别显示一句错的。
+                    price = current.detail.price?.copy(freeHint = null),
                 ),
             )
         }
