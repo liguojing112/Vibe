@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P4 私信与计费**（P3 已完成）
-- 当前任务：T4.1 已完成 → 下一步 T4.2 发消息计费
+- 当前任务：T4.2 已完成 → 下一步 T4.3 会话、消息查询与已读
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T4.1 会话与消息表完成（`cl_conversation`/`cl_message`/`cl_sensitive_word` 迁移 + 模型，8 个新单测），`check-server.sh` 通过（**202 测试 / 1547 断言**）。下一步按 `docs/08` 做 T4.2（`MessageBillingService::send` + `POST /chat/send`，严格按 `06` §3.3 的七步；验收是 **`06` 第 10 节场景 1~13 全部过**，这是整个项目测试最多的一段）。
+- 上次停在哪：T4.2 发消息计费完成（`MessageBillingService::send` 按 `06` §3.3 七步 + `POST /chat/send` + 敏感词标记 + `fee`/收费条文案 + 等级升级检查，**`06` 第 10 节场景 1~13 全过**），`check-server.sh` 通过（**225 测试 / 1659 断言**）。下一步按 `docs/08` 做 T4.3（会话列表、删除会话、`with/{userId}`、消息分页、已读、未读数、`sync`、`fee-rules`）。
 
 ## 任务进度
 
@@ -18,7 +18,7 @@
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
 - P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [x] T2.11
 - P3：[x] T3.1 [x] T3.2 [x] T3.3 [x] T3.4 [x] T3.5 [x] T3.6 [x] T3.7 [x] T3.8 [x] T3.9 [x] T3.10
-- P4：[x] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8 [ ] T4.9
+- P4：[x] T4.1 [x] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8 [ ] T4.9
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
 - P6：[ ] T6.1 [ ] T6.2 [ ] T6.3 [ ] T6.4 [ ] T6.5 [ ] T6.6 [ ] T6.7
 - P7：[ ] T7.1 [ ] T7.2 [ ] T7.3 [ ] T7.4 [ ] T7.5 [ ] T7.6 [ ] T7.7 [ ] T7.8 [ ] T7.9
@@ -733,6 +733,31 @@
 - 验收对照（docs/08 T4.1 只要求 `S`）：`bash scripts/check-server.sh` → 通过（**202 测试 / 1547 断言**，T4.1 新增 8 个；phpstan `[OK] No errors`；money 通过）。
 - 单测（`ChatTablesTest`）：`pair()` 与顺序无关、**同一对人只能有一条会话**、**反着写被 CHECK 挡住**、未读/删除列按用户取对、**client_msg_id 在同一个发送者下唯一**（换个人可以复用它）、只有文字和图片算普通消息（礼物不算，`06` 场景 16）、消息的默认值、敏感词唯一且默认启用。
 - 给 T4.4 记一笔（**现在没做，别到时候踩**）：`hyperf/websocket-server` 依赖装了、`.env` 里也有 `CL_WS_PORT=9502`，但 **`config/autoload/server.php` 里还没有 ws 服务条目**（只有 9501 的 http）。T4.4 要自己加。另：日志里那个 `9503` 是 **Swagger 文档服务**（`config/autoload/swagger.php`），不是 WebSocket。
+
+### T4.2 发消息计费 —— ✅ 完成（2026-10-12）
+- 新增：`Service\Cl\Chat\MessageBillingService`（计费主干）、`SensitiveWordService`（敏感词，Redis 缓存）、`Service\Cl\Level\LevelService`（升级检查）、`ConversationRepository`、`MessageRepository`、`SensitiveWordRepository`、`ChatSendRequest`、`ChatController::send`。
+- **严格按 `06` §3.3 的七步走**（一个事务）：
+  1. 校验：双方存在且未封禁、**异性**（同性 30003）、**任一方向拉黑都发不出去**（30002）、内容非空且不超 `chat.message_max_length`；
+  2. **幂等**：`client_msg_id` 已存在 → 直接返回那条消息，**不重复扣费**；
+  3. 报价：`MessagePricingService::quote()`（互关/对子免费/会员额度/收费）；
+  4. 收费：`CoinWalletService::decrease`（type=MESSAGE，ref=消息ID）→ 女方积分 `PointWalletService::increase`（type=MESSAGE_INCOME）→ `PlatformIncomeService::record` → 女方累计收益 +、`LevelService::checkUpgrade`；会员额度只在**真的用了** `VIP_FREE` 时才 +1；
+  5. 写消息（价格、免费原因、分成比例、积分、敏感词标记全存下来，方便对账）；
+  6. 会话：`male_sent_count` +1（**只算男方的普通消息**）、对方未读 +1、更新最后一条消息、**清掉双方「删过」的标记**（新消息让会话重新出现）；
+  7. 事务提交后推送 WebSocket —— **T4.4 做**，这里留了口子。
+- **先落消息再扣费**：扣费的流水要用消息 id 当 ref，而 `doc` 的步骤顺序是先扣后写。所以实际的顺序是「算报价 → 插消息 → 拿 id 去扣费/记收入」，仍然全在一个事务里，效果一致（余额不足时整笔回滚，消息也不留）。
+- 积分公式按 `06` §3.4 **全整数运算**（`intdiv`，先乘后除）：`floor(price × rate × point.per_yuan ÷ (10000 × coin.per_yuan))`，未实名时 `rate = floor(rate × share.unverified_factor ÷ 10000)`。实测：Lv1 已实名 = 15 分、未实名 = 7 分、Lv3 = 40 分，与文档例子完全一致。
+- 收费条文案（`fee.strip_text`）与 `fee` 结构按 `docs/05` §4.5 给全，**全由服务端拼**（铁律 6），四种形态都覆盖了。
+- 敏感词：命中**只标记不拦截**（消息照常送达、打 `sensitive_hit`），词库缓存在 Redis、后台改完 flush 一次。
+- 验收对照（docs/08 T4.2：**`06` 第 10 节场景 1~13 全部通过**）—— ✅ 13 个场景一个不落，另加：
+  - 敏感词命中标记（且正常内容不打标）；
+  - **场景 17~19**（跨门槛升级、一次跨两级取最高、锁定等级不升）—— 升级检查是计费流程的一环，就顺手做了；**升级的系统通知**要等通知表（P6）；
+  - HTTP 层的 5 个用例（`fee` 结构齐全、未登录 401、`type=3` 422、同性 30003、余额不足 20001 且消息不落库）。
+- **并发这块踩了两个坑，值得记**：
+  1. **并发首次发消息会死锁（MySQL 1213）**：两个协程同时 `insert cl_conversation`，撞唯一索引/间隙锁，MySQL 挑一个当事务回滚。加了事务级重试（最多 3 次，识别 `Deadlock` / `Lock wait timeout` / `Duplicate entry`），第二轮就能读到对方建好的会话继续走。
+  2. **文档场景 8 的写法其实证明不了并发安全**：余额 10、单价 5、发 3 条——串行跑也是「成功 2 条、余额 0」，有没有行锁都一样。所以另写了一个**能区分**的用例：只给 **1 条免费额度**再并发发 3 条——没有行锁的话三条会同时读到「还没发过」全部免单；有锁则只能免 1 条、另两条各扣 5。
+- 顺手修了一处**测试间污染**：我新加的 HTTP 用例把 `chat.free_count_per_pair` 改成 0 却没在收尾还原，导致 T3.6 的一个用例（`free_hint`）挂了 —— 是测试的问题不是代码退化，收尾补上了还原。
+- 自检命令：`bash scripts/check-server.sh` → 通过（**225 测试 / 1659 断言**；phpstan `[OK] No errors`；money 通过 —— 资金动作全部走钱包服务，`check-money.sh` 没报）。
+- 未做 / 有意为之：**WebSocket 推送**（步骤 7）在 T4.4；**升级通知**在 P6 通知系统建好后接；礼物计费（场景 14~16）在 P5。
 
 ## 阶段验收记录
 

@@ -57,6 +57,7 @@ final class MessagePricingService
                 pairFreeRemaining: $pairRemaining,
                 vipFreeRemaining: $this->vipRemaining($male),
                 receiverLevel: $level->level,
+                unitPrice: $level->message_price,
             );
         }
 
@@ -68,6 +69,7 @@ final class MessagePricingService
                 pairFreeRemaining: $pairRemaining,
                 vipFreeRemaining: $this->vipRemaining($male),
                 receiverLevel: $level->level,
+                unitPrice: $level->message_price,
             );
         }
 
@@ -80,6 +82,7 @@ final class MessagePricingService
                 pairFreeRemaining: 0,
                 vipFreeRemaining: $vipRemaining,
                 receiverLevel: $level->level,
+                unitPrice: $level->message_price,
             );
         }
 
@@ -90,6 +93,7 @@ final class MessagePricingService
             pairFreeRemaining: 0,
             vipFreeRemaining: 0,
             receiverLevel: $level->level,
+            unitPrice: $level->message_price,
         );
     }
 
@@ -104,6 +108,75 @@ final class MessagePricingService
             MessageQuote::FREE_PAIR => sprintf('还可免费发送 %d 条', $quote->pairFreeRemaining),
             MessageQuote::FREE_VIP => sprintf('会员今日还剩 %d 条免费', $quote->vipFreeRemaining),
             default => null,
+        };
+    }
+
+    /**
+     * 女方**实际**的分成比例（万分比）：未实名要乘未实名系数（docs/06 第 3.4 节）。
+     *
+     * @param int $levelRate 女方等级表里的分成（万分比）
+     */
+    public function shareRateOf(User $female, int $levelRate): int
+    {
+        if ($female->real_name_status === User::REAL_NAME_PASSED) {
+            return $levelRate;
+        }
+
+        $factor = (int) $this->configService->get('share.unverified_factor', 10000);
+
+        return $factor <= 0 ? 0 : intdiv($levelRate * $factor, 10000);
+    }
+
+    /** 女方等级的私信分成（万分比），没算未实名系数。 */
+    public function levelRateOf(User $female): int
+    {
+        return (int) $this->levelOf($female)->message_share_rate;
+    }
+
+    /**
+     * 这一单女方能拿多少积分（docs/06 第 3.4 节）：
+     *
+     * ```
+     * points = floor( price × rate × point.per_yuan ÷ ( 10000 × coin.per_yuan ) )
+     * ```
+     *
+     * **全程整数运算，先乘后除最后取整**（用 `intdiv`，不准用浮点）。
+     */
+    public function pointsFor(int $price, int $rate): int
+    {
+        if ($price <= 0 || $rate <= 0) {
+            return 0;
+        }
+
+        $pointPerYuan = (int) $this->configService->get('point.per_yuan', 0);
+        $coinPerYuan = (int) $this->configService->get('coin.per_yuan', 0);
+        $denominator = 10000 * $coinPerYuan;
+
+        if ($pointPerYuan <= 0 || $denominator <= 0) {
+            return 0;
+        }
+
+        return intdiv($price * $rate * $pointPerYuan, $denominator);
+    }
+
+    /**
+     * 聊天页顶部那条收费文案（docs/05 第 4.5 节的 `fee.strip_text`，文案取自 `01` P06）。
+     *
+     * 全是服务端拼好的，客户端只管显示（铁律 6）。
+     */
+    public function stripText(MessageQuote $quote, int $balance): string
+    {
+        return match ($quote->freeReason) {
+            MessageQuote::FREE_MUTUAL_FOLLOW => '互相关注，私信免费',
+            MessageQuote::FREE_FEMALE_SEND => '女主可以免费发消息',
+            MessageQuote::FREE_PAIR => sprintf(
+                '还可免费发送 %d 条 · 之后 %d 币/条 · 余额 %d 币',
+                $quote->pairFreeRemaining,
+                $quote->unitPrice,
+                $balance,
+            ),
+            MessageQuote::FREE_VIP => sprintf('会员今日还剩 %d 条免费 · 余额 %d 币', $quote->vipFreeRemaining, $balance),
+            default => sprintf('私信 %d 币/条 · 余额 %d 币', $quote->unitPrice, $balance),
         };
     }
 

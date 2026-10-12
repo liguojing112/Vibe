@@ -39,6 +39,15 @@ final class User extends MineModel
 
     public const STATUS_CANCELLED = 3;
 
+    /** 实名状态（docs/04 第 1 节 `real_name_status`）。 */
+    public const REAL_NAME_NONE = 0;
+
+    public const REAL_NAME_AUDITING = 1;
+
+    public const REAL_NAME_PASSED = 2;
+
+    public const REAL_NAME_REJECTED = 3;
+
     protected ?string $table = 'cl_user';
 
     protected array $fillable = [

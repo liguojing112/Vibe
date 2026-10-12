@@ -17,8 +17,11 @@ final class MessageQuote
 
     public const FREE_VIP = 'VIP_FREE';
 
+    /** 女 → 男：永远免费，也不给积分（docs/06 第 3.2 节）。 */
+    public const FREE_FEMALE_SEND = 'FEMALE_SEND';
+
     public function __construct(
-        /** 金币；0 = 免费 */
+        /** 这一条要扣的金币；0 = 免费 */
         public readonly int $price,
         /** 免费原因，收费时为 null */
         public readonly ?string $freeReason,
@@ -28,6 +31,11 @@ final class MessageQuote
         public readonly int $vipFreeRemaining,
         /** 女方等级（要写进消息记录） */
         public readonly int $receiverLevel,
+        /**
+         * 女方等级对应的私信单价 —— 不管这条是不是免费都有值。
+         * 收费条的「之后 X 币/条」用的就是它（[] 里的 price 免费时是 0）。
+         */
+        public readonly int $unitPrice = 0,
     ) {}
 
     public function isFree(): bool
