@@ -118,7 +118,6 @@ import com.qichuang.changliao.core.designsystem.theme.ClTheme
  */
 @Composable
 fun DesignSystemGalleryScreen(onBack: (() -> Unit)? = null) {
-    val toast = rememberClToast()
     var selectedTab by remember { mutableStateOf("home") }
     var switchOn by remember { mutableStateOf(true) }
 
@@ -138,6 +137,9 @@ fun DesignSystemGalleryScreen(onBack: (() -> Unit)? = null) {
             )
         },
     ) {
+        // 必须在 ClScaffold 的内容里取，才能拿到它提供的那个 Toast 宿主（在外面取到的是空壳）
+        val toast = rememberClToast()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()

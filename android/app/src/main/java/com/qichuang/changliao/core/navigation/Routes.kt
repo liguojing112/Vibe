@@ -25,6 +25,7 @@ object Routes {
 
     // ---------- P00 登录 / 注册 / 协议 ----------
 
+    const val REGISTER = "register"
     const val AGREEMENT = "agreement/{type}"
 
     fun agreement(type: String): String = "agreement/$type"

@@ -14,7 +14,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.qichuang.changliao.core.designsystem.gallery.DesignSystemGalleryScreen
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
-import com.qichuang.changliao.feature.auth.LoginPlaceholderScreen
+import com.qichuang.changliao.feature.auth.AgreementRoute
+import com.qichuang.changliao.feature.auth.LoginRoute
+import com.qichuang.changliao.feature.auth.RegisterRoute
 import com.qichuang.changliao.feature.common.PlaceholderPage
 import com.qichuang.changliao.feature.main.MainScreen
 
@@ -41,12 +43,17 @@ fun ClNavHost(
             .windowInsetsPadding(WindowInsets.navigationBars),
     ) {
         composable(Routes.LOGIN) {
-            LoginPlaceholderScreen(
-                onEnter = {
-                    navController.navigate(Routes.MAIN) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                    }
-                },
+            LoginRoute(
+                onGoMain = { navController.navigate(Routes.MAIN) { popUpTo(Routes.LOGIN) { inclusive = true } } },
+                onRegister = { navController.navigate(Routes.REGISTER) },
+                onOpenAgreement = { type -> navController.navigate(Routes.agreement(type)) },
+            )
+        }
+
+        composable(Routes.REGISTER) {
+            RegisterRoute(
+                onGoMain = { navController.navigate(Routes.MAIN) { popUpTo(Routes.LOGIN) { inclusive = true } } },
+                onBack = { navController.popBackStack() },
             )
         }
 
@@ -57,8 +64,8 @@ fun ClNavHost(
         composable(Routes.GALLERY) { DesignSystemGalleryScreen() }
 
         composable(Routes.AGREEMENT) { entry ->
-            PlaceholderPage(
-                title = if (entry.arguments?.getString("type") == "privacy") "隐私政策" else "用户协议",
+            AgreementRoute(
+                type = entry.arguments?.getString("type").orEmpty(),
                 onBack = { navController.popBackStack() },
             )
         }

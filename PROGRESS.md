@@ -5,10 +5,10 @@
 
 ## 当前状态
 
-- 当前阶段：**P2 安卓基础（已全部完成）→ 进入 P3 登录·资料·发现·关系**
-- 当前任务：T2.11 已完成 → 下一步 T3.1 App 登录注册页（P00）
+- 当前阶段：**P3 登录·资料·发现·关系**（P2 已完成）
+- 当前任务：T3.1 已完成 → 下一步 T3.2 资料接口与审核数据
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T2.11 列表缓存封装完成（`LocalCache` + `CacheKeys` + stale-while-revalidate + 60 秒节流，24 个单测），**P2 的 11 个任务全部做完**。之后补做了**模拟器真机走查**（第一次真机运行，见「P2 真机走查」记录）：跑通登录占位→主界面→组件预览页，发现并修掉 2 个真实缺陷（`ClTextField` 文字被裁、聊天输入栏图标语义错），2 处已澄清不是缺陷。`check-android.sh` 通过（92 个单测）。下一步按 `docs/08` 做 T3.1（P00 登录/注册/协议页；验收：ViewModel 测试覆盖校验错误提示、登录成功保存 token、10003/10004 提示）。
+- 上次停在哪：T3.1 登录注册页完成（P00 登录 / 注册 / 协议三个真页面 + `AuthRepository`，28 个新单测），`check-android.sh` 通过（**120 个单测**）。另按你 2026-10-12 的决定：**视频/语音功能本期不做**（`feature.call_enabled` 保持 0，所有入口隐藏，P8 三个任务标记为本期不做）。下一步按 `docs/08` 做 T3.2（`/user/me`、`/user/profile`、`/user/photos`、`/user/settings` + 审核字段写 `cl_profile_audit`；自检 `S`）。
 
 ## 任务进度
 
@@ -17,12 +17,12 @@
 - P0：[x] T0.6 [x] T0.1 [x] T0.2 [x] T0.3 [x] T0.4 [x] T0.5
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
 - P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [x] T2.11
-- P3：[ ] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
+- P3：[x] T3.1 [ ] T3.2 [ ] T3.3 [ ] T3.4 [ ] T3.5 [ ] T3.6 [ ] T3.7 [ ] T3.8 [ ] T3.9 [ ] T3.10
 - P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
 - P6：[ ] T6.1 [ ] T6.2 [ ] T6.3 [ ] T6.4 [ ] T6.5 [ ] T6.6 [ ] T6.7
 - P7：[ ] T7.1 [ ] T7.2 [ ] T7.3 [ ] T7.4 [ ] T7.5 [ ] T7.6 [ ] T7.7 [ ] T7.8 [ ] T7.9
-- P8：[ ] T8.1 [ ] T8.2 [ ] T8.3
+- P8：[ ] T8.1 [ ] T8.2 [ ] T8.3 —— ⏸ **本期不做**（2026-10-12 客户确认「视频和语音功能先不做」：`feature.call_enabled` 保持 0、所有音视频入口隐藏，P8 三个任务跳过）
 - P9：[ ] T9.1 [ ] T9.2 [ ] T9.3
 
 ## 环境信息（T0 阶段填写）
@@ -80,6 +80,7 @@
 | Q0-11 | **MineAdmin-Vue 3.2.1 自带代码有大量 lint 错误**（eslint 13 error：未使用变量/`prefer-promise-reject-errors`；stylelint 328 error：单行声明数、重复选择器、空 style 块等），导致 `pnpm lint` 直接失败 | 你已决定：**在配置里给上游目录放宽**。已改 `admin-web/eslint.config.js`（`src/**` 放宽两条规则，`src/modules/cl/**` 重新收紧）与 `admin-web/stylelint.config.js`（对 `src/{components,layouts,plugins,assets,modules/base}/**` 用 overrides 关掉相关规则；`@apply` 加白名单；`.md` 加入 ignores）。**未改任何 MineAdmin 源码** | T0.3、T7.x | ✅ 已解决 |
 | Q0-15 | `ClMiniProfileRow` 的 `blurred`（P09 非会员看不全是谁）用 `Modifier.blur`，但它在 **API 31 以下是空操作**，低版本手机上打码不生效 | 先用着（minSdk 26，Android 12+ 生效）；要全机型都糊就得改成盖一层遮罩或直接换成打码文字。做 P09 时决定 | T2.9、T3.9 | ⏳ 待确认（**2026-10-12 模拟器实测：API 37 上打码正常生效**） |
 | Q0-16 | `ClRangeSlider`（`docs/03` 第 5.5 节）是双滑块，但设计图 07 画的是**单滑块**（原型 HTML 也是一个 `<input type=range>`） | 行为以 `docs/01` P07「双滑块 18~60」为准，实现不改；外观差异（M3 竖条 thumb vs 设计图圆 thumb）留到 T3.8 做 P07 时对着设计图定 | T2.5、T3.8 | ⏳ 待 T3.8 定 |
+| Q0-17 | 注册页要不要也放「我已阅读并同意协议」勾选？`docs/01` P00 只在**登录**那条里要求勾选，「注册」那条只列了字段 | 按文档来：**只在登录页勾选**，注册页不放。客户若要求注册也勾，加一个 `ClCheckboxAgreement` 即可 | T3.1 | ⏳ 待确认 |
 
 ## 任务记录
 
@@ -473,6 +474,31 @@
 
 - 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；92 单测；`lintDebug`、`assembleDebug`、`check-ui.sh` 全过）。
 - 环境补充：本机有现成 AVD `Medium_Phone_API_37.0`（系统镜像 `android-37.0` 已下载），`adb` 在 `C:\Users\34252\AppData\Local\Android\Sdk\platform-tools`。**以后每个阶段收尾都可以这样真机走查一次**，不用等 P9。
+
+### T3.1 App 登录注册页（P00）—— ✅ 完成（2026-10-12）
+- 数据层：
+  - `core/data/model/Agreement.kt`（`type`/`content` + `TYPE_USER`/`TYPE_PRIVACY`）、`core/data/model/Gender.kt`（1 男 / 2 女，与 `cl_user.gender` 一致）。
+  - `core/data/repository/AuthRepository.kt`：`login` / `register` / `agreement` / `logout`。**登录、注册成功就地把 token 存进 `TokenStore`**，页面只管跳转，不用每个页面都记得存；退出登录即使接口失败也一定清本地 token。
+- 页面（`feature/auth/`，每个页面都是 `Screen` + `ViewModel` + `UiState` + `Route` 四件套）：
+  - **登录页**：手机号/账号 + 密码 + 协议勾选（没勾不给登）+ 登录按钮（提交中转圈并禁用）+「注册新账号」。
+  - **注册页**：手机号、昵称、密码、确认密码、性别（`ClChipGroup` 单选 + 「注册后不可修改」提示）。
+  - **协议页**：内容从 `/app/agreement/{type}` 取，四态齐全（加载/空/出错重试/内容）。
+  - `ClNavHost` 接上：`login` / `register` / `agreement/{type}` 三个路由，登录或注册成功都跳主界面并把登录页从回退栈里去掉。
+  - 删掉了 T2.7 的 `LoginPlaceholderScreen`。
+- 校验：**逐条对齐服务端请求类**，本地只管「少一次往返」；10001（账号或密码错误）、10002（账号已存在）、10003（锁定 N 分钟）、10004（封禁原因+解封时间）这些带具体信息的提示**一律直接用服务端返回的 `message`**（docs/03 第 6 节第 5 条）。实测服务端确实返回 `{"code":10001,"message":"账号或密码错误","data":null}`。
+- 顺带修掉一个真 bug：**`rememberClToast()` 必须在 `ClScaffold` 的内容里调用**才能拿到它提供的 Toast 宿主（在外面拿到的是一个没有宿主的空壳），组件预览页的「点我看 ClToast」按钮点了其实没有任何反应 —— 已修正写法并把预览页改过来。
+- 验收对照（docs/08 T3.1）：
+  1. 校验错误提示 —— ✅ `LoginViewModelTest` 4 例（账号空/密码空/没勾协议不发请求、改字段清错误）+ `RegisterViewModelTest` 6 例（手机号/密码/确认密码/性别/昵称）
+  2. **登录成功保存 token** —— ✅ `AuthRepositoryTest`（登录/注册成功存 token、业务错误与网络错误**一个字节都不存**、退出登录即使 500 也清）
+  3. 10003/10004 提示 —— ✅ `LoginViewModelTest`（锁定、封禁、10001、网络错误四条提示文案）
+  4. 另覆盖：提交中重复点击不会发第二次请求、提交中按钮 loading、注册参数（昵称去空格）
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；`testDebugUnitTest` **120 个用例**：T3.1 新增 28 个；`lintDebug`、`assembleDebug`、`check-ui.sh` 通过）。
+- 端到端接口核对（curl 真实后端）：登录失败返回 10001 的 body 形状对得上；`/app/agreement/user` 与 `/privacy` 返回 `{type, content}` 与 `Agreement` 模型一致，且用户协议里**确实包含付费聊天声明**（铁律 13）。
+- **未做 / 有意为之**：
+  - **「登录后按资料完整度跳转」没做** —— 需要 `/user/me`，那是 T3.2 的活。现在登录成功一律进主界面，等 T3.2 拿到资料接口后再补「没头像 → P14 编辑资料」这一跳。
+  - **注册页没放协议勾选** —— `docs/01` P00 只要求登录页勾选，「注册」那条只列了字段，所以按文档来。（如果客户要求注册也勾，加一个 `ClCheckboxAgreement` 即可，改动很小。）
+  - **没有在模拟器上目视这两个页面**（你让先关掉模拟器了）。表单布局、错误文案的观感留到 P3 阶段验收时一起走查。
+- 踩到的坑：Kotlin 的块注释**可以嵌套**，KDoc 里写路径 `.../V1/*` 会打开一个嵌套注释，编译器报「Unclosed comment」——已改成不写星号。
 
 ## 阶段验收记录
 

@@ -41,7 +41,7 @@ fun successTokenBody(access: String = "access-token", refresh: String = "refresh
     """{"code":200,"message":"成功","data":{"access_token":"$access","refresh_token":"$refresh","expire_at":604800}}"""
 
 /** 用 MockWebServer 的地址装一套 Retrofit（带 AuthInterceptor）。 */
-fun buildTestAuthApi(serverUrl: String, tokenStore: TokenStore): AuthApi {
+fun buildTestRetrofit(serverUrl: String, tokenStore: TokenStore): Retrofit {
     lateinit var holder: AuthApi
     val interceptor = AuthInterceptor(
         tokenStore = tokenStore,
@@ -52,14 +52,18 @@ fun buildTestAuthApi(serverUrl: String, tokenStore: TokenStore): AuthApi {
         .addInterceptor(interceptor)
         .build()
 
-    holder = Retrofit.Builder()
+    val retrofit = Retrofit.Builder()
         .baseUrl(serverUrl)
         .client(client)
         .addConverterFactory(
             Json { ignoreUnknownKeys = true }.asConverterFactory("application/json".toMediaType())
         )
         .build()
-        .create(AuthApi::class.java)
 
-    return holder
+    holder = retrofit.create(AuthApi::class.java)
+    return retrofit
 }
+
+/** 只要 [AuthApi] 的快捷方法（部分测试用不到别的接口）。 */
+fun buildTestAuthApi(serverUrl: String, tokenStore: TokenStore): AuthApi =
+    buildTestRetrofit(serverUrl, tokenStore).create(AuthApi::class.java)
