@@ -36,9 +36,9 @@ final class RelationController
     #[Middleware(AppAuthMiddleware::class)]
     public function follow(RelationTargetRequest $request): ApiResult
     {
-        $this->relationService->follow($this->currentUser(), (int) $request->input('target_id'));
-
-        return ApiResult::success();
+        return ApiResult::success(
+            $this->relationService->follow($this->currentUser(), (int) $request->input('target_id')),
+        );
     }
 
     #[OA\Post(
@@ -50,9 +50,9 @@ final class RelationController
     #[Middleware(AppAuthMiddleware::class)]
     public function unfollow(RelationTargetRequest $request): ApiResult
     {
-        $this->relationService->unfollow($this->currentUser(), (int) $request->input('target_id'));
-
-        return ApiResult::success();
+        return ApiResult::success(
+            $this->relationService->unfollow($this->currentUser(), (int) $request->input('target_id')),
+        );
     }
 
     #[OA\Post(

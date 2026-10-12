@@ -37,22 +37,51 @@ final class RelationService
 
     // ---------- 关注 ----------
 
-    public function follow(User $user, int $targetId): void
+    /**
+     * 关注。返回关注后的关系快照 —— 页面要立刻知道是不是变成互关了
+     * （互关的按钮文案不一样，客户端不该自己猜）。
+     *
+     * @return array{is_following: bool, is_mutual: bool}
+     */
+    public function follow(User $user, int $targetId): array
     {
         $this->assertNotSelf($user, $targetId);
         if ($this->blockedEitherWay($user->id, $targetId)) {
             // 拉黑后互相不可见：就当对方不存在，别暴露"你被拉黑了"
-            throw new ClBusinessException(\App\Model\Enums\Cl\BizCode::USER_NOT_FOUND);
+            throw new ClBusinessException(BizCode::USER_NOT_FOUND);
         }
         $this->requireUser($targetId);
 
         $this->followRepository->add($user->id, $targetId);
+
+        return $this->followState($user->id, $targetId);
     }
 
-    public function unfollow(User $user, int $targetId): void
+    /**
+     * 取消关注。
+     *
+     * @return array{is_following: bool, is_mutual: bool}
+     */
+    public function unfollow(User $user, int $targetId): array
     {
         $this->assertNotSelf($user, $targetId);
+
         $this->followRepository->remove($user->id, $targetId);
+
+        return $this->followState($user->id, $targetId);
+    }
+
+    /**
+     * @return array{is_following: bool, is_mutual: bool}
+     */
+    public function followState(int $userId, int $targetId): array
+    {
+        $isFollowing = $this->isFollowing($userId, $targetId);
+
+        return [
+            'is_following' => $isFollowing,
+            'is_mutual' => $isFollowing && $this->isFollowing($targetId, $userId),
+        ];
     }
 
     public function isFollowing(int $userId, int $targetId): bool
@@ -274,7 +303,7 @@ final class RelationService
     {
         $target = $this->userRepository->findById($targetId);
         if (! $target instanceof User || $target->status === User::STATUS_CANCELLED) {
-            throw new ClBusinessException(\App\Model\Enums\Cl\BizCode::USER_NOT_FOUND);
+            throw new ClBusinessException(BizCode::USER_NOT_FOUND);
         }
 
         return $target;
@@ -284,7 +313,7 @@ final class RelationService
     {
         if ($user->id === $targetId) {
             throw new ClBusinessException(
-                \App\Model\Enums\Cl\BizCode::STATUS_NOT_ALLOWED,
+                BizCode::STATUS_NOT_ALLOWED,
                 '不能对自己做这个操作',
             );
         }

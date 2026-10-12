@@ -78,4 +78,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideDiscoverApi(retrofit: Retrofit): DiscoverApi = retrofit.create(DiscoverApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideRelationApi(retrofit: Retrofit): RelationApi = retrofit.create(RelationApi::class.java)
 }

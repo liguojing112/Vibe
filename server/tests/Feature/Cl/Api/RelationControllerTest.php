@@ -57,15 +57,34 @@ final class RelationControllerTest extends TestCase
         $a = $this->registerUser('13800138001', User::GENDER_MALE);
         $b = $this->registerUser('13800138002', User::GENDER_FEMALE);
 
-        self::assertSame(200, $this->follow($a, $b)['code']);
+        $followed = $this->follow($a, $b);
+        self::assertSame(200, $followed['code']);
+        // 关注后立刻返回关系快照，页面不用自己猜是不是互关了
+        self::assertTrue($followed['data']['is_following']);
+        self::assertFalse($followed['data']['is_mutual']);
         self::assertSame(1, Follow::query()->where('user_id', $a)->where('target_id', $b)->count());
 
         // 重复关注不会插两条
         self::assertSame(200, $this->follow($a, $b)['code']);
         self::assertSame(1, Follow::query()->where('user_id', $a)->count());
 
-        self::assertSame(200, $this->post('/api/v1/relation/unfollow', ['target_id' => $b], $a)['code']);
+        $unfollowed = $this->post('/api/v1/relation/unfollow', ['target_id' => $b], $a);
+        self::assertSame(200, $unfollowed['code']);
+        self::assertFalse($unfollowed['data']['is_following']);
+        self::assertFalse($unfollowed['data']['is_mutual']);
         self::assertSame(0, Follow::query()->where('user_id', $a)->count());
+    }
+
+    public function testFollowReturnsMutualWhenOtherSideAlreadyFollows(): void
+    {
+        $a = $this->registerUser('13800138001', User::GENDER_MALE);
+        $b = $this->registerUser('13800138002', User::GENDER_FEMALE);
+        $this->follow($b, $a);
+
+        $result = $this->follow($a, $b);
+
+        self::assertTrue($result['data']['is_following']);
+        self::assertTrue($result['data']['is_mutual'], '对方已经关注我了，回关就是互关');
     }
 
     public function testMutualFollowShowsUpAsFriends(): void

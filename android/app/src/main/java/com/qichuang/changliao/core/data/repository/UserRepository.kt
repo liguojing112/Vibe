@@ -2,6 +2,7 @@ package com.qichuang.changliao.core.data.repository
 
 import com.qichuang.changliao.core.data.model.PhotoListResult
 import com.qichuang.changliao.core.data.model.ProfileUpdate
+import com.qichuang.changliao.core.data.model.UserDetail
 import com.qichuang.changliao.core.data.model.UserPhoto
 import com.qichuang.changliao.core.data.model.UserProfile
 import com.qichuang.changliao.core.network.ApiResult
@@ -47,6 +48,13 @@ class UserRepository @Inject constructor(
     fun clearCurrentUser() {
         _currentUser.value = null
     }
+
+    /**
+     * 他人主页（docs/05 第 4.2 节）。**每次调用服务端都会记一条访客**，
+     * 所以别拿它当普通读取反复调（下拉刷新之类的要谨慎）。
+     */
+    suspend fun detail(userId: Long): ApiResult<UserDetail> =
+        safeApiCall { userApi.detail(userId) }
 
     suspend fun updateProfile(update: ProfileUpdate): ApiResult<UserProfile> =
         safeApiCall<UserProfile> {

@@ -102,6 +102,7 @@ import com.qichuang.changliao.core.designsystem.component.ClPersonCardData
 import com.qichuang.changliao.core.designsystem.component.ClPersonTag
 import com.qichuang.changliao.core.designsystem.component.ClPhotoGrid
 import com.qichuang.changliao.core.designsystem.component.ClRechargePack
+import com.qichuang.changliao.core.designsystem.component.ClProfileHero
 import com.qichuang.changliao.core.designsystem.component.ClRechargePackGrid
 import com.qichuang.changliao.core.designsystem.component.ClStep
 import com.qichuang.changliao.core.designsystem.component.ClStepList
@@ -336,6 +337,14 @@ fun DesignSystemGalleryScreen(onBack: (() -> Unit)? = null) {
                 var packId by remember { mutableStateOf<Long?>(2L) }
                 var chatDraft by remember { mutableStateOf("") }
                 var photoList by remember { mutableStateOf(listOf("", "")) }
+
+                ClCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                    ClProfileHero(
+                        name = "小满",
+                        age = 26,
+                        meta = "上海 · 品牌设计师 · 本科",
+                    )
+                }
 
                 ClCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
                     ClPersonCard(

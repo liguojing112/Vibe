@@ -21,6 +21,7 @@ import com.qichuang.changliao.feature.common.PlaceholderPage
 import com.qichuang.changliao.feature.discover.FilterRoute
 import com.qichuang.changliao.feature.main.MainScreen
 import com.qichuang.changliao.feature.profile.EditProfileRoute
+import com.qichuang.changliao.feature.profile.UserDetailRoute
 
 /**
  * 全 App 唯一导航图（docs/02 第 4.3 节）：所有页面的路由都在这里注册。
@@ -72,7 +73,14 @@ fun ClNavHost(
             )
         }
 
-        placeholder(navController, Routes.USER_DETAIL, "个人详情（P05）")
+        composable(Routes.USER_DETAIL) { entry ->
+            UserDetailRoute(
+                userId = entry.arguments?.getString("user_id")?.toLongOrNull() ?: 0L,
+                onBack = { navController.popBackStack() },
+                onChat = { navController.navigate(Routes.chat(it)) },
+            )
+        }
+
         placeholder(navController, Routes.CHAT, "私信聊天（P06）")
         composable(Routes.FILTER) {
             FilterRoute(onBack = { navController.popBackStack() })
