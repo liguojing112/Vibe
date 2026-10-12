@@ -88,7 +88,7 @@ fun ClChatInputBar(
 
             if (onEmoji != null) {
                 Icon(
-                    imageVector = ClIcons.spark,
+                    imageVector = ClIcons.emoji,
                     contentDescription = "表情",
                     tint = ClTheme.colors.inkSecondary,
                     modifier = Modifier
@@ -99,7 +99,7 @@ fun ClChatInputBar(
             }
             if (onPickImage != null) {
                 Icon(
-                    imageVector = ClIcons.flip,
+                    imageVector = ClIcons.image,
                     contentDescription = "图片",
                     tint = ClTheme.colors.inkSecondary,
                     modifier = Modifier

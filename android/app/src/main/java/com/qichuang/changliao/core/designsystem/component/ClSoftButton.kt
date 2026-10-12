@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
 
 /**
@@ -77,6 +78,7 @@ fun ClSoftButton(
             style = ClTheme.typography.buttonSmall,
             color = foreground,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

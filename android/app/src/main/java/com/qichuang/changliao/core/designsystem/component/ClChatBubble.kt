@@ -168,7 +168,7 @@ private fun ChatStatusMark(
     ) {
         when (status) {
             ClChatStatus.Sending -> CircularProgressIndicator(
-                modifier = Modifier.size(ClTheme.size.iconS),
+                modifier = Modifier.size(ClTheme.size.iconM),
                 strokeWidth = 2.dp,
                 color = ClTheme.colors.inkSecondary,
             )

@@ -8,7 +8,7 @@
 - 当前阶段：**P2 安卓基础（已全部完成）→ 进入 P3 登录·资料·发现·关系**
 - 当前任务：T2.11 已完成 → 下一步 T3.1 App 登录注册页（P00）
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T2.11 列表缓存封装完成（`LocalCache` + `CacheKeys` + stale-while-revalidate + 60 秒节流，24 个单测），**P2 的 11 个任务全部做完**，`check-android.sh` 通过（92 个单测）。下一步按 `docs/08` 做 T3.1（P00 登录/注册/协议页；验收：ViewModel 测试覆盖校验错误提示、登录成功保存 token、10003/10004 提示）。
+- 上次停在哪：T2.11 列表缓存封装完成（`LocalCache` + `CacheKeys` + stale-while-revalidate + 60 秒节流，24 个单测），**P2 的 11 个任务全部做完**。之后补做了**模拟器真机走查**（第一次真机运行，见「P2 真机走查」记录）：跑通登录占位→主界面→组件预览页，发现并修掉 2 个真实缺陷（`ClTextField` 文字被裁、聊天输入栏图标语义错），2 处已澄清不是缺陷。`check-android.sh` 通过（92 个单测）。下一步按 `docs/08` 做 T3.1（P00 登录/注册/协议页；验收：ViewModel 测试覆盖校验错误提示、登录成功保存 token、10003/10004 提示）。
 
 ## 任务进度
 
@@ -78,7 +78,8 @@
 | Q0-14 | `ClSoftButton` 的三种底色（docs/03 第 5.2 节只说 Yellow/Peach/Gray，对应语音/视频/私信）在原型 CSS 里找不到确切的三组值（原型有几十种相近暖色底） | 先映射到最接近的颜色 token：Yellow = primarySoft/primaryText、Peach = tagGoldBg/tagGoldText、Gray = bgInput/inkSecondary。等做 P01 卡片时对着设计图定哪种按钮用哪种 | T2.3、T3.7 | ⏳ 待对着设计图确认 |
 | Q0-10 | MineAdmin 自带测试默认连 `.env` 里的开发库，会 `truncate` 种子表 | 已解决：`composer test` 脚本前置 `DB_DATABASE=cl_test REDIS_DB=15`（Hyperf dotenv 是 immutable，shell 变量优先；phpunit 的 `<env>` 因测试引导先建容器而无效） | T0.2 | ✅ 已解决 |
 | Q0-11 | **MineAdmin-Vue 3.2.1 自带代码有大量 lint 错误**（eslint 13 error：未使用变量/`prefer-promise-reject-errors`；stylelint 328 error：单行声明数、重复选择器、空 style 块等），导致 `pnpm lint` 直接失败 | 你已决定：**在配置里给上游目录放宽**。已改 `admin-web/eslint.config.js`（`src/**` 放宽两条规则，`src/modules/cl/**` 重新收紧）与 `admin-web/stylelint.config.js`（对 `src/{components,layouts,plugins,assets,modules/base}/**` 用 overrides 关掉相关规则；`@apply` 加白名单；`.md` 加入 ignores）。**未改任何 MineAdmin 源码** | T0.3、T7.x | ✅ 已解决 |
-| Q0-15 | `ClMiniProfileRow` 的 `blurred`（P09 非会员看不全是谁）用 `Modifier.blur`，但它在 **API 31 以下是空操作**，低版本手机上打码不生效 | 先用着（minSdk 26，Android 12+ 生效）；要全机型都糊就得改成盖一层遮罩或直接换成打码文字。做 P09 时决定 | T2.9、T3.9 | ⏳ 待确认 |
+| Q0-15 | `ClMiniProfileRow` 的 `blurred`（P09 非会员看不全是谁）用 `Modifier.blur`，但它在 **API 31 以下是空操作**，低版本手机上打码不生效 | 先用着（minSdk 26，Android 12+ 生效）；要全机型都糊就得改成盖一层遮罩或直接换成打码文字。做 P09 时决定 | T2.9、T3.9 | ⏳ 待确认（**2026-10-12 模拟器实测：API 37 上打码正常生效**） |
+| Q0-16 | `ClRangeSlider`（`docs/03` 第 5.5 节）是双滑块，但设计图 07 画的是**单滑块**（原型 HTML 也是一个 `<input type=range>`） | 行为以 `docs/01` P07「双滑块 18~60」为准，实现不改；外观差异（M3 竖条 thumb vs 设计图圆 thumb）留到 T3.8 做 P07 时对着设计图定 | T2.5、T3.8 | ⏳ 待 T3.8 定 |
 
 ## 任务记录
 
@@ -413,7 +414,7 @@
   | ClStepList | 29 | 一致（奶黄序号圆+标题+说明+分割线） |
   | ClPhotoGrid | 05/14 | 一致（三列方形、8dp 圆角占位色 `#E8D8C7`），编辑态右上角删除+末尾「+」 |
   | ClCallControls | 19 | 一致（三个圆钮+下方标签+红色「结束通话」）。差异：未选中圆钮设计图是半透明白，我原来误用了 `mask`（暖褐色遮罩）→ **已改成 `surface` 16% 透明度** |
-- **未做截图**：本机没有可用的模拟器/真机，也没装 Robolectric/Paparazzi 这类能在 JVM 里渲染 Compose 的工具，所以「组件预览页截图 vs 设计图」这一步**没有截图可比**，上表的结论是把设计图逐张打开、对照组件代码和 token 得出的。要真正确认观感，需要在 Android Studio 里跑一次 debug 包（`我` Tab → 组件预览页）。
+- **未做截图**（**2026-10-12 已补**：见下方「P2 真机走查（模拟器）」，截图在 `docs/screenshots/`，并据此修掉 2 个真实缺陷）：当时本机没有可用的模拟器/真机，也没装 Robolectric/Paparazzi 这类能在 JVM 里渲染 Compose 的工具，所以「组件预览页截图 vs 设计图」这一步**没有截图可比**，上表的结论是把设计图逐张打开、对照组件代码和 token 得出的。
 - 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；`check-ui.sh` 的「每个组件都要出现在预览页」逐个通过；单测仍为 62 个，本次没新增测试）。
 - 遗留/疑问：`ClMiniProfileRow` 的 `blurred`（P09 非会员看不全）用的 `Modifier.blur` **在 API 31 以下是空操作**（Compose 的限制），所以低版本手机上打码不生效；如果要保证所有机型都糊，得改成画一层遮罩或换成打码文字。记入待确认。
 
@@ -426,7 +427,7 @@
   - `docs/03` 第 5.1~5.6 节列的组件**全部实现**：5.1 结构类 6、5.2 按钮类 6、5.3 展示类 23、5.4 业务复用 15、5.5 输入类 6、5.6 反馈类 8。`core/designsystem/component/` 下 **60 个文件**（一个文件里放同族组件，如 `ClMenuRow.kt` 含 `ClMenuGroup`）。
   - 写了个静态核对：除 `check-ui.sh` 的「文件名要出现在预览页」之外，再逐个确认**预览页里真的有调用**（`ClXxx(`）。60 个文件全部有实际预览，其中 `ClFixedBottomArea` 是尾随 lambda 写法（`ClFixedBottomArea { ... }`），第一版脚本误报，已确认是脚本的正则问题不是缺陷。
   - 预览页分 6 节（结构/按钮/展示/业务复用/输入/反馈），每节都有多状态样例（禁用、loading、错误、空、发送中/失败、选中/未选中等）。
-  - **未做的部分**：没有在模拟器/真机上把预览页从头滚到尾点一遍（本机没有可用 AVD），所以「打开不崩、滚动不卡、点击有响应」只能靠编译 + lint + 代码审阅保证，**没有目视确认**。`ClPullRefreshList` 放在有界高度容器里这条已知约束在预览页里仍然遵守。
+  - **未做的部分**（**2026-10-12 已补做**，见「P2 真机走查（模拟器）」）：当时没在模拟器/真机上把预览页从头滚到尾点一遍，所以「打开不崩、滚动不卡、点击有响应」只能靠编译 + lint + 代码审阅保证。`ClPullRefreshList` 放在有界高度容器里这条已知约束在预览页里仍然遵守。
 - **本阶段没有可走查的页面**：P2 只做基础件，`docs/01` 的 31 个页面在本阶段全是占位页（「开发中」），所以「按 01 文档逐页检查（男号/女号各走一遍）」这一步无从做起，留到 P3 开始有真页面后逐阶段做。
 - **本阶段没有后台菜单**：P2 没动后台，`check-admin.sh` 只验证了 lint + build。
 - 遗留/疑问：无新增。P2 累积的待确认项见「待确认问题」表（Q0-6 token 明文、Q0-13 `app.version` 语义、Q0-14 `ClSoftButton` 三色、Q0-15 `Modifier.blur` 低版本无效）。
@@ -451,6 +452,27 @@
 - 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；`testDebugUnitTest` **92 个用例**：LocalCache 24 + 公共工具 34 + MainViewModel 14 + 其余 20；`lintDebug`、`assembleDebug`、`check-ui.sh` 通过）。
 - 对照设计图：不涉及。
 - 遗留/疑问：`LocalCache` 目前**还没有调用方** —— 各列表页在 P3~P6 逐个接（发现页 T3.7、访客/喜欢我 T3.9、消息 T4.6、金币与明细 T5.2、会员 T5.6、任务 T5.8、收益/提现 T6.5、系统消息 T6.6）；`clearMemory()` 由 T3.1 的退出登录 / 切号流程调用。届时若发现用法不合适再改封装。
+
+### P2 真机走查（模拟器）—— ✅ 完成（2026-10-12）
+第一次真正把 App 跑起来（`emulator -avd Medium_Phone_API_37.0`，1080×2400，Android 17）。走查路径：登录占位 → 主界面 → 我 → 组件预览页，逐节滚动对照 `docs/页面设计图/`。截图存 `docs/screenshots/`（8 张，见该目录）。
+
+**走查确认正常的部分**
+- 底部导航 3 个 Tab（`feature.call_enabled=false` 时**速配正确隐藏**），Tab 切换与各自的滚动位置保留正常；未读角标正常。
+- `ClScaffold` 的顶部奶油色状态栏、`ClTopBar`、`ClEmpty`、`ClPrimaryButton`（含 loading/disabled）、`ClSecondaryButton`、`ClSoftButton` 三色、`ClOutlineSmallButton`、`ClLoading`、`ClErrorRetry`、`ClPullRefreshList`（含「没有更多了」）、`ClImagePreview`、`ClMenuRow`、`ClSettingRow`+`ClSwitch`、`ClStatRow`、`ClFeeStrip`、`ClProgressBar` 全部渲染正常。
+- 5.4 业务组件与设计图 01/02/03/06/08/11/12/19/22/23 对照**基本一致**：用户卡片、速配卡（含左上「可视频」胶囊 + 底部渐隐白字）、小资料行（**`blurred` 打码在 API 37 上确实生效** —— 见 Q0-15）、会话行、入口行、礼网格、充值档位（选中金边+奶黄底）、任务卡（含「已完成」置灰）、权益网格、步骤条、相册九宫格、通话控制（圆钮 + 红色结束通话）。
+
+**走查发现并修掉的真实缺陷（2 个）**
+1. **`ClTextField` 文字被垂直裁掉** —— 给 Material3 的 `OutlinedTextField` 硬压了 44dp（设计要的 `inputHeight`），而它自带 56dp 最小高度，结果「请输入手机号」的下半截被裁。**改成用 `BasicTextField` 自己拼外壳**（`heightIn(min=44dp)` + 自己画背景/描边/焦点态/错误态），与 `ClSelectField` 的写法统一。影响面很大：P00 登录注册、P14 编辑资料、P29 实名认证、P15 设置的表单全靠它。
+2. **聊天输入栏的「表情 / 图片」按钮图标语义不对** —— 我原先为省事借用了 `spark`(✨) 和 `flip`(🔄)，画出来谁也看不懂。补了 `ClIcons.emoji`(EmojiEmotions) 和 `ClIcons.image`(Image) 两个图标并用上。
+
+另外 `ClChatBubble` 的「发送中」转圈从 17dp 调到 22dp（原来太小，看着像一个杂点）。
+
+**已澄清、不是缺陷的（2 处）**
+1. **`ClRangeSlider` 是双滑块，设计图 07 画的是单滑块** —— `docs/01` P07 明确写「年龄范围（**双滑块** 18~60）」，以文档为准，我的实现是对的；设计图那张是单滑块的静态 mock（且原型 HTML 里也是一个 `<input type=range>`）。**差异只在外观**：Material3 新的 RangeSlider 用竖条 thumb，设计图是圆 thumb。**留给 T3.8 做 P07 时对着设计图定**。
+2. **用户卡片三颗操作按钮的宽度** —— 我第一次看走眼，以为没铺满整行就把它们压成了 1:1:1.3 的权重，结果「语音 60 币/分」被省略号截断（`docs/03` 规定小按钮用 `buttonSmall` 12sp，压到 1/3 宽放不下）。回滚成按内容宽度排列后**实测已经几乎铺满整行**（只差约 8dp），与设计图一致。**教训：截图上"看着不对"不等于真的不对，先量再改。** 顺手给 `ClSoftButton` 的文字加了 `overflow = Ellipsis` 作为兜底（万一以后真被压窄也不会被硬裁）。
+
+- 自检命令：`bash scripts/check-android.sh` → 通过（BUILD SUCCESSFUL；92 单测；`lintDebug`、`assembleDebug`、`check-ui.sh` 全过）。
+- 环境补充：本机有现成 AVD `Medium_Phone_API_37.0`（系统镜像 `android-37.0` 已下载），`adb` 在 `C:\Users\34252\AppData\Local\Android\Sdk\platform-tools`。**以后每个阶段收尾都可以这样真机走查一次**，不用等 P9。
 
 ## 阶段验收记录
 

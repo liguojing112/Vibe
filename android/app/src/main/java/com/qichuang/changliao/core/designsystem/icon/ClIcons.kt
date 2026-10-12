@@ -15,9 +15,11 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.EmojiEmotions
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Notifications
@@ -69,5 +71,7 @@ object ClIcons {
     val add: ImageVector = Icons.Rounded.Add
     val close: ImageVector = Icons.Rounded.Close
     val hangup: ImageVector = Icons.Rounded.CallEnd
+    val emoji: ImageVector = Icons.Rounded.EmojiEmotions
+    val image: ImageVector = Icons.Rounded.Image
     val warning: ImageVector = Icons.Rounded.ErrorOutline
 }
