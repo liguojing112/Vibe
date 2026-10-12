@@ -24,7 +24,12 @@ object CacheKeys {
 
     fun conversations(userId: Long): String = build("list.conversations.$userId")
 
-    fun discover(tab: String, userId: Long): String = build("list.discover.$tab.$userId")
+    /**
+     * 发现页第一页。多一个 [signature]：**筛选条件不一样时缓存不能混用**，
+     * 否则用户改了筛选会先闪一眼旧结果。没筛选时就是 docs/10 第 5 节的原样键。
+     */
+    fun discover(tab: String, userId: Long, signature: String = ""): String =
+        build("list.discover.$tab.$userId" + if (signature.isEmpty()) "" else ".$signature")
 
     fun square(userId: Long): String = build("list.square.$userId")
 

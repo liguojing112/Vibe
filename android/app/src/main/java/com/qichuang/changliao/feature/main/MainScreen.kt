@@ -18,6 +18,7 @@ import com.qichuang.changliao.core.designsystem.component.ClBottomBar
 import com.qichuang.changliao.core.designsystem.component.ClBottomBarItem
 import com.qichuang.changliao.core.navigation.Routes
 import com.qichuang.changliao.feature.common.PlaceholderPage
+import com.qichuang.changliao.feature.discover.DiscoverRoute
 
 /**
  * 主界面：底部导航 + Tab 内容（docs/01 第 3 节）。
@@ -51,7 +52,15 @@ fun MainScreen(onOpen: (String) -> Unit) {
                 .weight(1f)
                 .fillMaxWidth(),
         ) {
-            composable(Routes.TAB_DISCOVER) { PlaceholderPage(title = "遇见 · 发现（P01）") }
+            composable(Routes.TAB_DISCOVER) {
+                DiscoverRoute(
+                    onOpenFilter = { onOpen(Routes.FILTER) },
+                    onOpenCoinWallet = { onOpen(Routes.COIN_WALLET) },
+                    onOpenIncome = { onOpen(Routes.INCOME) },
+                    onOpenUser = { onOpen(Routes.userDetail(it)) },
+                    onChat = { onOpen(Routes.chat(it)) },
+                )
+            }
             composable(Routes.TAB_MATCH) { PlaceholderPage(title = "速配（P02）") }
             composable(Routes.TAB_MESSAGE) { PlaceholderPage(title = "消息（P03）") }
             composable(Routes.TAB_MINE) {

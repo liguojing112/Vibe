@@ -1,0 +1,215 @@
+package com.qichuang.changliao.feature.discover
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.qichuang.changliao.core.common.MoneyFormat
+import com.qichuang.changliao.core.data.model.Gender
+import com.qichuang.changliao.core.data.model.UserProfile
+import com.qichuang.changliao.core.data.repository.DiscoverRepository
+import com.qichuang.changliao.core.data.repository.UserRepository
+import com.qichuang.changliao.core.network.ApiResult
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+/**
+ * 发现页（docs/01 P01，也就是客户说的「广场」）。
+ *
+ * 进入页面走 **stale-while-revalidate**：先渲染本地缓存（秒开、不转圈），再静默刷新；
+ * 下拉刷新和切 Tab 传 `force = true`，不受 60 秒节流限制。
+ *
+ * 页面上的价格、在线/新人/已认证标记**全是服务端算好的**，这里只负责显示（铁律 6）。
+ */
+@HiltViewModel
+class DiscoverViewModel @Inject constructor(
+    private val discoverRepository: DiscoverRepository,
+    private val userRepository: UserRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(DiscoverUiState())
+    val uiState: StateFlow<DiscoverUiState> = _uiState.asStateFlow()
+
+    /** 当前登录用户 id：缓存键要按用户分（docs/10 第 3 节规则 4），所以先拿到它再拉列表。 */
+    private var userId: Long = 0
+
+    private var listJob: Job? = null
+
+    /**
+     * 每次进入页面都调一次（含从 P07 筛选页返回）。
+     *
+     * 会重新读一遍本地筛选条件：**筛选改动后在 P01 立即生效**；
+     * 没改动时这一步只是触发一次静默刷新，60 秒内的重复进入不会再发请求（`LocalCache` 节流）。
+     */
+    fun enter() {
+        viewModelScope.launch {
+            val profile = ensureCurrentUser() ?: return@launch
+            userId = profile.id
+
+            val savedFilter = discoverRepository.filter(userId)
+            val filterChanged = savedFilter != _uiState.value.filter
+            _uiState.update { it.copy(filter = savedFilter) }
+
+            load(_uiState.value.tab, force = filterChanged)
+        }
+    }
+
+    fun onTabSelected(tab: DiscoverTab) {
+        if (tab == _uiState.value.tab) {
+            return
+        }
+        // 切 Tab 当成一次刷新：要立刻看到这个 Tab 的内容，不等节流
+        _uiState.update { it.copy(tab = tab, users = emptyList(), hasMore = false, error = null) }
+        load(tab, force = true)
+    }
+
+    fun onRefresh() {
+        load(_uiState.value.tab, force = true)
+    }
+
+    fun onLoadMore() {
+        val state = _uiState.value
+        if (state.loadingMore || state.refreshing || !state.hasMore || state.loadMoreError != null) {
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(loadingMore = true) }
+            val nextPage = state.users.size / PAGE_SIZE + 1
+
+            when (val result = discoverRepository.more(state.tab.apiValue, state.filter, nextPage)) {
+                is ApiResult.Success -> _uiState.update {
+                    it.copy(
+                        users = it.users + result.data.list,
+                        hasMore = result.data.hasMore,
+                        loadingMore = false,
+                        loadMoreError = null,
+                    )
+                }
+
+                is ApiResult.BizError -> _uiState.update {
+                    it.copy(loadingMore = false, loadMoreError = result.message)
+                }
+
+                is ApiResult.NetworkError -> _uiState.update {
+                    it.copy(loadingMore = false, loadMoreError = result.message)
+                }
+            }
+        }
+    }
+
+    fun onToastShown() {
+        _uiState.update { it.copy(toast = null) }
+    }
+
+    // ---------- 内部 ----------
+
+    private fun load(tab: DiscoverTab, force: Boolean) {
+        if (userId <= 0) {
+            return
+        }
+
+        listJob?.cancel()
+        listJob = viewModelScope.launch {
+            val hasContent = _uiState.value.users.isNotEmpty()
+            _uiState.update {
+                it.copy(
+                    // 已经有内容时不转圈（静默刷新），没有内容才显示整页加载
+                    loading = !hasContent,
+                    refreshing = force && hasContent,
+                    error = null,
+                    loadMoreError = null,
+                )
+            }
+
+            val filter = _uiState.value.filter
+            discoverRepository.firstPage(tab.apiValue, userId, filter, force).collect { result ->
+                when (result) {
+                    is ApiResult.Success -> _uiState.update {
+                        it.copy(
+                            users = result.data.list,
+                            hasMore = result.data.hasMore,
+                            loading = false,
+                            refreshing = false,
+                            error = null,
+                        )
+                    }
+
+                    is ApiResult.BizError -> _uiState.update {
+                        it.copy(
+                            loading = false,
+                            refreshing = false,
+                            // 有缓存时静默失败不会走到这里；走到这里说明确实没内容可显示
+                            error = if (it.users.isEmpty()) result.message else null,
+                            toast = if (it.users.isEmpty()) null else result.message,
+                        )
+                    }
+
+                    is ApiResult.NetworkError -> _uiState.update {
+                        it.copy(
+                            loading = false,
+                            refreshing = false,
+                            error = if (it.users.isEmpty()) result.message else null,
+                            toast = if (it.users.isEmpty()) null else result.message,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 拿到「我」的资料：顶部要显示性别对应的余额，列表缓存键也要用它。
+     * 拿不到就没法正确工作（也不知道该按哪个用户存缓存），直接给整页错误。
+     */
+    private suspend fun ensureCurrentUser(): UserProfile? {
+        val cached = userRepository.currentUser.value
+        if (cached != null) {
+            applyBalance(cached)
+
+            return cached
+        }
+
+        return when (val result = userRepository.me()) {
+            is ApiResult.Success -> {
+                applyBalance(result.data)
+
+                result.data
+            }
+
+            is ApiResult.BizError -> {
+                _uiState.update { it.copy(loading = false, error = result.message) }
+                null
+            }
+
+            is ApiResult.NetworkError -> {
+                _uiState.update { it.copy(loading = false, error = result.message) }
+                null
+            }
+        }
+    }
+
+    /** 男用户显示金币、女用户显示积分（docs/01 P01）。 */
+    private fun applyBalance(profile: UserProfile) {
+        val male = profile.gender == Gender.MALE
+        _uiState.update {
+            it.copy(
+                balanceAmount = if (male) {
+                    profile.coinBalance?.toString()
+                } else {
+                    profile.pointBalance?.toString()
+                },
+                balanceUnit = if (male) MoneyFormat.UNIT_COIN else MoneyFormat.UNIT_POINT,
+            )
+        }
+    }
+
+    companion object {
+        /** 与 `docs/01` P01 的分页大小一致。 */
+        const val PAGE_SIZE = 20
+    }
+}

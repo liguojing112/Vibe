@@ -11,6 +11,9 @@ import com.qichuang.changliao.core.network.dto.UpdateProfileRequestDto
 import com.qichuang.changliao.core.network.dto.UpdateSettingsRequestDto
 import com.qichuang.changliao.core.network.safeApiCall
 import com.qichuang.changliao.core.network.safeApiCallUnit
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,10 +28,28 @@ class UserRepository @Inject constructor(
     private val userApi: UserApi,
 ) {
 
-    suspend fun me(): ApiResult<UserProfile> = safeApiCall { userApi.me() }
+    private val _currentUser = MutableStateFlow<UserProfile?>(null)
+
+    /**
+     * 「我」的资料缓存：好几个页面都要用（P01 顶部性别和余额、P07 的筛选按用户存、P04 我的）。
+     * 别让每个页面各请求一次 `/user/me`。
+     */
+    val currentUser: StateFlow<UserProfile?> = _currentUser.asStateFlow()
+
+    suspend fun me(): ApiResult<UserProfile> =
+        safeApiCall<UserProfile> { userApi.me() }.also { result ->
+            if (result is ApiResult.Success) {
+                _currentUser.value = result.data
+            }
+        }
+
+    /** 退出登录 / 切号时清掉（在 T6 的退出流程里调，别让上一个账号的资料留在内存里）。 */
+    fun clearCurrentUser() {
+        _currentUser.value = null
+    }
 
     suspend fun updateProfile(update: ProfileUpdate): ApiResult<UserProfile> =
-        safeApiCall {
+        safeApiCall<UserProfile> {
             userApi.updateProfile(
                 UpdateProfileRequestDto(
                     nickname = update.nickname,
@@ -43,6 +64,11 @@ class UserRepository @Inject constructor(
                     tags = update.tags,
                 ),
             )
+        }.also { result ->
+            // 改完资料顺手把「我」的缓存刷新，别让别的页面还拿着旧的
+            if (result is ApiResult.Success) {
+                _currentUser.value = result.data
+            }
         }
 
     /** 相册整体提交：顺序即展示顺序，传空列表就是清空相册。 */

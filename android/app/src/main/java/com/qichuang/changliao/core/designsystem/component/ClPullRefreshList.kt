@@ -31,6 +31,7 @@ import com.qichuang.changliao.core.designsystem.theme.ClTheme
  * - 下拉刷新：[refreshing] / [onRefresh]
  * - 上拉加载：滚到接近底部时自动调 [onLoadMore]
  * - 底部状态：加载中转圈；[loadMoreError] 不为空时显示「加载失败，点击重试」；[hasMore] = false 显示「没有更多了」
+ * - [header]：跟着列表一起滚的头部内容（比如发现页的「现在有空聊」区块标题）
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +46,7 @@ fun <T> ClPullRefreshList(
     onLoadMore: () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(horizontal = ClTheme.spacing.l),
     key: ((T) -> Any)? = null,
+    header: (@Composable () -> Unit)? = null,
     itemContent: @Composable (T) -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -72,6 +74,10 @@ fun <T> ClPullRefreshList(
             modifier = Modifier.fillMaxSize(),
             contentPadding = contentPadding,
         ) {
+            if (header != null) {
+                item(key = "cl-header") { header() }
+            }
+
             items(items = items, key = key) { item ->
                 itemContent(item)
             }

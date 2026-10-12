@@ -18,6 +18,7 @@ import com.qichuang.changliao.feature.auth.AgreementRoute
 import com.qichuang.changliao.feature.auth.LoginRoute
 import com.qichuang.changliao.feature.auth.RegisterRoute
 import com.qichuang.changliao.feature.common.PlaceholderPage
+import com.qichuang.changliao.feature.discover.FilterRoute
 import com.qichuang.changliao.feature.main.MainScreen
 import com.qichuang.changliao.feature.profile.EditProfileRoute
 
@@ -73,7 +74,9 @@ fun ClNavHost(
 
         placeholder(navController, Routes.USER_DETAIL, "个人详情（P05）")
         placeholder(navController, Routes.CHAT, "私信聊天（P06）")
-        placeholder(navController, Routes.FILTER, "筛选条件（P07）")
+        composable(Routes.FILTER) {
+            FilterRoute(onBack = { navController.popBackStack() })
+        }
         placeholder(navController, Routes.VISITORS, "最近访客（P08）")
         placeholder(navController, Routes.LIKED_ME, "喜欢我的人（P09）")
         placeholder(navController, Routes.NOTICES, "系统消息（P10）")

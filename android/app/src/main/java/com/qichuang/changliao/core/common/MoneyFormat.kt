@@ -16,6 +16,12 @@ object MoneyFormat {
     /** 通话价格单位（`60 币/分钟`）。 */
     const val UNIT_PER_MINUTE = "分钟"
 
+    /** 金币的单位字（`ClCoinPill(amount, unit)` 要分开传）。 */
+    const val UNIT_COIN = "币"
+
+    /** 积分没有简写，单位就是「积分」。 */
+    const val UNIT_POINT = "积分"
+
     /** 「120 金币」 */
     fun coins(value: Long): String = "$value 金币"
 
