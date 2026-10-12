@@ -5,10 +5,10 @@
 
 ## 当前状态
 
-- 当前阶段：**P3 登录·资料·发现·关系**（P2 已完成）
-- 当前任务：T3.10 已完成 → **P3 阶段全部完成，下一步进 P4（T4.1 会话与消息表）**
+- 当前阶段：**P4 私信与计费**（P3 已完成）
+- 当前任务：T4.1 已完成 → 下一步 T4.2 发消息计费
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：**P3 阶段验收通过**（`check-all.sh` 三端全绿；P3 做出来的 7 个页面在模拟器上真机走查了一遍，抓到 2 个真 bug 并已修）。**第一次把 App 连上了真后端**：模拟器直连 `10.0.2.2:9501` 走不通，改用 `adb reverse tcp:9501 tcp:9501` + `-PapiBaseUrl=http://127.0.0.1:9501` 才通（详见「环境信息」）。下一步按 `docs/08` 做 T4.1（`cl_conversation`/`cl_message`/`cl_sensitive_word` 迁移与模型）。
+- 上次停在哪：T4.1 会话与消息表完成（`cl_conversation`/`cl_message`/`cl_sensitive_word` 迁移 + 模型，8 个新单测），`check-server.sh` 通过（**202 测试 / 1547 断言**）。下一步按 `docs/08` 做 T4.2（`MessageBillingService::send` + `POST /chat/send`，严格按 `06` §3.3 的七步；验收是 **`06` 第 10 节场景 1~13 全部过**，这是整个项目测试最多的一段）。
 
 ## 任务进度
 
@@ -18,7 +18,7 @@
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
 - P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [x] T2.11
 - P3：[x] T3.1 [x] T3.2 [x] T3.3 [x] T3.4 [x] T3.5 [x] T3.6 [x] T3.7 [x] T3.8 [x] T3.9 [x] T3.10
-- P4：[ ] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8
+- P4：[x] T4.1 [ ] T4.2 [ ] T4.3 [ ] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8 [ ] T4.9
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
 - P6：[ ] T6.1 [ ] T6.2 [ ] T6.3 [ ] T6.4 [ ] T6.5 [ ] T6.6 [ ] T6.7
 - P7：[ ] T7.1 [ ] T7.2 [ ] T7.3 [ ] T7.4 [ ] T7.5 [ ] T7.6 [ ] T7.7 [ ] T7.8 [ ] T7.9
@@ -721,10 +721,22 @@
 - **这次没走到的**：P00 的注册页与协议页（这次直接登录，没点注册）、P14 的**选图上传**（模拟器相册里没有照片，`PickVisualMedia` 是空的；要测得上 `adb push` 一张图再走一遍 —— T3.3 记的「`ImageCompressor` 本体没测」仍然成立）、P05 的**相册与兴趣话题**（演示数据没造相册）。
 - 另外**修了一个不是这次引入的老问题**：`network_security_config.xml` 放在 `src/main/res/xml/` 里，对 release 也生效（docs/02 说的是「只对 debug 生效」）。现在没改，先记一笔 —— release 本来就走 HTTPS，不影响，等 T9 收尾时挪到 `src/debug/`。
 
+### T4.1 会话与消息表 —— ✅ 完成（2026-10-12）
+- 迁移 `2026_10_12_000007_create_cl_chat_tables.php`（开发库 + `cl_test` 都跑过）：
+  - `cl_conversation`：一对用户一条，`user_low_id`/`user_high_id` 唯一 + `male_id`/`female_id` 冗余（计费查询用）+ `male_sent_count`（`06` §3.2 第 2 步要的那个计数）+ 最后一条消息 + **各自的未读数与各自删除时间**。
+  - `cl_message`：按 `04` 第 3 节列全（client_msg_id/类型/内容/扣费/免费原因/女方等级与分成/积分/敏感词标记/审核状态/已读）；唯一索引 `(sender_id, client_msg_id)` 管幂等。
+  - `cl_sensitive_word`：词库（命中**只标记不拦截**）。
+- 模型：`Conversation`（`pair()` 归一化 + `unreadFor()`/`deletedAtColumnFor()`）、`Message`（类型与审核状态常量 + `isNormalMessage()`）、`SensitiveWord`。
+- **加了一条 CHECK 约束**（想清楚才加的）：`user_low_id < user_high_id`。
+  - 原因：docs 说「按 user_low_id < user_high_id 存」，但**唯一索引挡不住反着写** —— `(3,7)` 和 `(7,3)` 在索引眼里是两行，一旦哪里忘了归一化，同一对人就会出现两条会话、未读数分家、计费计数对不上。CHECK 让这种 bug 在写库那一刻就炸出来。
+- 顺手把「DB 默认值不回填内存对象」这个坑按住：三个模型都写了 `$attributes` 默认值（`male_sent_count`/`unread`/`price_coins`/`receiver_points`/`sensitive_hit`/`review_status`/`enabled`）。**T3.6 就是因为这个读出来 `level` 是 null**，与其每次用的时候 `?? 1`，不如在模型上写清楚。
+- 验收对照（docs/08 T4.1 只要求 `S`）：`bash scripts/check-server.sh` → 通过（**202 测试 / 1547 断言**，T4.1 新增 8 个；phpstan `[OK] No errors`；money 通过）。
+- 单测（`ChatTablesTest`）：`pair()` 与顺序无关、**同一对人只能有一条会话**、**反着写被 CHECK 挡住**、未读/删除列按用户取对、**client_msg_id 在同一个发送者下唯一**（换个人可以复用它）、只有文字和图片算普通消息（礼物不算，`06` 场景 16）、消息的默认值、敏感词唯一且默认启用。
+- 给 T4.4 记一笔（**现在没做，别到时候踩**）：`hyperf/websocket-server` 依赖装了、`.env` 里也有 `CL_WS_PORT=9502`，但 **`config/autoload/server.php` 里还没有 ws 服务条目**（只有 9501 的 http）。T4.4 要自己加。另：日志里那个 `9503` 是 **Swagger 文档服务**（`config/autoload/swagger.php`），不是 WebSocket。
+
 ## 阶段验收记录
 
 <!-- 每个阶段结束写一段：check-all 结果、走查了哪些页面、发现并修复了什么 -->
-
 ### P3 登录、资料、发现、关系 —— ✅ 通过（2026-10-12）
 - `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（rc=0）：server **194 测试 / 1521 断言** + phpstan `[OK] No errors` + money 通过；后台 lint（0 error）+ build；安卓 **207 单测** + lint + assemble + check-ui。
 - 产出（10 个任务）：
