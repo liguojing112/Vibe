@@ -95,4 +95,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideWalletApi(retrofit: Retrofit): WalletApi = retrofit.create(WalletApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideGiftApi(retrofit: Retrofit): GiftApi = retrofit.create(GiftApi::class.java)
 }

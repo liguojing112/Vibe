@@ -5,7 +5,7 @@ import com.qichuang.changliao.core.common.TimeFormat
 import com.qichuang.changliao.core.data.model.ChatFee
 import com.qichuang.changliao.core.data.model.ChatMessage
 import com.qichuang.changliao.core.data.model.ChatPeer
-import kotlinx.serialization.Serializable
+import com.qichuang.changliao.core.data.model.CoinNotEnough
 
 /**
  * 聊天页（P06）状态。
@@ -63,20 +63,6 @@ data class ChatUiState(
     companion object {
         const val DEFAULT_MAX_LENGTH = 500
     }
-}
-
-/**
- * 余额不足弹窗（P30）要的数据。
- *
- * `@Serializable` 是因为它直接对应 20001 的 `data`：`{"balance": 4, "needed": 5}`（服务端抛的）。
- */
-@Serializable
-data class CoinNotEnough(
-    val balance: Long = 0,
-    val needed: Long = 0,
-) {
-    /** 还差多少（服务端给的是「需要多少」和「现在有多少」）。 */
-    val short: Long = (needed - balance).coerceAtLeast(0)
 }
 
 /** 聊天列表里的一行。 */

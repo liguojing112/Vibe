@@ -1,5 +1,7 @@
 package com.qichuang.changliao.core.data.model
 
+import kotlinx.serialization.Serializable
+
 /**
  * 金币余额与单价范围（P13）。价格全部来自服务端（等级配置现算），客户端不写死。
  *
@@ -48,6 +50,20 @@ enum class CoinLogTab(val label: String, val apiValue: String) {
     ALL("全部", "all"),
     RECHARGE("充值", "recharge"),
     SPEND("消费", "spend"),
+}
+
+/**
+ * 余额不足弹窗（P30）要的数据：`20001` 的 `data` 就是 `{"balance": 4, "needed": 5}`（服务端抛的）。
+ *
+ * 发私信（P06）和送礼物（P23/P31）都会碰到「余额不足」，所以放在这里共用。
+ */
+@Serializable
+data class CoinNotEnough(
+    val balance: Long = 0,
+    val needed: Long = 0,
+) {
+    /** 还差多少（服务端给的是「需要多少」和「现在有多少」）。 */
+    val short: Long = (needed - balance).coerceAtLeast(0)
 }
 
 /** 一个充值档位（`recharge.packs`）。只做展示和选中，**App 里没有支付**（docs/06 第 8 节）。 */

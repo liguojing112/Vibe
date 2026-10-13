@@ -32,6 +32,7 @@ import com.qichuang.changliao.core.designsystem.component.ClPriceItem
 import com.qichuang.changliao.core.designsystem.component.ClPrimaryButton
 import com.qichuang.changliao.core.designsystem.component.ClProfileHero
 import com.qichuang.changliao.core.designsystem.component.ClScaffold
+import com.qichuang.changliao.core.designsystem.component.ClSecondaryButton
 import com.qichuang.changliao.core.designsystem.component.ClSectionHeader
 import com.qichuang.changliao.core.designsystem.component.ClSelectOption
 import com.qichuang.changliao.core.designsystem.component.ClTag
@@ -45,6 +46,7 @@ import com.qichuang.changliao.core.designsystem.theme.ClTheme
 /** 详情页的所有动作，集中成一个对象（省得 Screen 收十几个回调参数）。 */
 data class UserDetailActions(
     val onChat: () -> Unit,
+    val onOpenGift: () -> Unit,
     val onToggleFollow: () -> Unit,
     val onMenuVisibleChange: (Boolean) -> Unit,
     val onBlockConfirmVisibleChange: (Boolean) -> Unit,
@@ -89,6 +91,15 @@ fun UserDetailScreen(
         fixedBottom = {
             if (state.detail != null) {
                 ClFixedBottomArea {
+                    // 送礼物只有男用户看女用户时才有（和价格面板同一个条件）；
+                    // `01` P05 的底部栏没写它，但 P23 说「从个人详情进入」，所以放这儿
+                    if (state.showPricePanel) {
+                        ClSecondaryButton(
+                            text = "送礼物",
+                            modifier = Modifier.weight(1f),
+                            onClick = actions.onOpenGift,
+                        )
+                    }
                     ClPrimaryButton(
                         text = state.chatLabel,
                         fillMaxWidth = false,

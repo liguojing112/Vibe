@@ -18,6 +18,7 @@ import com.qichuang.changliao.feature.auth.AgreementRoute
 import com.qichuang.changliao.feature.auth.LoginRoute
 import com.qichuang.changliao.feature.auth.RegisterRoute
 import com.qichuang.changliao.feature.chat.ChatRoute
+import com.qichuang.changliao.feature.gift.GiftPanelRoute
 import com.qichuang.changliao.feature.common.PlaceholderPage
 import com.qichuang.changliao.feature.discover.FilterRoute
 import com.qichuang.changliao.feature.main.MainScreen
@@ -84,6 +85,7 @@ fun ClNavHost(
                 userId = entry.arguments?.getString("user_id")?.toLongOrNull() ?: 0L,
                 onBack = { navController.popBackStack() },
                 onChat = { navController.navigate(Routes.chat(it)) },
+                onOpenGift = { navController.navigate(Routes.giftPanel(it)) },
             )
         }
 
@@ -137,7 +139,13 @@ fun ClNavHost(
         placeholder(navController, Routes.VOICE_CALL, "一对一语音通话（P19）")
         placeholder(navController, Routes.VIDEO_CALL, "一对一视频通话（P20）")
         placeholder(navController, Routes.CALL_BILL, "结束通话账单（P21）")
-        placeholder(navController, Routes.GIFT_PANEL, "礼物面板（P23）")
+        composable(Routes.GIFT_PANEL) { entry ->
+            GiftPanelRoute(
+                userId = entry.arguments?.getString("user_id")?.toLongOrNull() ?: 0L,
+                onBack = { navController.popBackStack() },
+                onOpenRoute = { navController.navigate(it) },
+            )
+        }
         placeholder(navController, Routes.CALL_RECORDS, "通话记录（P25）")
         placeholder(navController, Routes.INCOME, "我的收益（P26）")
         placeholder(navController, Routes.LEVEL_SETTING, "我的等级与收费（P27）")

@@ -499,6 +499,17 @@ class ChatRepository @Inject constructor(
     }
 
     /**
+     * 把「我自己发出去的一条消息」补写进本地库。
+     *
+     * 送礼走这条路：服务端的推送**只发给收礼那一边**（`PushService::messageReceived`），
+     * 而送礼用的 `/gift/send` 不走 [send] 的乐观落库，所以不在这里补一条的话，
+     * 送礼的人回到聊天页永远看不到自己送出去的礼物气泡。
+     */
+    internal suspend fun storeSent(dto: MessageDto) {
+        store(ownerId(), listOf(dto))
+    }
+
+    /**
      * 把服务端来的消息写进本地库，并顺带更新会话摘要与未读。
      *
      * 靠 `clientMsgId` 的唯一索引去重：**真正插进去的那几条才会计未读**，

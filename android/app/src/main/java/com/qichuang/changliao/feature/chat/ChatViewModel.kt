@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.qichuang.changliao.core.data.model.ChatFee
 import com.qichuang.changliao.core.data.model.ChatMessage
 import com.qichuang.changliao.core.data.model.ChatPeer
+import com.qichuang.changliao.core.data.model.CoinNotEnough
 import com.qichuang.changliao.core.data.model.ChatSendResult
 import com.qichuang.changliao.core.data.model.Gender
 import com.qichuang.changliao.core.data.repository.AppConfigRepository
@@ -181,6 +182,26 @@ class ChatViewModel @Inject constructor(
 
             chatRepository.loadInitialMessages(peerId).onSuccessBoolean { hasMore.value = it }
             chatRepository.markRead(peerId)
+        }
+    }
+
+    /**
+     * 送完礼物之后刷新收费条。
+     *
+     * 礼物是另一条计费链路（`GiftBillingService`），它的返回里只有余额、没有「下一条私信报价」，
+     * 而收费条的文案是服务端按余额现拼的 —— 所以这里重新问一次 `with/{userId}`。
+     */
+    fun refreshFee() {
+        val id = peerId.value
+        if (id <= 0) {
+            return
+        }
+        viewModelScope.launch {
+            when (val result = chatRepository.enterChat(id)) {
+                is ApiResult.Success -> entry.value = Entry(peer = result.data.peer, fee = result.data.fee)
+                is ApiResult.BizError -> Unit
+                is ApiResult.NetworkError -> Unit
+            }
         }
     }
 

@@ -5,7 +5,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -25,7 +24,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
-import com.qichuang.changliao.core.common.MoneyFormat
 import com.qichuang.changliao.core.data.model.ChatMessage
 import com.qichuang.changliao.core.data.model.MessageStatus
 import com.qichuang.changliao.core.designsystem.component.ClBottomSheet
@@ -40,14 +38,13 @@ import com.qichuang.changliao.core.designsystem.component.ClEmpty
 import com.qichuang.changliao.core.designsystem.component.ClErrorRetry
 import com.qichuang.changliao.core.designsystem.component.ClFeeStrip
 import com.qichuang.changliao.core.designsystem.component.ClLoading
-import com.qichuang.changliao.core.designsystem.component.ClPrimaryButton
 import com.qichuang.changliao.core.designsystem.component.ClScaffold
-import com.qichuang.changliao.core.designsystem.component.ClSecondaryButton
 import com.qichuang.changliao.core.designsystem.component.ClTextButton
 import com.qichuang.changliao.core.designsystem.component.ClTopBar
 import com.qichuang.changliao.core.designsystem.component.rememberClToast
 import com.qichuang.changliao.core.designsystem.icon.ClIcons
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
+import com.qichuang.changliao.feature.common.CoinNotEnoughSheet
 
 /**
  * 私信聊天页（P06，设计图 06）。
@@ -272,42 +269,6 @@ private fun ChatTools(
         items = items,
         onSelect = { key -> if (key == TOOL_GIFT) onOpenGift() else onOpenCall() },
     )
-}
-
-/** P30 余额不足弹窗：当前余额、需要多少、还差多少，两个按钮。 */
-@Composable
-private fun CoinNotEnoughSheet(
-    info: CoinNotEnough,
-    onDismiss: () -> Unit,
-    onRecharge: () -> Unit,
-) {
-    ClBottomSheet(title = "余额不足", onClose = onDismiss) {
-        Text(
-            text = MoneyFormat.coins(info.balance),
-            style = ClTheme.typography.amountLarge,
-            color = ClTheme.colors.coinText,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            text = "本次操作需要 ${info.needed} 金币，还差 ${info.short} 金币",
-            style = ClTheme.typography.bodySmall,
-            color = ClTheme.colors.inkSecondary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = ClTheme.spacing.m),
-        )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = ClTheme.spacing.l),
-            horizontalArrangement = Arrangement.spacedBy(ClTheme.spacing.m),
-        ) {
-            ClSecondaryButton(text = "暂不充值", modifier = Modifier.weight(1f), onClick = onDismiss)
-            ClPrimaryButton(text = "去充值", modifier = Modifier.weight(1f), onClick = onRecharge)
-        }
-    }
 }
 
 /** 本地消息 → 气泡模型。图片优先显示**本地那份**（秒开、离线也能看，docs/10 第 2.5 节）。 */

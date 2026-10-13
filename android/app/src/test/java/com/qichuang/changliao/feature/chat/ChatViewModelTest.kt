@@ -4,6 +4,7 @@ import com.qichuang.changliao.core.data.model.ChatEntry
 import com.qichuang.changliao.core.data.model.ChatFee
 import com.qichuang.changliao.core.data.model.ChatMessage
 import com.qichuang.changliao.core.data.model.ChatPeer
+import com.qichuang.changliao.core.data.model.CoinNotEnough
 import com.qichuang.changliao.core.data.model.ChatSendResult
 import com.qichuang.changliao.core.data.model.Gender
 import com.qichuang.changliao.core.data.model.MessageStatus
