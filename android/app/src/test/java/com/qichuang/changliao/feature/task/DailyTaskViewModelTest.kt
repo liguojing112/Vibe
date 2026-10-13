@@ -93,6 +93,8 @@ class DailyTaskViewModelTest {
         assertEquals("每日签到", state.tasks[0].name)
         assertEquals("📅", state.tasks[0].icon)
         assertEquals("签到", state.tasks[0].buttonText)
+        // 奖励文案要在卡片上显示出来（docs/01 P11：男 +X 金币、女 +X 积分）
+        assertEquals("+5 金币", state.tasks[0].rewardText)
         assertFalse(state.loading)
         assertNull(state.error)
     }

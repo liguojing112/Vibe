@@ -24,13 +24,18 @@ data class ClTaskItem(
     val desc: String,
     val actionText: String,
     val icon: String = "✅",
+    /** 奖励文案（「+5 金币」/「+20 积分」）；空串就不显示这一行。 */
+    val reward: String = "",
     val done: Boolean = false,
 )
 
 /**
- * 每日任务卡（docs/03 第 5.4 节，设计图 11）：图标方块 + 标题 + 说明 + 右侧奶黄按钮。
+ * 每日任务卡（docs/03 第 5.4 节，设计图 11）：图标方块 + 标题 + 说明 + 奖励 + 右侧奶黄按钮。
  *
  * [ClTaskItem.done] = true 时按钮变灰不可点（已领过奖励）。
+ *
+ * [ClTaskItem.reward] 那一行是 `docs/01` P11 明确要求的（「男显示『+X 金币』，女显示『+X 积分』」）——
+ * 设计图 11 上没画，但文档是客户确认过的需求，按文档办。
  */
 @Composable
 fun ClTaskCard(
@@ -76,6 +81,14 @@ fun ClTaskCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (task.reward.isNotBlank()) {
+                Text(
+                    text = task.reward,
+                    style = ClTheme.typography.tiny,
+                    color = ClTheme.colors.incomeText,
+                    maxLines = 1,
+                )
+            }
         }
 
         Box(

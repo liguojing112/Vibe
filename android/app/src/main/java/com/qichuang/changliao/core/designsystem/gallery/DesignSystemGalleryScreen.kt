@@ -590,6 +590,7 @@ fun DesignSystemGalleryScreen(onBack: (() -> Unit)? = null) {
                         desc = "连续签到可领取玫瑰",
                         actionText = "签到",
                         icon = "📅",
+                        reward = "+5 金币",
                     ),
                     onAction = { toast.show("已签到") },
                 )

@@ -99,5 +99,7 @@ private fun DailyTask.toItem() = ClTaskItem(
     desc = description,
     actionText = buttonText,
     icon = icon.ifBlank { "✅" },
+    // 奖励文案是服务端给的（男「+5 金币」/女「+20 积分」），客户端不拼
+    reward = rewardText,
     done = claimed,
 )
