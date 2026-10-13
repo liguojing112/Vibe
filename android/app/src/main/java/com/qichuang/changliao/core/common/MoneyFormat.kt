@@ -34,6 +34,13 @@ object MoneyFormat {
     /** 「5 币/条」「60 币/分钟」。 */
     fun coinPrice(value: Long, unit: String): String = "$value 币/$unit"
 
+    /**
+     * 单价**区间**：「5~20 币/条」。私信是按对方等级计价的，P13 上要显示区间。
+     * 两端相等时退化成单价（「5 币/条」），免得出现「5~5 币/条」。
+     */
+    fun coinPriceRange(min: Long, max: Long, unit: String): String =
+        if (min == max) coinPrice(min, unit) else "$min~$max 币/$unit"
+
     /** 流水里的增减：「+15」「-5」。 */
     fun signed(value: Long): String = if (value > 0) "+$value" else value.toString()
 

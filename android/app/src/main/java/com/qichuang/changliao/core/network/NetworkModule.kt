@@ -91,4 +91,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideChatApi(retrofit: Retrofit): ChatApi = retrofit.create(ChatApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideWalletApi(retrofit: Retrofit): WalletApi = retrofit.create(WalletApi::class.java)
 }

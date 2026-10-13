@@ -24,6 +24,9 @@ import com.qichuang.changliao.feature.main.MainScreen
 import com.qichuang.changliao.feature.profile.EditProfileRoute
 import com.qichuang.changliao.feature.profile.UserDetailRoute
 import com.qichuang.changliao.feature.relation.FansRoute
+import com.qichuang.changliao.feature.wallet.CoinLogsRoute
+import com.qichuang.changliao.feature.wallet.RechargeRoute
+import com.qichuang.changliao.feature.wallet.WalletRoute
 import com.qichuang.changliao.feature.relation.VisitorsRoute
 
 /**
@@ -111,7 +114,19 @@ fun ClNavHost(
         placeholder(navController, Routes.NOTICES, "系统消息（P10）")
         placeholder(navController, Routes.DAILY_TASK, "每日任务（P11）")
         placeholder(navController, Routes.VIP, "会员中心（P12）")
-        placeholder(navController, Routes.COIN_WALLET, "金币钱包（P13）")
+        composable(Routes.COIN_WALLET) {
+            WalletRoute(
+                onBack = { navController.popBackStack() },
+                onOpenRecharge = { navController.navigate(Routes.RECHARGE) },
+                onOpenLogs = { navController.navigate(Routes.COIN_LOGS) },
+            )
+        }
+        composable(Routes.RECHARGE) {
+            RechargeRoute(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.COIN_LOGS) {
+            CoinLogsRoute(onBack = { navController.popBackStack() })
+        }
         composable(Routes.EDIT_PROFILE) {
             EditProfileRoute(onBack = { navController.popBackStack() })
         }
@@ -122,9 +137,7 @@ fun ClNavHost(
         placeholder(navController, Routes.VOICE_CALL, "一对一语音通话（P19）")
         placeholder(navController, Routes.VIDEO_CALL, "一对一视频通话（P20）")
         placeholder(navController, Routes.CALL_BILL, "结束通话账单（P21）")
-        placeholder(navController, Routes.RECHARGE, "金币充值（P22）")
         placeholder(navController, Routes.GIFT_PANEL, "礼物面板（P23）")
-        placeholder(navController, Routes.COIN_LOGS, "金币收支明细（P24）")
         placeholder(navController, Routes.CALL_RECORDS, "通话记录（P25）")
         placeholder(navController, Routes.INCOME, "我的收益（P26）")
         placeholder(navController, Routes.LEVEL_SETTING, "我的等级与收费（P27）")

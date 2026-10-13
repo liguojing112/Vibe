@@ -90,6 +90,7 @@ import com.qichuang.changliao.core.designsystem.component.ClChatToolBar
 import com.qichuang.changliao.core.designsystem.component.ClChatToolItem
 import com.qichuang.changliao.core.designsystem.component.ClConversationItem
 import com.qichuang.changliao.core.designsystem.component.ClConversationRow
+import com.qichuang.changliao.core.designsystem.component.ClQrCode
 import com.qichuang.changliao.core.designsystem.component.ClSwipeToDelete
 import com.qichuang.changliao.core.designsystem.component.ClDatePickerDialog
 import com.qichuang.changliao.core.designsystem.component.ClEntryRow
@@ -447,6 +448,10 @@ fun DesignSystemGalleryScreen(onBack: (() -> Unit)? = null) {
                         showDivider = false,
                         onClick = {},
                     )
+                }
+
+                ClCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                    ClQrCode(url = "https://cdn.example.com/kf-qrcode.png")
                 }
 
                 ClCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {

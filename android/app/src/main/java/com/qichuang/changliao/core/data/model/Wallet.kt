@@ -1,0 +1,79 @@
+package com.qichuang.changliao.core.data.model
+
+/**
+ * 金币余额与单价范围（P13）。价格全部来自服务端（等级配置现算），客户端不写死。
+ *
+ * 语音/视频价格在 `feature.call_enabled` 关着时服务端**不返回**（[callEnabled] 为 false），
+ * 页面据此决定要不要显示那两行。
+ */
+data class WalletCoin(
+    val balance: Long = 0,
+    val messagePriceMin: Int = 0,
+    val messagePriceMax: Int = 0,
+    val callEnabled: Boolean = false,
+    val voicePriceMin: Int? = null,
+    val voicePriceMax: Int? = null,
+    val videoPriceMin: Int? = null,
+    val videoPriceMax: Int? = null,
+)
+
+/**
+ * 一条金币流水（P24）。[change] 正数是进账、负数是消费。
+ *
+ * [type] 是服务端 `cl_coin_log.type` 的原值（RECHARGE/MESSAGE/GIFT/VIP/TASK/ADMIN_DEDUCT），
+ * 页面用它挑图标；文案用服务端拼好的 [title]（「私信 · 小满」这种），客户端不拼。
+ */
+data class CoinLogEntry(
+    val id: Long = 0,
+    val type: String = "",
+    val title: String = "",
+    val change: Long = 0,
+    val balanceAfter: Long = 0,
+    /** 毫秒；解析不了就是 0 */
+    val createdAt: Long = 0,
+) {
+    val isIncome: Boolean get() = change > 0
+}
+
+/** 收支明细一页。 */
+data class CoinLogPage(
+    val list: List<CoinLogEntry> = emptyList(),
+    val total: Int = 0,
+    val page: Int = 1,
+    val hasMore: Boolean = false,
+)
+
+/** 收支明细的三个 Tab（P24）。 */
+enum class CoinLogTab(val label: String, val apiValue: String) {
+    ALL("全部", "all"),
+    RECHARGE("充值", "recharge"),
+    SPEND("消费", "spend"),
+}
+
+/** 一个充值档位（`recharge.packs`）。只做展示和选中，**App 里没有支付**（docs/06 第 8 节）。 */
+data class RechargePack(
+    val coins: Int = 0,
+    val yuan: Int = 0,
+) {
+    /** 网格组件要一个 id，用金币数就够了（档位不会重复）。 */
+    val id: Long get() = coins.toLong()
+}
+
+/** 客服信息（后台配置：微信号 / 二维码 / 电话）。 */
+data class RechargeService(
+    val wechat: String = "",
+    val qrcodeUrl: String = "",
+    val phone: String = "",
+) {
+    val hasAny: Boolean get() = wechat.isNotBlank() || qrcodeUrl.isNotBlank() || phone.isNotBlank()
+}
+
+/** 充值页要的一切（P22）。 */
+data class RechargeInfo(
+    val balance: Long = 0,
+    val packs: List<RechargePack> = emptyList(),
+    val service: RechargeService = RechargeService(),
+    /** 合规声明（铁律 13，服务端保证非空）。 */
+    val complianceDisclosure: String = "",
+    val notice: String = "",
+)
