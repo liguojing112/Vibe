@@ -28,8 +28,12 @@ android {
             // 真机调试也走这条路（真机同样连不到 10.0.2.2）。
             val apiBaseUrl = providers.gradleProperty("apiBaseUrl")
                 .getOrElse("http://10.0.2.2:9501")
+            // WebSocket 同理（8502 是后端 ws 服务的端口，见 docs/05 第 5 节）：
+            //   ./gradlew assembleDebug -PwsBaseUrl=ws://127.0.0.1:9502/ws
+            val wsUrl = providers.gradleProperty("wsBaseUrl")
+                .getOrElse("ws://10.0.2.2:9502/ws")
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
-            buildConfigField("String", "WS_URL", "\"ws://10.0.2.2:9502/ws\"")
+            buildConfigField("String", "WS_URL", "\"$wsUrl\"")
         }
         release {
             isMinifyEnabled = false
@@ -56,6 +60,14 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+kapt {
+    arguments {
+        // Room 把权威表结构导出到 app/schemas/：写 Migration 时照抄它，
+        // 不要凭记忆手写建表语句（docs/10 第 8 节第 3 条）
+        arg("room.schemaLocation", "$projectDir/schemas")
     }
 }
 

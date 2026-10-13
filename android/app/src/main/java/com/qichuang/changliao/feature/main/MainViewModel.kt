@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.qichuang.changliao.core.data.local.UnreadStore
 import com.qichuang.changliao.core.data.repository.AppConfigRepository
+import com.qichuang.changliao.core.data.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,9 +21,16 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     appConfigRepository: AppConfigRepository,
     unreadStore: UnreadStore,
+    chatRepository: ChatRepository,
 ) : ViewModel() {
 
     private val selectedTab = MutableStateFlow(MainTab.DISCOVER)
+
+    init {
+        // 登录后（主界面出现）就把 WebSocket 连上：连上会补拉一次离线消息，
+        // 之后收到推送直接进本地库（docs/10 第 1.4 节）。
+        chatRepository.start()
+    }
 
     val uiState: StateFlow<MainUiState> =
         combine(

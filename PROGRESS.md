@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P4 私信与计费**（P3 已完成）
-- 当前任务：T4.4 已完成 → 下一步 T4.5 安卓聊天数据层（Room 本地库 + ChatSocket）
+- 当前任务：T4.5 已完成 → 下一步 T4.6 消息页（P03）
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T4.4 WebSocket 推送完成（`ws` 服务跑在 9502 + query token 鉴权 + Redis fd↔userId 映射 + ping/pong 心跳 + `PushService` 在发消息事务提交后推 `message.new`/`unread.update`），端到端脚本 `scripts/ws-check.php` **19 项全过**，`check-server.sh` 通过（**268 测试 / 1828 断言**）。下一步按 `docs/08` 做 T4.5（`ChatSocket` 心跳/重连/重连后 sync + `ChatRepository` 本地优先 + Room `message`/`conversation`/`sync_state` 三张表 + `client_msg_id` 重发不变）。
+- 上次停在哪：T4.5 安卓聊天数据层完成（Room v2 三张表 + `MIGRATION_1_2` + `ChatSocket`（30s 心跳、1/2/4…30s 退避）+ `ChatRepository`（本地优先、乐观 UI、`/chat/sync` 增量补拉）），**在模拟器上用真后端跑通并用 `adb` 拉库核对了**：v1→v2 迁移成功、WS 连上（服务端日志「用户 101 上线」）、推送落进本地库、底部未读角标显示 1。`check-android.sh` 通过（**234 单测 / 0 失败**）。下一步按 `docs/08` 做 T4.6（P03 消息页：会话列表 + 未读角标 + 删除会话）。
 
 ## 任务进度
 
@@ -18,7 +18,7 @@
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
 - P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [x] T2.11
 - P3：[x] T3.1 [x] T3.2 [x] T3.3 [x] T3.4 [x] T3.5 [x] T3.6 [x] T3.7 [x] T3.8 [x] T3.9 [x] T3.10
-- P4：[x] T4.1 [x] T4.2 [x] T4.3 [x] T4.4 [ ] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8 [ ] T4.9
+- P4：[x] T4.1 [x] T4.2 [x] T4.3 [x] T4.4 [x] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8 [ ] T4.9
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
 - P6：[ ] T6.1 [ ] T6.2 [ ] T6.3 [ ] T6.4 [ ] T6.5 [ ] T6.6 [ ] T6.7
 - P7：[ ] T7.1 [ ] T7.2 [ ] T7.3 [ ] T7.4 [ ] T7.5 [ ] T7.6 [ ] T7.7 [ ] T7.8 [ ] T7.9
@@ -53,6 +53,9 @@
    `apiBaseUrl` 是 `app/build.gradle.kts` 里给 debug 包加的可覆盖项，**不传就还是 docs/02 写的 `10.0.2.2`**，所以正常构建不受影响；真机调试同样走 `adb reverse` 这条路。
 2. 演示数据：`php scripts/seed-demo.php`（在 WSL 里跑，连开发库 `changliao`）。会造 5 个账号，**密码统一 `abc12345`**：`13800000001` 阿宁（男，金币 360）、`13800000002` 小满（女，积分 1200）、`13800000003` 晚晴（女，Lv3）、`13800000004` 星野（女，Lv2）、`13800000005` 林川（男）。已经顺手造好：小满 ↔ 阿宁互关、晚晴关注阿宁、小满今天来访、晚晴昨天来访。
    - 注意脚本用 PHP 的 `date()` 写 `last_active_at`，**CLI 的时区可能是 UTC**，所以造出来的用户「在线」状态不准（服务端按 Asia/Shanghai 比）。要测「在线」标签就手动把 `last_active_at` 改成 `NOW()`。
+   - ⚠️ **脚本会先 `DELETE` 这 5 个手机号再重建**，所以**每次重跑 id 都会变**（2026-10-13 跑完是 101~105），
+     而且上一次登录拿到的 token 对应的用户已经没了 —— T4.5 真机验证时就踩到：App 里的 token 直接失效。
+     **登录 App 之前先跑一次 seed**，别用上次留下的号。
 3. **WebSocket 也要 `adb reverse`**（T4.4 做完了）。后端 WS 服务在 **9502**，地址 `ws://{host}:9502/ws?token={access_token}`
    （`CL_WS_PORT` 在 `server/.env` 里，默认 9502）。模拟器同 9501 一样连不上 `10.0.2.2`，所以：
    ```bash
@@ -111,6 +114,7 @@
 | Q0-15 | `ClMiniProfileRow` 的 `blurred`（P09 非会员看不全是谁）用 `Modifier.blur`，但它在 **API 31 以下是空操作**，低版本手机上打码不生效 | 先用着（minSdk 26，Android 12+ 生效）；要全机型都糊就得改成盖一层遮罩或直接换成打码文字。做 P09 时决定 | T2.9、T3.9 | ⏳ 待确认（**2026-10-12 模拟器实测：API 37 上打码正常生效**） |
 | Q0-16 | `ClRangeSlider`（`docs/03` 第 5.5 节）是双滑块，但设计图 07 画的是**单滑块**（原型 HTML 也是一个 `<input type=range>`） | 行为以 `docs/01` P07「双滑块 18~60」为准，实现不改；外观差异（M3 竖条 thumb vs 设计图圆 thumb）留到 T3.8 做 P07 时对着设计图定 | T2.5、T3.8 | ⏳ 待 T3.8 定 |
 | Q0-18 | P14 的「学历」`docs/01` 只写「选择」，没给选项清单（原型里只出现过「本科」「硕士」两个值） | 先定成 `高中及以下 / 大专 / 本科 / 硕士 / 博士` 五项；服务端只校验 `string|max:16` 不限制取值，客户给清单后改客户端常量 `EDUCATION_OPTIONS` 即可 | T3.3 | ⏳ 待确认 |
+| Q0-21 | **Room 的 DAO / 迁移没有自动化测试**：`Room.inMemoryDatabaseBuilder` 和 `MigrationTestHelper` 都要 Android 环境，JVM 单测跑不了，目前只靠 `kapt` 在**编译期**校验 SQL 列名 + 我在模拟器上手工跑了一遍 v1→v2（见 T4.5 记录）。要补自动化测试就得加 **Robolectric**（新依赖，还要处理 `compileSdk 37` 对不上 Robolectric 预置 SDK 的问题，可能要钉 `@Config(sdk = [34])`） | 加不加由你定：不加就保持「编译期校验 + T4.8 走查」，加就记进「新增依赖记录」 | T4.5 起 | ⏳ 待确认 |
 | Q0-20 | **401 之后不会自动回登录页**：`AuthInterceptor` 已经清了登录态，但没有页面跳转（`MainActivity` 只在启动时按 token 决定起始页），用户会停在一个报错的页面上 | 计划和「退出登录 / 切换账号」一起做：在导航层监听 token 是否变空，空了就回登录页。另外退出登录时还要顺手清掉 `UserRepository.clearCurrentUser()`、`UnreadStore.clear()`、`LocalCache.clearMemory()` | T3.10、T6.x | ⏳ 待做 |
 | Q0-19 | 「在线」怎么算？`docs` 没定义多久没活跃算离线（P01 要按在线优先排序、卡片上有在线绿点，P07 有「只看在线」） | 先用 **15 分钟**（`DiscoverRepository::ONLINE_MINUTES`）。这是业务上要调的阈值，客户定了以后要么改常量要么提到 `cl_config` | T3.5 | ⏳ 待确认 |
 | Q0-17 | 注册页要不要也放「我已阅读并同意协议」勾选？`docs/01` P00 只在**登录**那条里要求勾选，「注册」那条只列了字段 | 按文档来：**只在登录页勾选**，注册页不放。客户若要求注册也勾，加一个 `ClCheckboxAgreement` 即可 | T3.1 | ⏳ 待确认 |
@@ -854,6 +858,74 @@
 - 自检：`bash scripts/check-server.sh` → **268 测试 / 1828 断言**、phpstan `[OK] No errors`、`check-money.sh` 通过。
 - 留给后面的：安卓侧 `ChatSocket`（心跳 30s、重连 1/2/4…最大 30s、重连后 sync）→ T4.5；
   `cl_notice` 的 `notice.new` 与 `account.banned` 推送 → P6；礼物消息的推送 → P5（现在只推普通消息）。
+
+### T4.5 安卓聊天数据层 —— ✅ 完成（2026-10-13，含模拟器真机验证）
+
+- 读：`02` §4.4、`10`（整份）
+- **数据层分层**（`docs/10` §1）：界面只读 Room（`Flow`），网络只负责把数据补进本地库。
+  新增 `core/data/repository/ChatRepository`（本地优先）+ `ChatMappers`（DTO↔实体↔模型只写一处）；
+  新增 `core/data/model/ChatMessage.kt`（消息/会话/收费/未读的界面模型 + `MessageStatus` 状态机）。
+- **Room v2**（`docs/10` §1.2）：`message` / `conversation` / `sync_state` 三张表，`ClDatabase` 从 v1 升到 v2。
+  新增 `MessageDao` / `ConversationDao`，`SyncStateDao` 加上 `ownerId` 维度。
+  几个必须这么定的点：
+  - 消息主键是**本地自增** `localId`：消息发出去之前没有 `serverId`，不能拿它当主键；
+  - `clientMsgId` 建**唯一索引**，这是幂等的唯一手段 —— 乐观 UI 先写一条，服务端确认后同一条会再回来，
+    WebSocket 推送和 `/chat/sync` 补拉也可能给同一条，`INSERT OR IGNORE` 一次全解决；
+  - 会话主键用 **`(ownerId, peerId)`** 而不是服务端会话 id：第一次发消息之前服务端还没有会话，
+    本地得先有一条记录把界面撑起来，`serverConversationId` 拿到之后再回填；
+  - 三张表都带 **`ownerId`**：同一台设备换账号登录时，两个人的聊天记录、会话列表、同步游标都不能串。
+    `sync_state` 因此从「主键 = conversationId」改成「主键 = (ownerId, conversationId)」。
+- **MIGRATION_1_2（`docs/10` §8.3 要求从第一天就带迁移）**：
+  建两张新表 + `sync_state` 重建（SQLite 改不了主键，走「建新表 → 拷数据 → 删旧表 → 改名」）。
+  建表语句是**照 Room 自己导出的 `app/schemas/…/2.json` 抄的**，不是手写的 ——
+  在 `app/build.gradle.kts` 里给 kapt 加了 `room.schemaLocation`，Room 导出权威结构，
+  写迁移时对着抄（这也是以后补迁移测试的 fixture）。`DatabaseModule` **故意不挂 `fallbackToDestructiveMigration`**：
+  宁可升级报错，也不能悄悄把用户的聊天记录清掉。
+- **`ChatSocket`**（`docs/02` §4.4）：`ws://{host}:9502/ws?token=…`，**只收不发**（App 只发心跳，发消息一律走 HTTP）。
+  30 秒心跳、断线按 **1s/2s/4s…封顶 30s** 重连；`connected` 变 true 就补拉一次
+  （首次连上和重连要做的事一样，所以不用分两种情况）。它**不认识数据库也不认识业务接口**，收帧→解析→抛给上层。
+  `ChatFrame.parse` 认 `message.new` / `unread.update` / `pong`，**认不出来的一律丢掉**：
+  服务端以后加新事件（P6 的 `notice.new`、`account.banned`），现在这版客户端不能因此崩掉或断开。
+- **乐观 UI**（`docs/10` §2）：`send()` 先写本地 `sending` 立刻出气泡，成功后**就地替换**（保住 `localId`，界面不闪）；
+  失败改判 `failed`。**重发不换 `client_msg_id`**（服务端靠它幂等，换了就重复扣费）。
+  一个额外的判断：**余额不足（20001）时把本地那条乐观气泡删掉** —— 聊天页会按 P06 要求把文字放回输入框，
+  气泡留着的话用户再点一次发送就重复发了。
+- **增量补拉**：`/chat/sync` 是全局的（只给「我收到的」），游标存 `sync_state` 的全局那一行、按用户分开。
+  另外两条补数据的路：首次进会话用 `/chat/messages` 补历史（自己发的那半截 `/chat/sync` 给不了），
+  上拉用 `before_id`。同一时间只跑一轮同步（`Mutex`）。
+- **未读角标以本地库为唯一来源**：`start()` 里订阅本地会话表的未读总数喂给 `UnreadStore`；
+  推送里的 `unread.update` **只当「该刷新了」的信号、不直接覆盖**，免得两个来源互相打架。
+- 接口层：新增 `ChatApi`（9 个接口）+ `ChatDto`；`NetworkModule` 加 `ChatApi` 与 `@WsUrl`；
+  `build.gradle.kts` 的 WS 地址也能构建时覆盖（`-PwsBaseUrl=`），因为模拟器/真机连不到 `10.0.2.2` 时
+  HTTP 走 `adb reverse`，WS 得跟着走同一条路。
+- **在模拟器上用真后端跑了一遍（这一步最有价值）**：
+  1. 造一个 **v1 的 `cl.db`** 塞进 App 私有目录 → 启动 → 拉回来核对：`user_version=2`、
+     `message`/`conversation` 建好、`sync_state` 老数据按 `ownerId=0` 保留 `(0,1,5)`、`room_master_table` 写入
+     —— **迁移真的跑通了，而且 schema 校验通过**（DDL 不匹配的话 Room 会直接抛 `IllegalStateException`）。
+  2. `pm clear` 后重新登录 → 服务端日志出现 **`[ws] fd[38] 用户 101 上线`**（新的 `ChatSocket` 连上了真后端）。
+  3. 用 curl 以「小满」的身份给「阿宁」发了 1 条 → 拉库核对：`message` 里 1 行
+     （`serverId=54, conversationId=32, peerId=102, outgoing=false, status=SENT`）、
+     `conversation` 里 1 行（`unread=1`、`serverConversationId=32` 已回填）—— **推送确实落进了本地库**。
+  4. 截图 `docs/screenshots/t45-unread-badge.png`：底部「消息」角标显示 **1**（未读从本地库流到角标）。
+- **真机抓到一个 bug（单测发现不了）**：底部角标一开始一直是 0。原因是主界面一出现就 `start()` 了，
+  而 `/user/me` 还没回来，未读流绑到了 `ownerId = 0` 上 —— 推送明明写进了库（`ownerId=101`）也看不见。
+  改成 `ownerStream().flatMapLatest { … }`（跟着当前用户走）后，切号/退出登录也自动换数据源。
+  消息列表和会话列表两个 Flow 一并改成同样的写法。补了两个单测锁住这条链路。
+- 单测（+27，共 **234**，`check-android.sh` 全绿）：`ChatSocketTest`（退避序列 1s/2s/4s…封顶 30s、
+  token 拼装、心跳帧）、`ChatFrameTest`（三种事件 + 认不出来/坏数据一律丢掉、未知字段不影响解析）、
+  `ChatRepositoryTest`（乐观 UI 就地替换、**重发 client_msg_id 不变**、20001 撤气泡、sync 去重不重复计未读、
+  游标推进、自己发的不计未读、超 60 秒 sending 改判 failed、会话删除后新消息重现、进聊天页女用户 fee 为 null、
+  已读、未读流跟随用户）。假 DAO 放 `FakeChatDaos.kt`（内存实现，因为仓库层是「读改写」，mock 反而不好写）。
+- 踩坑：
+  - `@WsUrl` 忘了 import，kapt 生成 stub 时报 `NonExistentClass`（Kotlin 那边的报错完全看不出是缺 import）；
+  - 单测里 MockWebServer 忘了先 `enqueue`，请求会一直挂着直到超时（20 秒），测试跑得又慢又莫名其妙失败；
+  - `assertEquals(消息, 期望, 实际)`：JUnit 的**消息参数在最前面**，和 `kotlin.test` 的顺序相反。
+- 自检：`bash scripts/check-android.sh` → 单测 234 / 0 失败、lint 0 error、`assembleDebug` 成功、`check-ui.sh` 通过。
+- 留给后面的：
+  - P03（T4.6）进入页面时要调一次 `refreshConversations()`：**推送里不带对方昵称头像**，只靠推送建出来的会话行
+    昵称是空的；
+  - 聊天图片的本地文件（`localMediaPath`）字段已经留好，实际落盘在 T4.7 做图片消息时接上；
+  - Room 的 DAO/迁移自动化测试见 Q0-21。
 
 ## 阶段验收记录
 

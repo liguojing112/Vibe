@@ -29,6 +29,11 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    @WsUrl
+    fun provideWsUrl(): String = BuildConfig.WS_URL
+
+    @Provides
+    @Singleton
     fun provideJson(): Json = clJson
 
     @Provides
@@ -82,4 +87,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRelationApi(retrofit: Retrofit): RelationApi = retrofit.create(RelationApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideChatApi(retrofit: Retrofit): ChatApi = retrofit.create(ChatApi::class.java)
 }
