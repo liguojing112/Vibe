@@ -169,7 +169,12 @@ fun ChatScreen(
         CoinNotEnoughSheet(
             info = info,
             onDismiss = onDismissCoinNotEnough,
-            onRecharge = onOpenRecharge,
+            // 去充值之前**先把弹窗关掉**：不然从充值页返回时会看到它又在那儿，
+            // 用户还以为余额没充上（T4.8 走查时踩到的）
+            onRecharge = {
+                onDismissCoinNotEnough()
+                onOpenRecharge()
+            },
         )
     }
 }

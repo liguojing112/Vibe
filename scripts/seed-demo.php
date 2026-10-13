@@ -92,13 +92,18 @@ $linchuan = makeUser($pdo, [
     'level' => 1, 'real_name_status' => 1, 'active_minutes_ago' => 5,
 ]);
 
-// 钱包：男号给点金币，女号给点积分（App 顶部要显示）
-$pdo->prepare('INSERT INTO cl_coin_wallet (user_id, balance, created_at, updated_at) VALUES (?, 360, NOW(), NOW())')
-    ->execute([$male]);
-$pdo->prepare('INSERT INTO cl_coin_wallet (user_id, balance, created_at, updated_at) VALUES (?, 88, NOW(), NOW())')
-    ->execute([$linchuan]);
-$pdo->prepare('INSERT INTO cl_point_wallet (user_id, balance, frozen, created_at, updated_at) VALUES (?, 1200, 0, NOW(), NOW())')
-    ->execute([$xiaoman]);
+// 钱包：男号给点金币，女号给点积分（App 顶部要显示）。
+//
+// ⚠️ **每个号都要有钱包**：注册接口会给新用户建钱包（AppAuthService::register），
+// 但这里是自己 INSERT 用户，漏了谁，谁就收不了付费私信（PointWalletService 找不到钱包会报错）。
+$coinWallet = $pdo->prepare('INSERT INTO cl_coin_wallet (user_id, balance, created_at, updated_at) VALUES (?, ?, NOW(), NOW())');
+$pointWallet = $pdo->prepare('INSERT INTO cl_point_wallet (user_id, balance, frozen, created_at, updated_at) VALUES (?, ?, 0, NOW(), NOW())');
+
+$coinWallet->execute([$male, 360]);
+$coinWallet->execute([$linchuan, 88]);
+$pointWallet->execute([$xiaoman, 1200]);
+$pointWallet->execute([$wanqing, 0]);
+$pointWallet->execute([$xingye, 0]);
 
 // 关注：小满 ↔ 阿宁（互关），晚晴 → 阿宁（单方，用来测「回关」）
 $follow = $pdo->prepare('INSERT INTO cl_follow (user_id, target_id, created_at, updated_at) VALUES (?, ?, NOW(), NOW())');
