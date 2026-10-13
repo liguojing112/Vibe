@@ -47,6 +47,20 @@ final class UserRepository extends IRepository
     }
 
     /**
+     * 事务里锁住用户行再读（开会员续费时要）。
+     *
+     * `vip_expire_at` 是这一行上的字段：两个并发续费请求都不锁的话，两边都读到同一个旧的到期时间、
+     * 各自加一次天数，后提交的会把先提交的覆盖掉 —— 用户付了两次钱只拿到一次天数。
+     */
+    public function lockById(int $id): ?User
+    {
+        /** @var null|User $user */
+        $user = $this->model->newQuery()->whereKey($id)->lockForUpdate()->first();
+
+        return $user;
+    }
+
+    /**
      * 按 id 批量取用户（关系列表把 id 换成资料用），返回以 id 为键的集合。
      *
      * @param array<int,int> $ids
