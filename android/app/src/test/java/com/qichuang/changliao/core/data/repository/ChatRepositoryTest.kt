@@ -78,6 +78,7 @@ class ChatRepositoryTest {
             conversationDao = conversationDao,
             syncStateDao = syncStateDao,
             socket = socket,
+            imageUploader = mockk<ImageUploader>(relaxed = true),
             unreadStore = UnreadStore(),
             userRepository = userRepository,
         )

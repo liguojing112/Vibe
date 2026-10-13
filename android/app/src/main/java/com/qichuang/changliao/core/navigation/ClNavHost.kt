@@ -17,6 +17,7 @@ import com.qichuang.changliao.core.designsystem.theme.ClTheme
 import com.qichuang.changliao.feature.auth.AgreementRoute
 import com.qichuang.changliao.feature.auth.LoginRoute
 import com.qichuang.changliao.feature.auth.RegisterRoute
+import com.qichuang.changliao.feature.chat.ChatRoute
 import com.qichuang.changliao.feature.common.PlaceholderPage
 import com.qichuang.changliao.feature.discover.FilterRoute
 import com.qichuang.changliao.feature.main.MainScreen
@@ -83,7 +84,13 @@ fun ClNavHost(
             )
         }
 
-        placeholder(navController, Routes.CHAT, "私信聊天（P06）")
+        composable(Routes.CHAT) { entry ->
+            ChatRoute(
+                userId = entry.arguments?.getString("user_id")?.toLongOrNull() ?: 0L,
+                onBack = { navController.popBackStack() },
+                onOpenRoute = { navController.navigate(it) },
+            )
+        }
         composable(Routes.FILTER) {
             FilterRoute(onBack = { navController.popBackStack() })
         }

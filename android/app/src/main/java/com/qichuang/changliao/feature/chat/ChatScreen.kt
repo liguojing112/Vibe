@@ -1,0 +1,335 @@
+package com.qichuang.changliao.feature.chat
+
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import com.qichuang.changliao.core.common.MoneyFormat
+import com.qichuang.changliao.core.data.model.ChatMessage
+import com.qichuang.changliao.core.data.model.MessageStatus
+import com.qichuang.changliao.core.designsystem.component.ClBottomSheet
+import com.qichuang.changliao.core.designsystem.component.ClChatBubble
+import com.qichuang.changliao.core.designsystem.component.ClChatContent
+import com.qichuang.changliao.core.designsystem.component.ClChatInputBar
+import com.qichuang.changliao.core.designsystem.component.ClChatMessage
+import com.qichuang.changliao.core.designsystem.component.ClChatStatus
+import com.qichuang.changliao.core.designsystem.component.ClChatToolItem
+import com.qichuang.changliao.core.designsystem.component.ClChatToolBar
+import com.qichuang.changliao.core.designsystem.component.ClEmpty
+import com.qichuang.changliao.core.designsystem.component.ClErrorRetry
+import com.qichuang.changliao.core.designsystem.component.ClFeeStrip
+import com.qichuang.changliao.core.designsystem.component.ClLoading
+import com.qichuang.changliao.core.designsystem.component.ClPrimaryButton
+import com.qichuang.changliao.core.designsystem.component.ClScaffold
+import com.qichuang.changliao.core.designsystem.component.ClSecondaryButton
+import com.qichuang.changliao.core.designsystem.component.ClTextButton
+import com.qichuang.changliao.core.designsystem.component.ClTopBar
+import com.qichuang.changliao.core.designsystem.component.rememberClToast
+import com.qichuang.changliao.core.designsystem.icon.ClIcons
+import com.qichuang.changliao.core.designsystem.theme.ClTheme
+
+/**
+ * 私信聊天页（P06，设计图 06）。
+ *
+ * 自上而下：顶部（返回 + 昵称 + 资料）→ 收费条（**只有男用户有**）→ 消息列表 → 工具栏 → 输入区。
+ *
+ * 三条硬要求（`09` 第 1.3 节）：
+ * - 收费条**只显示服务端拼好的 `strip_text`**，客户端不拼价格文案（铁律 6）；
+ * - 余额不足弹 P30，**输入内容保留**；
+ * - 失败的气泡点红色感叹号可以重发。
+ */
+@Composable
+fun ChatScreen(
+    state: ChatUiState,
+    onBack: () -> Unit,
+    onOpenProfile: () -> Unit,
+    onOpenRecharge: () -> Unit,
+    onOpenGift: () -> Unit,
+    onOpenCall: () -> Unit,
+    onOpenFeeRules: () -> Unit,
+    onDismissFeeRules: () -> Unit,
+    onDismissCoinNotEnough: () -> Unit,
+    onInputChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onResend: (Long) -> Unit,
+    onImagePicked: (Uri) -> Unit,
+    onLoadMore: () -> Unit,
+    onRetry: () -> Unit,
+    onToastShown: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // 图片：系统相册选择器（docs/01 P06 的「图片按钮」）。压缩和上传都在仓库层做。
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> uri?.let(onImagePicked) }
+
+    ClScaffold(
+        modifier = modifier,
+        containerColor = ClTheme.colors.bgChat,
+        topBar = {
+            ClTopBar(
+                title = state.peer.nickname,
+                onBack = onBack,
+                action = {
+                    ClTextButton(text = "资料", onClick = onOpenProfile)
+                },
+            )
+        },
+    ) {
+        val toast = rememberClToast()
+        LaunchedEffect(state.toast) {
+            state.toast?.let {
+                toast.show(it)
+                onToastShown()
+            }
+        }
+
+        if (state.fee != null) {
+            // 收费条文案是服务端拼的，客户端只显示（铁律 6）
+            ClFeeStrip(
+                text = state.fee.stripText,
+                actionText = "收费说明",
+                onAction = onOpenFeeRules,
+            )
+        }
+
+        Box(modifier = Modifier.weight(1f)) {
+            when {
+                state.loading -> ClLoading()
+
+                state.error != null -> ClErrorRetry(message = state.error, onRetry = onRetry)
+
+                state.isEmpty -> ClEmpty(
+                    title = "打个招呼吧",
+                    desc = if (state.isMale) "第一条消息她收到就能看到" else null,
+                )
+
+                else -> MessageList(
+                    state = state,
+                    onResend = onResend,
+                    onLoadMore = onLoadMore,
+                )
+            }
+        }
+
+        ChatTools(
+            state = state,
+            onOpenGift = onOpenGift,
+            onOpenCall = onOpenCall,
+        )
+
+        ClChatInputBar(
+            value = state.input,
+            onValueChange = onInputChange,
+            onSend = onSend,
+            placeholder = state.placeholder,
+            maxLength = state.maxLength,
+            sending = state.sending,
+            onPickImage = { imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            // 不挂表情按钮：docs/01 P06 写的是「表情按钮（系统 emoji 面板即可）」，
+            // 而输入法的 emoji 面板本来就够用（设计图 06 的输入区也只有输入框 + 发送）
+        )
+    }
+
+    state.feeRules?.let { items ->
+        ClBottomSheet(title = "收费说明", onClose = onDismissFeeRules) {
+            items.forEach { item ->
+                Text(
+                    text = "· $item",
+                    style = ClTheme.typography.bodySmall,
+                    color = ClTheme.colors.inkSecondary,
+                    modifier = Modifier.padding(vertical = ClTheme.spacing.xxs),
+                )
+            }
+        }
+    }
+
+    state.coinNotEnough?.let { info ->
+        CoinNotEnoughSheet(
+            info = info,
+            onDismiss = onDismissCoinNotEnough,
+            onRecharge = onOpenRecharge,
+        )
+    }
+}
+
+/** 消息列表：**倒着铺**（最新的在最下面），往上滚到头就加载更早的。 */
+@Composable
+private fun MessageList(
+    state: ChatUiState,
+    onResend: (Long) -> Unit,
+    onLoadMore: () -> Unit,
+) {
+    val listState = rememberLazyListState()
+    val rows = state.displayRows
+
+    // 滚到最上面（倒序列表的末尾）就加载更早的消息
+    LaunchedEffect(listState, rows.size, state.hasMore) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+            .collect { lastVisible ->
+                if (state.hasMore && rows.isNotEmpty() && lastVisible >= rows.size - 2) {
+                    onLoadMore()
+                }
+            }
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        state = listState,
+        reverseLayout = true,
+        contentPadding = PaddingValues(vertical = ClTheme.spacing.s),
+    ) {
+        items(rows, key = { row -> row.key() }) { row ->
+            when (row) {
+                is ChatRow.Time -> Text(
+                    text = row.label,
+                    style = ClTheme.typography.tiny,
+                    color = ClTheme.colors.muted,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = ClTheme.spacing.s),
+                )
+
+                is ChatRow.Message -> ClChatBubble(
+                    message = row.message.toBubble(),
+                    isMine = row.message.outgoing,
+                    avatarUrl = if (row.message.outgoing) state.myAvatar else state.peer.avatar,
+                    onRetry = if (row.message.canResend) {
+                        { onResend(row.message.localId) }
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+
+        if (state.hasMore) {
+            // 倒序列表里，写在最后的东西显示在最上面 —— 正好是「正在加载更早的消息」
+            item(key = LOADING_MORE_KEY) {
+                Text(
+                    text = if (state.loadingMore) "正在加载更早的消息…" else "",
+                    style = ClTheme.typography.tiny,
+                    color = ClTheme.colors.muted,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = ClTheme.spacing.s),
+                )
+            }
+        }
+    }
+}
+
+/** 工具栏：语音/视频（开关控制）、送礼物（男用户才有）。都没有就整条不显示。 */
+@Composable
+private fun ChatTools(
+    state: ChatUiState,
+    onOpenGift: () -> Unit,
+    onOpenCall: () -> Unit,
+) {
+    val items = buildList {
+        if (state.callEnabled) {
+            add(ClChatToolItem(key = TOOL_VOICE, label = "语音通话", icon = ClIcons.mic))
+            add(ClChatToolItem(key = TOOL_VIDEO, label = "视频通话", icon = ClIcons.video))
+        }
+        if (state.isMale) {
+            add(ClChatToolItem(key = TOOL_GIFT, label = "送礼物", icon = ClIcons.gift))
+        }
+    }
+
+    if (items.isEmpty()) {
+        return
+    }
+
+    ClChatToolBar(
+        items = items,
+        onSelect = { key -> if (key == TOOL_GIFT) onOpenGift() else onOpenCall() },
+    )
+}
+
+/** P30 余额不足弹窗：当前余额、需要多少、还差多少，两个按钮。 */
+@Composable
+private fun CoinNotEnoughSheet(
+    info: CoinNotEnough,
+    onDismiss: () -> Unit,
+    onRecharge: () -> Unit,
+) {
+    ClBottomSheet(title = "余额不足", onClose = onDismiss) {
+        Text(
+            text = MoneyFormat.coins(info.balance),
+            style = ClTheme.typography.amountLarge,
+            color = ClTheme.colors.coinText,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = "本次操作需要 ${info.needed} 金币，还差 ${info.short} 金币",
+            style = ClTheme.typography.bodySmall,
+            color = ClTheme.colors.inkSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = ClTheme.spacing.m),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = ClTheme.spacing.l),
+            horizontalArrangement = Arrangement.spacedBy(ClTheme.spacing.m),
+        ) {
+            ClSecondaryButton(text = "暂不充值", modifier = Modifier.weight(1f), onClick = onDismiss)
+            ClPrimaryButton(text = "去充值", modifier = Modifier.weight(1f), onClick = onRecharge)
+        }
+    }
+}
+
+/** 本地消息 → 气泡模型。图片优先显示**本地那份**（秒开、离线也能看，docs/10 第 2.5 节）。 */
+private fun ChatMessage.toBubble(): ClChatMessage = ClChatMessage(
+    id = clientMsgId,
+    content = when (type) {
+        ChatMessage.TYPE_IMAGE -> ClChatContent.Image
+        ChatMessage.TYPE_GIFT -> ClChatContent.Gift
+        else -> ClChatContent.Text
+    },
+    text = if (type == ChatMessage.TYPE_IMAGE) localMediaPath ?: content else content,
+    status = when (status) {
+        MessageStatus.SENDING -> ClChatStatus.Sending
+        MessageStatus.FAILED -> ClChatStatus.Failed
+        MessageStatus.SENT -> ClChatStatus.Sent
+    },
+)
+
+private fun ChatRow.key(): String = when (this) {
+    is ChatRow.Time -> "t-$label"
+    is ChatRow.Message -> "m-${message.localId}"
+}
+
+private const val LOADING_MORE_KEY = "loading-more"
+
+private const val TOOL_VOICE = "voice"
+
+private const val TOOL_VIDEO = "video"
+
+private const val TOOL_GIFT = "gift"

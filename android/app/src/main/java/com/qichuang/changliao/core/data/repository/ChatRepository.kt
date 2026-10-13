@@ -30,6 +30,7 @@ import com.qichuang.changliao.core.network.dto.SendMessageDataDto
 import com.qichuang.changliao.core.network.dto.SendMessageRequestDto
 import com.qichuang.changliao.core.network.dto.SyncDataDto
 import com.qichuang.changliao.core.network.dto.UnreadDto
+import android.net.Uri
 import com.qichuang.changliao.core.network.safeApiCall
 import com.qichuang.changliao.core.network.safeApiCallUnit
 import com.qichuang.changliao.core.network.ws.ChatFrame
@@ -70,6 +71,7 @@ class ChatRepository @Inject constructor(
     private val conversationDao: ConversationDao,
     private val syncStateDao: SyncStateDao,
     private val socket: ChatSocket,
+    private val imageUploader: ImageUploader,
     private val unreadStore: UnreadStore,
     private val userRepository: UserRepository,
 ) {
@@ -178,6 +180,60 @@ class ChatRepository @Inject constructor(
         )
 
         return deliver(localId, peerId, type, content, clientMsgId, now)
+    }
+
+    /**
+     * 发一张图片：**先落本地再上传再发送**（docs/10 第 2.5 节）。
+     *
+     * 顺序是刻意的：
+     * 1. 压缩 + 存一份到本地 → 立刻插一条 `sending` 的本地记录，**气泡马上就能看到图**（不等上传）；
+     * 2. 传上去拿到地址；
+     * 3. 再走正常的发送流程（同样的 `client_msg_id`、同样的重发逻辑）。
+     *
+     * 第 2 步失败时本地那条会变成 `failed`，**重发时用的是本地那份文件**，不用用户重新选图。
+     */
+    suspend fun sendImage(peerId: Long, uri: Uri): ApiResult<ChatSendResult> {
+        val owner = ownerId()
+        val now = System.currentTimeMillis()
+
+        val localPath = when (val prepared = imageUploader.prepareChatImage(uri)) {
+            is ApiResult.Success -> prepared.data
+            is ApiResult.BizError -> return prepared
+            is ApiResult.NetworkError -> return prepared
+        }
+
+        val clientMsgId = newClientMsgId()
+        val localId = messageDao.insert(
+            MessageEntity(
+                ownerId = owner,
+                clientMsgId = clientMsgId,
+                peerId = peerId,
+                senderId = owner,
+                outgoing = true,
+                type = ChatMessage.TYPE_IMAGE,
+                // 内容先留空：等上传拿到地址再填，本地显示用 localMediaPath
+                content = "",
+                localMediaPath = localPath,
+                status = MessageStatus.SENDING.code,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+
+        val url = when (val uploaded = imageUploader.uploadChatImage(localPath)) {
+            is ApiResult.Success -> uploaded.data
+            is ApiResult.BizError -> {
+                messageDao.updateStatus(localId, MessageStatus.FAILED.code, System.currentTimeMillis())
+                return uploaded
+            }
+
+            is ApiResult.NetworkError -> {
+                messageDao.updateStatus(localId, MessageStatus.FAILED.code, System.currentTimeMillis())
+                return uploaded
+            }
+        }
+
+        return deliver(localId, peerId, ChatMessage.TYPE_IMAGE, url, clientMsgId, now)
     }
 
     /**
@@ -300,18 +356,18 @@ class ChatRepository @Inject constructor(
      * 新装的 App 本地库是空的，而 `/chat/sync` 只给「我收到的」，自己发过的那半截要靠
      * `/chat/messages` 补（docs/05 第 4.5 节）。
      */
-    suspend fun loadInitialMessages(peerId: Long, force: Boolean = false): ApiResult<Unit> {
+    suspend fun loadInitialMessages(peerId: Long, force: Boolean = false): ApiResult<Boolean> {
         val owner = ownerId()
         if (!force && messageDao.countByPeer(owner, peerId) > 0) {
-            return ApiResult.Success(Unit)
+            return ApiResult.Success(true)
         }
         val conversationId = conversationDao.byPeerId(owner, peerId)?.serverConversationId
-            ?: return ApiResult.Success(Unit)
+            ?: return ApiResult.Success(false)
 
         return when (val result = safeApiCall<MessagePageDto> { chatApi.messages(conversationId) }) {
             is ApiResult.Success -> {
                 store(owner, result.data.list)
-                ApiResult.Success(Unit)
+                ApiResult.Success(result.data.hasMore)
             }
 
             is ApiResult.BizError -> result
@@ -319,17 +375,21 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    /** 上拉加载更早的消息（`before_id` = 本地最老一条有服务端 id 的消息）。 */
-    suspend fun loadMoreMessages(peerId: Long): ApiResult<Unit> {
+    /**
+     * 上拉加载更早的消息（`before_id` = 本地最老一条有服务端 id 的消息）。
+     *
+     * @return 还有没有更早的（false 时聊天页就不必再往上拉了）
+     */
+    suspend fun loadMoreMessages(peerId: Long): ApiResult<Boolean> {
         val owner = ownerId()
         val conversationId = conversationDao.byPeerId(owner, peerId)?.serverConversationId
-            ?: return ApiResult.Success(Unit)
-        val beforeId = messageDao.oldestServerId(owner, peerId) ?: return ApiResult.Success(Unit)
+            ?: return ApiResult.Success(false)
+        val beforeId = messageDao.oldestServerId(owner, peerId) ?: return ApiResult.Success(false)
 
         return when (val result = safeApiCall<MessagePageDto> { chatApi.messages(conversationId, beforeId) }) {
             is ApiResult.Success -> {
                 store(owner, result.data.list)
-                ApiResult.Success(Unit)
+                ApiResult.Success(result.data.hasMore)
             }
 
             is ApiResult.BizError -> result
