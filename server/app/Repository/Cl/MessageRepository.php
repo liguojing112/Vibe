@@ -160,4 +160,21 @@ final class MessageRepository extends IRepository
             ->whereNull('read_at')
             ->update(['read_at' => Carbon::now()]);
     }
+
+    /**
+     * 这个时间段里给多少个**不同的人**发过私信（「和新朋友打招呼」任务用，docs/06 第 7 节）。
+     *
+     * 只算文字和图片：**礼物消息不算**。礼物一直和私信是两套口径
+     * （`GiftBillingService` 特意不把礼物计进 `male_sent_count`），这里沿用同一条线。
+     */
+    public function countPartnersBetween(int $senderId, string $from, string $to): int
+    {
+        return $this->model->newQuery()
+            ->where('sender_id', $senderId)
+            ->whereIn('type', [Message::TYPE_TEXT, Message::TYPE_IMAGE])
+            ->where('created_at', '>=', $from)
+            ->where('created_at', '<', $to)
+            ->distinct()
+            ->count('receiver_id');
+    }
 }

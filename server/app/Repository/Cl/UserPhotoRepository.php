@@ -58,4 +58,13 @@ final class UserPhotoRepository extends IRepository
             'audit_status' => $auditStatus,
         ]);
     }
+
+    /** 审核通过的照片数（「完善照片」任务用，docs/06 第 7 节）。 */
+    public function countApproved(int $userId): int
+    {
+        return $this->model->newQuery()
+            ->where('user_id', $userId)
+            ->where('audit_status', UserPhoto::AUDIT_APPROVED)
+            ->count();
+    }
 }
