@@ -12,6 +12,7 @@ use App\Model\Enums\Cl\BizCode;
 use App\Repository\Cl\BlockRepository;
 use App\Repository\Cl\ConversationRepository;
 use App\Repository\Cl\MessageRepository;
+use App\Repository\Cl\NoticeRepository;
 use App\Repository\Cl\UserRepository;
 use App\Repository\Cl\VisitRepository;
 use Hyperf\Collection\Collection;
@@ -44,6 +45,7 @@ final class ChatQueryService
         private readonly UserRepository $userRepository,
         private readonly BlockRepository $blockRepository,
         private readonly VisitRepository $visitRepository,
+        private readonly NoticeRepository $noticeRepository,
         private readonly ChatPresenter $presenter,
     ) {}
 
@@ -168,8 +170,8 @@ final class ChatQueryService
             $this->blockRepository->relatedBlockedIds($user->id),
         );
         $visitor = $this->visitRepository->countUnread($user->id);
-        // 系统通知表（cl_notice）要到 P6 的 T6.6 才建，这里先恒为 0，字段位置先占住
-        $notice = 0;
+        // 系统通知的未读（P10）：一对一未读 + 全员公告里我没读过的（docs/04 第 6 节）
+        $notice = $this->noticeRepository->unreadCountFor($user->id);
 
         return [
             'conversation' => $conversation,

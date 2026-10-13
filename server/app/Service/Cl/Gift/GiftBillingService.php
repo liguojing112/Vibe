@@ -21,6 +21,7 @@ use App\Service\Cl\Chat\ChatPresenter;
 use App\Service\Cl\Chat\Concerns\RetriesTransactions;
 use App\Service\Cl\Chat\ConversationService;
 use App\Service\Cl\Level\LevelService;
+use App\Service\Cl\Notice\NoticeService;
 use App\Service\Cl\Pricing\MessagePricingService;
 use App\Service\Cl\Push\PushService;
 use App\Service\Cl\Wallet\CoinWalletService;
@@ -54,6 +55,7 @@ final class GiftBillingService
         private readonly PointWalletService $pointWalletService,
         private readonly PlatformIncomeService $platformIncomeService,
         private readonly LevelService $levelService,
+        private readonly NoticeService $noticeService,
         private readonly PushService $pushService,
         private readonly ChatPresenter $presenter,
     ) {}
@@ -156,6 +158,10 @@ final class GiftBillingService
 
             // male_sent_count 不会 +1（礼物不算普通消息）
             $this->conversationService->touch($conversation, $message, $sender, $receiver);
+
+            // 收礼人收到一条互动通知（P10）。写在事务里：礼物送成了通知就一定有，
+            // 不会出现「钱扣了、礼收了、通知没发出来」。
+            $this->noticeService->giftReceived($receiver, $sender, (string) $gift->name);
 
             return $message;
         });

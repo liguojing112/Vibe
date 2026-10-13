@@ -31,10 +31,16 @@ final class FollowRepository extends IRepository
     }
 
     /** 关注（已关注就不动，避免重复插入撞唯一索引）。 */
-    public function add(int $userId, int $targetId): void
+    /**
+     * 关注（已经关注过就什么都不做）。
+     *
+     * @return bool 这次**真的新建了**关系没有 —— 调用方靠它决定要不要发「有人关注了你」的通知
+     *              （重复点关注不该反复打扰对方）
+     */
+    public function add(int $userId, int $targetId): bool
     {
         if ($this->exists($userId, $targetId)) {
-            return;
+            return false;
         }
         $this->model->newQuery()->insert([
             'user_id' => $userId,
@@ -42,6 +48,8 @@ final class FollowRepository extends IRepository
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
+
+        return true;
     }
 
     public function remove(int $userId, int $targetId): void

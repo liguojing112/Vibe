@@ -13,6 +13,7 @@ use App\Model\Cl\Gift;
 use App\Model\Cl\GiftRecord;
 use App\Model\Cl\LevelConfig;
 use App\Model\Cl\Message;
+use App\Model\Cl\Notice;
 use App\Model\Cl\PlatformIncome;
 use App\Model\Cl\PointWallet;
 use App\Model\Cl\ProfileAudit;
@@ -267,6 +268,22 @@ final class GiftBillingTest extends TestCase
         self::assertSame(1, $conversation->unreadFor($female->id), '对方未读 +1');
     }
 
+    /** 收礼人收到一条互动通知（P10），送礼的人自己不发。 */
+    public function testGiftSendsInteractNoticeToReceiver(): void
+    {
+        $male = $this->makeMale(balance: 500);
+        $female = $this->makeFemale();
+
+        $this->send($male, $female, giftId: $this->giftId(4));
+
+        $notice = Notice::query()->where('user_id', $female->id)->firstOrFail();
+        self::assertSame(Notice::CATEGORY_INTERACT, (int) $notice->category);
+        self::assertSame('收到礼物', $notice->title);
+        self::assertSame($male->nickname . ' 送了你「浪漫花束」', $notice->content);
+        self::assertSame('GIFT', $notice->biz_type);
+        self::assertSame(0, Notice::query()->where('user_id', $male->id)->count());
+    }
+
     // ---------- 工具 ----------
 
     /**
@@ -405,6 +422,7 @@ final class GiftBillingTest extends TestCase
 
     private function clearAll(): void
     {
+        Notice::query()->delete();
         PlatformIncome::query()->delete();
         GiftRecord::query()->delete();
         Gift::query()->delete();

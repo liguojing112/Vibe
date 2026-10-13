@@ -179,6 +179,22 @@ final class MessageRepository extends IRepository
     }
 
     /**
+     * 这条消息是不是这个人参与过的（自己发的或收到的）。
+     *
+     * 举报带 `message_id` 时用它挡一下：被举报关联的消息会**长期保留**，
+     * 不挡的话谁都能拿别人的消息去举报、把那条消息永久钉在库里。
+     */
+    public function belongsToUser(int $messageId, int $userId): bool
+    {
+        return $this->model->newQuery()
+            ->whereKey($messageId)
+            ->where(static function ($query) use ($userId): void {
+                $query->where('sender_id', $userId)->orWhere('receiver_id', $userId);
+            })
+            ->exists();
+    }
+
+    /**
      * 这个时间段里收到了多少条私信（P26 的「今日收到消息数」）。
      *
      * 和上面一样只算文字和图片：礼物另有自己的计数（「今日收到礼物数」）。

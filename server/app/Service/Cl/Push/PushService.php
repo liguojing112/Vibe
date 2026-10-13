@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Cl\Push;
 
 use App\Model\Cl\Message;
+use App\Model\Cl\Notice;
 use App\Model\Cl\User;
 use App\Service\Cl\Chat\ChatPresenter;
 use App\Service\Cl\Chat\ChatQueryService;
@@ -26,6 +27,8 @@ final class PushService
     public const EVENT_MESSAGE_NEW = 'message.new';
 
     public const EVENT_UNREAD_UPDATE = 'unread.update';
+
+    public const EVENT_NOTICE_NEW = 'notice.new';
 
     public const EVENT_PONG = 'pong';
 
@@ -94,6 +97,29 @@ final class PushService
         }
 
         $this->toUser($user->id, self::EVENT_UNREAD_UPDATE, $unread);
+    }
+
+    /**
+     * 收到一条系统/互动通知（P10 的红点）。
+     *
+     * 载荷是**自包含**的：标题、正文、分类都在里面，客户端不用回查就能直接显示。
+     */
+    public function noticeNew(Notice $notice): void
+    {
+        $userId = (int) $notice->user_id;
+        if ($userId === Notice::ALL_USERS || ! $this->registry->isOnline($userId)) {
+            return;
+        }
+
+        $this->toUser($userId, self::EVENT_NOTICE_NEW, [
+            'id' => (int) $notice->id,
+            'category' => (int) $notice->category,
+            'title' => (string) $notice->title,
+            'content' => (string) $notice->content,
+            'biz_type' => $notice->biz_type,
+            'biz_id' => $notice->biz_id === null ? null : (int) $notice->biz_id,
+            'created_at' => $notice->created_at?->toDateTimeString(),
+        ]);
     }
 
     /** 心跳应答（`pong` 的 data 是空对象，客户端按 `{}` 解更省事）。 */

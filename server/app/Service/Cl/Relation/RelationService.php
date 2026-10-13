@@ -12,6 +12,7 @@ use App\Repository\Cl\FollowRepository;
 use App\Repository\Cl\UserRepository;
 use App\Repository\Cl\VisitRepository;
 use App\Service\Cl\Config\AppConfigService;
+use App\Service\Cl\Notice\NoticeService;
 
 /**
  * 关系（docs/01 第 7 节、docs/05 第 4.4 节）：关注、拉黑、访客。
@@ -33,6 +34,7 @@ final class RelationService
         private readonly VisitRepository $visitRepository,
         private readonly UserRepository $userRepository,
         private readonly AppConfigService $configService,
+        private readonly NoticeService $noticeService,
     ) {}
 
     // ---------- 关注 ----------
@@ -50,9 +52,12 @@ final class RelationService
             // 拉黑后互相不可见：就当对方不存在，别暴露"你被拉黑了"
             throw new ClBusinessException(BizCode::USER_NOT_FOUND);
         }
-        $this->requireUser($targetId);
+        $target = $this->requireUser($targetId);
 
-        $this->followRepository->add($user->id, $targetId);
+        // 只有**真的新关注**才发通知：重复点关注不该反复打扰对方
+        if ($this->followRepository->add($user->id, $targetId)) {
+            $this->noticeService->followed($target, $user);
+        }
 
         return $this->followState($user->id, $targetId);
     }

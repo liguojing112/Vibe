@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HyperfTests\Feature\Cl\Push;
 
 use App\Model\Cl\Message;
+use App\Model\Cl\Notice;
 use App\Model\Cl\User;
 use App\Service\Cl\Chat\ChatPresenter;
 use App\Service\Cl\Chat\ChatQueryService;
@@ -137,6 +138,53 @@ final class PushServiceTest extends TestCase
         $this->push()->pong(101);
 
         self::assertSame('{"event":"pong","data":{}}', $this->spy->raw[0], '空 data 要序列化成 {}，不能是 []');
+    }
+
+    public function testNoticeNewPayloadIsSelfContained(): void
+    {
+        $this->registry()->attach(101, 7);
+
+        $this->push()->noticeNew(new Notice([
+            'id' => 12,
+            'user_id' => 7,
+            'category' => Notice::CATEGORY_INTERACT,
+            'title' => '收到礼物',
+            'content' => '阿宁 送了你「一朵玫瑰」',
+            'biz_type' => 'GIFT',
+            'biz_id' => 5,
+            'created_at' => '2026-10-14 10:00:00',
+        ]));
+
+        self::assertSame('notice.new', $this->payload(0)['event']);
+        self::assertSame(
+            [
+                'id' => 12,
+                'category' => 2,
+                'title' => '收到礼物',
+                'content' => '阿宁 送了你「一朵玫瑰」',
+                'biz_type' => 'GIFT',
+                'biz_id' => 5,
+                'created_at' => '2026-10-14 10:00:00',
+            ],
+            $this->payload(0)['data'],
+            '标题正文都在里面：客户端收到就能直接显示，不用回查',
+        );
+        self::assertStringContainsString('一朵玫瑰', $this->spy->raw[0]);
+    }
+
+    public function testAnnouncementIsNotPushedToAnyone(): void
+    {
+        $this->registry()->attach(101, 7);
+
+        // 全员公告没有具体收件人（user_id = 0），不能推给随便哪个人
+        $this->push()->noticeNew(new Notice([
+            'id' => 13,
+            'user_id' => Notice::ALL_USERS,
+            'category' => Notice::CATEGORY_SYSTEM,
+            'title' => '平台公告',
+        ]));
+
+        self::assertSame([], $this->spy->calls);
     }
 
     /**
