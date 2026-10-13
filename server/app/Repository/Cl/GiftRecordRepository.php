@@ -27,4 +27,14 @@ final class GiftRecordRepository extends IRepository
 
         return $record;
     }
+
+    /** 这个时间段里收到了多少个礼物（P26 的「今日收到礼物数」）。 */
+    public function countReceivedBetween(int $receiverId, string $from, string $to): int
+    {
+        return $this->model->newQuery()
+            ->where('receiver_id', $receiverId)
+            ->where('created_at', '>=', $from)
+            ->where('created_at', '<', $to)
+            ->count();
+    }
 }

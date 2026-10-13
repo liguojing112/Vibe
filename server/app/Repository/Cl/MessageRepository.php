@@ -177,4 +177,19 @@ final class MessageRepository extends IRepository
             ->distinct()
             ->count('receiver_id');
     }
+
+    /**
+     * 这个时间段里收到了多少条私信（P26 的「今日收到消息数」）。
+     *
+     * 和上面一样只算文字和图片：礼物另有自己的计数（「今日收到礼物数」）。
+     */
+    public function countReceivedBetween(int $receiverId, string $from, string $to): int
+    {
+        return $this->model->newQuery()
+            ->where('receiver_id', $receiverId)
+            ->whereIn('type', [Message::TYPE_TEXT, Message::TYPE_IMAGE])
+            ->where('created_at', '>=', $from)
+            ->where('created_at', '<', $to)
+            ->count();
+    }
 }
