@@ -307,16 +307,23 @@ final class RealNameServiceTest extends TestCase
             5 => [1000000, 20, 5000],
         ];
 
+        // 按 level 覆盖写、**不删整表**：`cl_level_config` 是别的测试类也在用的共享种子，
+        // 删掉它会让后跑的用例拿不到等级配置（`GiftBillingTest` 也是这么干的）。
         foreach ($rows as $level => [$threshold, $price, $rate]) {
-            LevelConfig::query()->create([
-                'level' => $level,
+            $attributes = [
                 'name' => 'Lv' . $level,
                 'threshold_points' => $threshold,
                 'message_price' => $price,
                 'message_share_rate' => $rate,
                 'voice_price' => 60 * $level,
                 'video_price' => 120 * $level,
-            ]);
+            ];
+            $existing = LevelConfig::query()->where('level', $level)->first();
+            if ($existing === null) {
+                LevelConfig::query()->create(array_merge(['level' => $level], $attributes));
+            } else {
+                $existing->update($attributes);
+            }
         }
     }
 
@@ -344,7 +351,6 @@ final class RealNameServiceTest extends TestCase
     {
         Notice::query()->delete();
         RealName::query()->delete();
-        LevelConfig::query()->delete();
         PointWallet::query()->delete();
         CoinWallet::query()->delete();
         User::query()->delete();
