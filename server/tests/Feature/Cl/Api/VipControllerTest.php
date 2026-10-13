@@ -79,7 +79,8 @@ final class VipControllerTest extends TestCase
 
         self::assertCount(4, $data['benefits']);
         self::assertSame('查看访客', $data['benefits'][0]['title']);
-        self::assertSame('每日额外免费私信 10 条', $data['benefits'][3]['title']);
+        self::assertSame('每日免费私信', $data['benefits'][3]['title']);
+        self::assertSame('额外 10 条，所有对象合计，每天零点重置', $data['benefits'][3]['desc']);
     }
 
     public function testInfoHidesDisabledPlans(): void

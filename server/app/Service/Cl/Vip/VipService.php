@@ -158,9 +158,12 @@ final class VipService
     }
 
     /**
-     * P12 的权益网格（docs/01 P12；docs/05 说「从配置生成」—— 第 4 项的天数就来自配置）。
+     * P12 的权益网格（docs/01 P12；docs/05 说「从配置生成」—— 第 4 项的条数就来自配置）。
      *
      * 文案和图标都由服务端给，客户端只管铺格子（和聊天页收费条一个做法）。
+     *
+     * 第 4 项的**标题要短**：页面是两列网格，标题只有一行、放不下就省略号截掉了，
+     * 那正好会把「多少条」这个从配置来的数字截没；条数放到第二行（能放两行）。
      *
      * @return array<int,array{icon: string, title: string, desc: string}>
      */
@@ -172,8 +175,8 @@ final class VipService
             ['icon' => '💎', 'title' => '会员标识', 'desc' => '资料页展示会员专属标识'],
             [
                 'icon' => '💬',
-                'title' => sprintf('每日额外免费私信 %d 条', $this->dailyFreeMessages()),
-                'desc' => '每天零点重置，所有对象合计',
+                'title' => '每日免费私信',
+                'desc' => sprintf('额外 %d 条，所有对象合计，每天零点重置', $this->dailyFreeMessages()),
             ],
         ];
     }

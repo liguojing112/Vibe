@@ -51,4 +51,10 @@ object MoneyFormat {
         val cents = (absolute % 100).toString().padStart(2, '0')
         return "$sign¥${absolute / 100}.$cents"
     }
+
+    /**
+     * 整元 → 「¥39」。会员套餐的价格服务端给的本来就是整元（`price_yuan`），
+     * 设计图 12 的横幅也是这么写的，所以不套 [rmb] 的小数位。
+     */
+    fun yuan(value: Long): String = "¥$value"
 }

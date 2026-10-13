@@ -99,4 +99,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideGiftApi(retrofit: Retrofit): GiftApi = retrofit.create(GiftApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideVipApi(retrofit: Retrofit): VipApi = retrofit.create(VipApi::class.java)
 }

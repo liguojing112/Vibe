@@ -243,11 +243,12 @@ final class VipBillingTest extends TestCase
             '设计图 12 的横幅写的是「¥39 / 月」，换算放服务端',
         );
         self::assertCount(4, $info['benefits']);
-        self::assertSame('每日额外免费私信 10 条', $info['benefits'][3]['title'], '条数从配置取');
+        self::assertSame('每日免费私信', $info['benefits'][3]['title']);
+        self::assertSame('额外 10 条，所有对象合计，每天零点重置', $info['benefits'][3]['desc'], '条数从配置取');
 
         // 配置改了，权益文案跟着变
         make(AppConfigService::class)->set('vip.daily_free_messages', 20);
-        self::assertSame('每日额外免费私信 20 条', $this->vip->info($male)['benefits'][3]['title']);
+        self::assertSame('额外 20 条，所有对象合计，每天零点重置', $this->vip->info($male)['benefits'][3]['desc']);
     }
 
     public function testInfoHidesExpireAtAfterItPassed(): void

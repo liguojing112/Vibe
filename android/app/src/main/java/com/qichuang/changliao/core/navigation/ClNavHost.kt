@@ -29,6 +29,7 @@ import com.qichuang.changliao.feature.wallet.CoinLogsRoute
 import com.qichuang.changliao.feature.wallet.RechargeRoute
 import com.qichuang.changliao.feature.wallet.WalletRoute
 import com.qichuang.changliao.feature.relation.VisitorsRoute
+import com.qichuang.changliao.feature.vip.VipCenterRoute
 
 /**
  * 全 App 唯一导航图（docs/02 第 4.3 节）：所有页面的路由都在这里注册。
@@ -115,7 +116,12 @@ fun ClNavHost(
         }
         placeholder(navController, Routes.NOTICES, "系统消息（P10）")
         placeholder(navController, Routes.DAILY_TASK, "每日任务（P11）")
-        placeholder(navController, Routes.VIP, "会员中心（P12）")
+        composable(Routes.VIP) {
+            VipCenterRoute(
+                onBack = { navController.popBackStack() },
+                onOpenRoute = { navController.navigate(it) },
+            )
+        }
         composable(Routes.COIN_WALLET) {
             WalletRoute(
                 onBack = { navController.popBackStack() },
