@@ -28,4 +28,19 @@ if [ -d "$FEATURE" ]; then
   if [ -n "$HITS2" ]; then echo "❌ feature 中手写了价格文案，请用 MoneyFormat："; echo "$HITS2"; FAIL=1; fi
 fi
 
+# 4. rememberClToast() 必须写在 ClScaffold **里面**
+#    Toast 的宿主（ClToastHost）是 ClScaffold 提供的，写在它外面拿到的是兜底实例 ——
+#    编译、单测、lint 全都不报错，但那个页面的 Toast 永远不会显示（T5.4 起就悄悄错了）。
+if [ -d "$FEATURE" ]; then
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    scaffold_line=$(grep -n "ClScaffold(" "$f" | head -1 | cut -d: -f1)
+    toast_line=$(grep -n "rememberClToast()" "$f" | head -1 | cut -d: -f1)
+    if [ -n "$scaffold_line" ] && [ -n "$toast_line" ] && [ "$toast_line" -lt "$scaffold_line" ]; then
+      echo "❌ $f 第 $toast_line 行：rememberClToast() 写在 ClScaffold 外面，Toast 不会显示"
+      FAIL=1
+    fi
+  done < <(grep -rl "rememberClToast()" "$FEATURE" || true)
+fi
+
 [ $FAIL -eq 0 ] && echo "✅ UI 检查通过" || exit 1

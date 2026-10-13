@@ -107,4 +107,16 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideTaskApi(retrofit: Retrofit): TaskApi = retrofit.create(TaskApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideIncomeApi(retrofit: Retrofit): IncomeApi = retrofit.create(IncomeApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideWithdrawApi(retrofit: Retrofit): WithdrawApi = retrofit.create(WithdrawApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideRealNameApi(retrofit: Retrofit): RealNameApi = retrofit.create(RealNameApi::class.java)
 }

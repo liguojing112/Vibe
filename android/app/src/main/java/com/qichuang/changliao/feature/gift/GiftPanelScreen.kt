@@ -38,14 +38,6 @@ fun GiftPanelScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val toast = rememberClToast()
-    LaunchedEffect(state.toast) {
-        state.toast?.let {
-            toast.show(it)
-            onToastShown()
-        }
-    }
-
     ClScaffold(
         modifier = modifier,
         containerColor = ClTheme.colors.bgPage,
@@ -56,6 +48,14 @@ fun GiftPanelScreen(
             }
         },
     ) {
+        val toast = rememberClToast()
+        LaunchedEffect(state.toast) {
+            state.toast?.let {
+                toast.show(it)
+                onToastShown()
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()

@@ -51,20 +51,21 @@ fun RechargeScreen(
     modifier: Modifier = Modifier,
 ) {
     val clipboard = LocalClipboardManager.current
-    val toast = rememberClToast()
-
-    LaunchedEffect(state.toast) {
-        state.toast?.let {
-            toast.show(it)
-            onToastShown()
-        }
-    }
 
     ClScaffold(
         modifier = modifier,
         containerColor = ClTheme.colors.bgPage,
         topBar = { ClTopBar(title = "充值金币", onBack = onBack) },
     ) {
+        // Toast 的宿主是 ClScaffold 提供的，必须在它**里面**取（外面拿到的是兜底实例）
+        val toast = rememberClToast()
+        LaunchedEffect(state.toast) {
+            state.toast?.let {
+                toast.show(it)
+                onToastShown()
+            }
+        }
+
         val info = state.info
         when {
             state.loading -> ClLoading()

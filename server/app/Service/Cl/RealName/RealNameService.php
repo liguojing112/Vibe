@@ -65,7 +65,11 @@ final class RealNameService
     public function info(User $user): array
     {
         $row = $this->realNameRepository->findByUserId($user->id);
-        $status = (int) $user->real_name_status;
+        // 有申请记录就以**记录**为准（它才是这次提交的状态），没有才退回 cl_user 那一列。
+        // 两边本来就不该不一致（只有 submit/approve/reject 会写它们），但演示数据是手写的、
+        // 后台以后也可能直接改 cl_user —— 不一致时不能给客户端一个自相矛盾的包
+        // （「状态：已通过」+「还能提交」）。
+        $status = $row === null ? (int) $user->real_name_status : (int) $row->status;
 
         return [
             'status' => $status,
@@ -76,8 +80,8 @@ final class RealNameService
             'reject_reason' => $row?->reject_reason,
             'submitted_at' => $row?->created_at?->toDateTimeString(),
             'audited_at' => $row?->audited_at?->toDateTimeString(),
-            // 未认证和被驳回可以提交；审核中和已通过不行
-            'can_submit' => $row === null || $row->status === RealName::STATUS_REJECTED,
+            // 未认证和被驳回可以提交；审核中和已通过不行（和上面报出去的 status 同一个来源）
+            'can_submit' => $status === User::REAL_NAME_NONE || $status === User::REAL_NAME_REJECTED,
         ];
     }
 

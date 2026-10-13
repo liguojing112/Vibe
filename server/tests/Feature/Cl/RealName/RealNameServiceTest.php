@@ -267,6 +267,34 @@ final class RealNameServiceTest extends TestCase
         self::assertTrue($info['can_submit']);
     }
 
+    /**
+     * `cl_user.real_name_status` 和 `cl_real_name` 不一致时（演示数据手写、后台直接改那一列都可能造成），
+     * 接口**不能返回自相矛盾的包** —— 曾经出现过「状态：已通过」+「还能提交」同时成立，
+     * 页面就把表单画在了「已通过」下面。
+     */
+    public function testStatusAndCanSubmitNeverContradict(): void
+    {
+        // 只有 cl_user 那一列说「已通过」，没有申请记录
+        $female = $this->makeFemale();
+        User::query()->whereKey($female->id)->update(['real_name_status' => User::REAL_NAME_PASSED]);
+
+        $info = $this->service->info($female->refresh());
+
+        self::assertSame(User::REAL_NAME_PASSED, $info['status']);
+        self::assertFalse($info['can_submit'], '报了「已通过」就不能再让人提交');
+
+        // 反过来：有记录说「审核中」，cl_user 却说「未认证」→ 以记录为准
+        $other = $this->makeFemale();
+        $this->service->submit($other, '张三', self::VALID_ID);
+        User::query()->whereKey($other->id)->update(['real_name_status' => User::REAL_NAME_NONE]);
+
+        $otherInfo = $this->service->info($other->refresh());
+
+        self::assertSame(User::REAL_NAME_AUDITING, $otherInfo['status']);
+        self::assertFalse($otherInfo['can_submit']);
+        self::assertSame('110***********1233', $otherInfo['id_card_mask']);
+    }
+
     public function testSameIdCardOnTwoAccountsIsAllowedButFindable(): void
     {
         $first = $this->makeFemale();

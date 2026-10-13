@@ -57,4 +57,17 @@ object MoneyFormat {
      * 设计图 12 的横幅也是这么写的，所以不套 [rmb] 的小数位。
      */
     fun yuan(value: Long): String = "¥$value"
+
+    /**
+     * 万分比 → 「40%」/「34.5%」。
+     *
+     * 分成比例、手续费在服务端都是**万分比**（4000 = 40%），
+     * 这里只做显示换算，不算钱（铁律 6）。
+     */
+    fun percent(rate: Int): String {
+        val whole = rate / 100
+        val decimal = rate % 100
+
+        return if (decimal == 0) "$whole%" else "$whole.${decimal.toString().padStart(2, '0').trimEnd('0')}%"
+    }
 }

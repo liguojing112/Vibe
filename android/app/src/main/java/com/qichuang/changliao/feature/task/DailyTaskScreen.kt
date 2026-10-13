@@ -39,19 +39,19 @@ fun DailyTaskScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val toast = rememberClToast()
-    LaunchedEffect(state.toast) {
-        state.toast?.let {
-            toast.show(it)
-            onToastShown()
-        }
-    }
-
     ClScaffold(
         modifier = modifier,
         containerColor = ClTheme.colors.bgPage,
         topBar = { ClTopBar(title = "每日任务", onBack = onBack) },
     ) {
+        val toast = rememberClToast()
+        LaunchedEffect(state.toast) {
+            state.toast?.let {
+                toast.show(it)
+                onToastShown()
+            }
+        }
+
         when {
             state.loading -> ClLoading()
 

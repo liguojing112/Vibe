@@ -55,14 +55,6 @@ fun VipCenterScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val toast = rememberClToast()
-    LaunchedEffect(state.toast) {
-        state.toast?.let {
-            toast.show(it)
-            onToastShown()
-        }
-    }
-
     ClScaffold(
         modifier = modifier,
         containerColor = ClTheme.colors.bgPage,
@@ -79,6 +71,14 @@ fun VipCenterScreen(
             }
         },
     ) {
+        val toast = rememberClToast()
+        LaunchedEffect(state.toast) {
+            state.toast?.let {
+                toast.show(it)
+                onToastShown()
+            }
+        }
+
         when {
             state.loading -> ClLoading()
 

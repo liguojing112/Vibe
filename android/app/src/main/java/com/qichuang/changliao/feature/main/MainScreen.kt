@@ -86,6 +86,10 @@ fun MainScreen(onOpen: (String) -> Unit) {
                             DevEntry("喜欢我的人（P09）", ClIcons.heart) { onOpen(Routes.LIKED_ME) },
                             DevEntry("会员中心（P12）", ClIcons.star) { onOpen(Routes.VIP) },
                             DevEntry("每日任务（P11）", ClIcons.calendar) { onOpen(Routes.DAILY_TASK) },
+                            DevEntry("我的收益（P26）", ClIcons.wallet) { onOpen(Routes.INCOME) },
+                            DevEntry("我的等级与收费（P27）", ClIcons.star) { onOpen(Routes.LEVEL_SETTING) },
+                            DevEntry("收益提现（P28）", ClIcons.wallet) { onOpen(Routes.WITHDRAW) },
+                            DevEntry("实名认证（P29）", ClIcons.shield) { onOpen(Routes.REAL_NAME) },
                             DevEntry("组件预览页", ClIcons.spark) { onOpen(Routes.GALLERY) },
                         ),
                     )

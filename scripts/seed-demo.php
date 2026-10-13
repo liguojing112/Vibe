@@ -81,7 +81,7 @@ $xingye = makeUser($pdo, [
     'bio' => '城市漫游爱好者，擅长发现不起眼但很美的小角落。', 'birthday' => '1999-01-15',
     'city' => '北京', 'height' => 168, 'job' => '摄影师', 'education' => '硕士',
     'dating_purpose' => '长期关系', 'tags' => [7], 'level' => 2,
-    'real_name_status' => 2, 'active_minutes_ago' => 120,
+    'real_name_status' => 0, 'active_minutes_ago' => 120,
 ]);
 
 // 第二个男号：女号登录时能看到他

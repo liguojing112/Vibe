@@ -20,15 +20,24 @@ import com.qichuang.changliao.core.designsystem.theme.ClTheme
 
 private const val PACK_COLUMNS = 3
 
-/** 一个充值档位（docs/01 P22）。金额文案由调用方格式化。 */
+/**
+ * 一个金额档位。金额文案由调用方格式化。
+ *
+ * 这个组件最早是给 P22 充值档位写的，后来 P12 会员套餐、P28 提现档位都复用了它 ——
+ * 三处的视觉完全一样（三列、选中金边、大数字 + 单位 + 一行说明），所以只有这一个组件。
+ */
 data class ClRechargePack(
     val id: Long,
     val coins: String,
     val priceText: String,
+    /** 置灰不可选（积分/余额不够时，P28 的档位就是这么用的）。 */
+    val enabled: Boolean = true,
 )
 
 /**
- * 充值档位网格（docs/03 第 5.4 节，设计图 22）：三列，选中档位金色描边。
+ * 金额档位网格（docs/03 第 5.4 节，设计图 22）：三列，选中档位金色描边。
+ *
+ * @param unit 大数字下面那行的单位：充值和会员是「金币」，提现是「元」。
  */
 @Composable
 fun ClRechargePackGrid(
@@ -36,6 +45,7 @@ fun ClRechargePackGrid(
     selectedId: Long?,
     onSelect: (ClRechargePack) -> Unit,
     modifier: Modifier = Modifier,
+    unit: String = "金币",
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -46,7 +56,8 @@ fun ClRechargePackGrid(
                 row.forEach { pack ->
                     ClRechargePackCell(
                         pack = pack,
-                        selected = pack.id == selectedId,
+                        selected = pack.enabled && pack.id == selectedId,
+                        unit = unit,
                         modifier = Modifier.weight(1f),
                         onClick = { onSelect(pack) },
                     )
@@ -63,6 +74,7 @@ fun ClRechargePackGrid(
 private fun ClRechargePackCell(
     pack: ClRechargePack,
     selected: Boolean,
+    unit: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -75,7 +87,7 @@ private fun ClRechargePackCell(
                 color = if (selected) ClTheme.colors.primaryChipBorder else ClTheme.colors.line,
                 shape = ClTheme.shapes.card,
             )
-            .clickable(onClick = onClick)
+            .clickable(enabled = pack.enabled, onClick = onClick)
             .padding(vertical = ClTheme.spacing.l, horizontal = ClTheme.spacing.s),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.xxs),
@@ -83,19 +95,19 @@ private fun ClRechargePackCell(
         Text(
             text = pack.coins,
             style = ClTheme.typography.amountMedium,
-            color = ClTheme.colors.ink,
+            color = if (pack.enabled) ClTheme.colors.ink else ClTheme.colors.muted,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "金币",
+            text = unit,
             style = ClTheme.typography.tiny,
-            color = ClTheme.colors.inkSecondary,
+            color = if (pack.enabled) ClTheme.colors.inkSecondary else ClTheme.colors.muted,
         )
         Text(
             text = pack.priceText,
             style = ClTheme.typography.cardTitle,
-            color = ClTheme.colors.incomeText,
+            color = if (pack.enabled) ClTheme.colors.incomeText else ClTheme.colors.muted,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = ClTheme.spacing.xs),

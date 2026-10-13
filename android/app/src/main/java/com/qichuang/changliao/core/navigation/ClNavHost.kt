@@ -28,9 +28,13 @@ import com.qichuang.changliao.feature.relation.FansRoute
 import com.qichuang.changliao.feature.wallet.CoinLogsRoute
 import com.qichuang.changliao.feature.wallet.RechargeRoute
 import com.qichuang.changliao.feature.wallet.WalletRoute
+import com.qichuang.changliao.feature.income.IncomeLevelRoute
+import com.qichuang.changliao.feature.income.IncomeRoute
+import com.qichuang.changliao.feature.realname.RealNameRoute
 import com.qichuang.changliao.feature.relation.VisitorsRoute
 import com.qichuang.changliao.feature.task.DailyTaskRoute
 import com.qichuang.changliao.feature.vip.VipCenterRoute
+import com.qichuang.changliao.feature.withdraw.WithdrawRoute
 
 /**
  * 全 App 唯一导航图（docs/02 第 4.3 节）：所有页面的路由都在这里注册。
@@ -168,10 +172,28 @@ fun ClNavHost(
             )
         }
         placeholder(navController, Routes.CALL_RECORDS, "通话记录（P25）")
-        placeholder(navController, Routes.INCOME, "我的收益（P26）")
-        placeholder(navController, Routes.LEVEL_SETTING, "我的等级与收费（P27）")
-        placeholder(navController, Routes.WITHDRAW, "收益提现（P28）")
-        placeholder(navController, Routes.REAL_NAME, "实名认证（P29）")
+        composable(Routes.INCOME) {
+            IncomeRoute(
+                onBack = { navController.popBackStack() },
+                onOpenWithdraw = { navController.navigate(Routes.WITHDRAW) },
+                onOpenLevel = { navController.navigate(Routes.LEVEL_SETTING) },
+            )
+        }
+        composable(Routes.LEVEL_SETTING) {
+            IncomeLevelRoute(
+                onBack = { navController.popBackStack() },
+                onOpenRealName = { navController.navigate(Routes.REAL_NAME) },
+            )
+        }
+        composable(Routes.WITHDRAW) {
+            WithdrawRoute(
+                onBack = { navController.popBackStack() },
+                onOpenRealName = { navController.navigate(Routes.REAL_NAME) },
+            )
+        }
+        composable(Routes.REAL_NAME) {
+            RealNameRoute(onBack = { navController.popBackStack() })
+        }
     }
 }
 
