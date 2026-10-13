@@ -94,9 +94,9 @@ final class WalletControllerTest extends TestCase
 
         self::assertTrue($result['data']['call_enabled']);
         self::assertSame(60, $result['data']['voice_price_min']);
-        self::assertSame(300, $result['data']['voice_price_max']);
+        self::assertSame(200, $result['data']['voice_price_max']);
         self::assertSame(120, $result['data']['video_price_min']);
-        self::assertSame(600, $result['data']['video_price_max']);
+        self::assertSame(400, $result['data']['video_price_max']);
     }
 
     public function testCoinRequiresLogin(): void
@@ -285,7 +285,7 @@ final class WalletControllerTest extends TestCase
             2 => [20000, 8, 3500, 80, 160],
             3 => [100000, 10, 4000, 100, 200],
             4 => [300000, 15, 4500, 150, 300],
-            5 => [1000000, 20, 5000, 300, 600],
+            5 => [1000000, 20, 5000, 200, 400],
         ];
 
         foreach ($rows as $level => [$threshold, $price, $rate, $voice, $video]) {

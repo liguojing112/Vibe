@@ -19,6 +19,7 @@ use App\Service\Cl\Config\AppConfigService;
 use App\Service\Cl\Level\LevelService;
 use App\Service\Cl\Pricing\MessagePricingService;
 use App\Service\Cl\Pricing\MessageQuote;
+use App\Service\Cl\Chat\Concerns\RetriesTransactions;
 use App\Service\Cl\Pricing\VipFreeQuota;
 use App\Service\Cl\Push\PushService;
 use App\Service\Cl\Wallet\CoinWalletService;
@@ -43,11 +44,10 @@ use Hyperf\DbConnection\Db;
  */
 final class MessageBillingService
 {
+    use RetriesTransactions;
+
     /** 流水里的业务来源标识。 */
     public const REF_TYPE = 'message';
-
-    /** 事务重试次数（并发首次发消息会撞死锁，重试一次基本就能过）。 */
-    private const MAX_TRANSACTION_ATTEMPTS = 3;
 
     public function __construct(
         private readonly ConversationRepository $conversationRepository,
@@ -63,6 +63,7 @@ final class MessageBillingService
         private readonly UserRepository $userRepository,
         private readonly AppConfigService $configService,
         private readonly ChatPresenter $presenter,
+        private readonly ConversationService $conversationService,
         private readonly PushService $pushService,
     ) {}
 
@@ -83,7 +84,7 @@ final class MessageBillingService
 
         try {
             $message = $this->runTransaction(function () use ($sender, $receiver, $type, $content, $clientMsgId): Message {
-                $conversation = $this->lockOrCreateConversation($sender, $receiver);
+                $conversation = $this->conversationService->lockOrCreate($sender, $receiver);
 
                 // 并发下同一个 client_msg_id：唯一索引会挡住，但先查一次能省掉一次异常
                 $existing = $this->messageRepository->findByClientMsgId($sender->id, $clientMsgId);
@@ -156,7 +157,7 @@ final class MessageBillingService
                 }
 
                 // ⑥ 会话
-                $this->touchConversation($conversation, $message, $sender, $receiver);
+                $this->conversationService->touch($conversation, $message, $sender, $receiver);
 
                 return $message;
             });
@@ -179,64 +180,6 @@ final class MessageBillingService
     // ---------- 内部 ----------
 
     /**
-     * 一个事务跑完七步；**死锁 / 唯一冲突这类「重试就好」的错自动重来**。
-     *
-     * 为什么必须重试：两个人同时给同一个人发第一条消息时，两个协程会同时 `insert cl_conversation`，
-     * 撞上唯一索引/间隙锁，MySQL 会挑一个当事务回滚（1213 死锁）。重试时对方已经建好了会话，
-     * 这一轮就能读到它继续走。
-     */
-    private function runTransaction(callable $callback): Message
-    {
-        $attempt = 0;
-        while (true) {
-            ++$attempt;
-            try {
-                return Db::transaction($callback);
-            } catch (QueryException $e) {
-                if ($attempt >= self::MAX_TRANSACTION_ATTEMPTS || ! $this->isRetryable($e)) {
-                    throw $e;
-                }
-                usleep(random_int(1000, 20000));
-            }
-        }
-    }
-
-    private function isRetryable(QueryException $e): bool
-    {
-        $message = $e->getMessage();
-
-        return str_contains($message, 'Deadlock')
-            || str_contains($message, 'Lock wait timeout')
-            || str_contains($message, 'Duplicate entry');
-    }
-
-    /**
-     * 拿会话并加行锁；还没有就建一条（并发首次发消息时靠唯一索引兜底）。
-     */
-    private function lockOrCreateConversation(User $sender, User $receiver): \App\Model\Cl\Conversation
-    {
-        $conversation = $this->conversationRepository->lockByPair($sender->id, $receiver->id);
-        if ($conversation !== null) {
-            return $conversation;
-        }
-
-        [$low, $high] = \App\Model\Cl\Conversation::pair($sender->id, $receiver->id);
-        $maleId = $sender->isMale() ? $sender->id : $receiver->id;
-        $femaleId = $sender->isMale() ? $receiver->id : $sender->id;
-
-        try {
-            return $this->conversationRepository->createPair($low, $high, $maleId, $femaleId);
-        } catch (UniqueConstraintViolationException) {
-            // 另一个请求刚好建好了，锁住它继续
-            $conversation = $this->conversationRepository->lockByPair($sender->id, $receiver->id);
-            if ($conversation !== null) {
-                return $conversation;
-            }
-            throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '会话创建失败，请重试');
-        }
-    }
-
-    /**
      * 女 → 男永远免费、不给积分（docs/06 第 3.2 节）。
      */
     private function quoteFor(User $sender, User $receiver, int $maleSentCount): MessageQuote
@@ -253,28 +196,6 @@ final class MessageBillingService
         }
 
         return $this->pricingService->quote($sender, $receiver, $maleSentCount);
-    }
-
-    private function touchConversation(
-        \App\Model\Cl\Conversation $conversation,
-        Message $message,
-        User $sender,
-        User $receiver,
-    ): void {
-        $unreadColumn = $conversation->unreadColumnFor($receiver->id);
-        $conversation->{$unreadColumn} = (int) $conversation->{$unreadColumn} + 1;
-
-        // male_sent_count 只算「男方发给女方的普通消息」（礼物不计，06 第 10 节场景 16）
-        if ($sender->isMale() && $message->isNormalMessage()) {
-            $conversation->male_sent_count = (int) $conversation->male_sent_count + 1;
-        }
-
-        $conversation->last_message_id = (int) $message->id;
-        $conversation->last_message_at = $message->created_at;
-        // 新消息让双方「删过的」会话重新出现
-        $conversation->low_deleted_at = null;
-        $conversation->high_deleted_at = null;
-        $conversation->save();
     }
 
     /**

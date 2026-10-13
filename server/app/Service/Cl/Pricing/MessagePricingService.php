@@ -127,6 +127,26 @@ final class MessagePricingService
         return $factor <= 0 ? 0 : intdiv($levelRate * $factor, 10000);
     }
 
+    /**
+     * 礼物分成比例（万分比，docs/06 第 4 节）：
+     * `share.gift_rate`（默认 3400，不随等级变化），**只有** `share.unverified_apply_gift = 1` 时
+     * 才乘未实名系数（默认不作用 —— 礼物和私信的口径不一样，别想当然套用）。
+     */
+    public function giftShareRateOf(User $female): int
+    {
+        $rate = (int) $this->configService->get('share.gift_rate', 0);
+        if ($rate <= 0) {
+            return 0;
+        }
+
+        $applyUnverified = (bool) $this->configService->get('share.unverified_apply_gift', false);
+        if (! $applyUnverified) {
+            return $rate;
+        }
+
+        return $this->shareRateOf($female, $rate);
+    }
+
     /** 女方等级的私信分成（万分比），没算未实名系数。 */
     public function levelRateOf(User $female): int
     {
