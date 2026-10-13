@@ -84,6 +84,8 @@ fun MainScreen(onOpen: (String) -> Unit) {
                             DevEntry("编辑资料（P14）", ClIcons.edit) { onOpen(Routes.EDIT_PROFILE) },
                             DevEntry("最近访客（P08）", ClIcons.eye) { onOpen(Routes.VISITORS) },
                             DevEntry("喜欢我的人（P09）", ClIcons.heart) { onOpen(Routes.LIKED_ME) },
+                            DevEntry("会员中心（P12）", ClIcons.star) { onOpen(Routes.VIP) },
+                            DevEntry("每日任务（P11）", ClIcons.calendar) { onOpen(Routes.DAILY_TASK) },
                             DevEntry("组件预览页", ClIcons.spark) { onOpen(Routes.GALLERY) },
                         ),
                     )

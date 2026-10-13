@@ -29,6 +29,7 @@ import com.qichuang.changliao.feature.wallet.CoinLogsRoute
 import com.qichuang.changliao.feature.wallet.RechargeRoute
 import com.qichuang.changliao.feature.wallet.WalletRoute
 import com.qichuang.changliao.feature.relation.VisitorsRoute
+import com.qichuang.changliao.feature.task.DailyTaskRoute
 import com.qichuang.changliao.feature.vip.VipCenterRoute
 
 /**
@@ -115,7 +116,21 @@ fun ClNavHost(
             )
         }
         placeholder(navController, Routes.NOTICES, "系统消息（P10）")
-        placeholder(navController, Routes.DAILY_TASK, "每日任务（P11）")
+        composable(Routes.DAILY_TASK) {
+            DailyTaskRoute(
+                onBack = { navController.popBackStack() },
+                onOpenEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
+                // 「去认识」要回到发现页找人说两句。发现是底部导航的一个 Tab，
+                // 它的选中状态在主界面的 ViewModel 里，从这儿改不了 ——
+                // 所以整个主界面重建一次（MainViewModel 默认就停在发现 Tab）。
+                onOpenDiscover = {
+                    navController.navigate(Routes.MAIN) {
+                        popUpTo(Routes.MAIN) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
         composable(Routes.VIP) {
             VipCenterRoute(
                 onBack = { navController.popBackStack() },

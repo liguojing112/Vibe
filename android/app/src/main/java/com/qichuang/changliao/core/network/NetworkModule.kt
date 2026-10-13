@@ -103,4 +103,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideVipApi(retrofit: Retrofit): VipApi = retrofit.create(VipApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideTaskApi(retrofit: Retrofit): TaskApi = retrofit.create(TaskApi::class.java)
 }
