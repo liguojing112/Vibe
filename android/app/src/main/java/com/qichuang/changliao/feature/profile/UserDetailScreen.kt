@@ -363,7 +363,8 @@ private fun ReportSheet(state: UserDetailUiState, actions: UserDetailActions) {
 
             ClPrimaryButton(
                 text = "提交举报",
-                enabled = state.reportReason != null,
+                enabled = state.reportReason != null && !state.reportSubmitting,
+                loading = state.reportSubmitting,
                 onClick = actions.onSubmitReport,
             )
 

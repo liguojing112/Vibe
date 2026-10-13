@@ -8,6 +8,7 @@ use App\Model\Cl\CoinWallet;
 use App\Model\Cl\PointWallet;
 use App\Model\Cl\User;
 use App\Service\Cl\Auth\AppAuthService;
+use App\Service\Cl\Wallet\CoinWalletService;
 use Hyperf\Carbon\Carbon;
 use Hyperf\Context\ApplicationContext;
 use Hyperf\Redis\Redis;
@@ -215,6 +216,28 @@ final class AuthControllerTest extends TestCase
         self::assertSame(200, $this->client->post('/api/v1/auth/logout', [], $headers)['code']);
         // 退出后 token 进黑名单
         self::assertSame(401, $this->client->post('/api/v1/auth/logout', [], $headers)['code']);
+    }
+
+    /** 注销账号（docs/01 P15）：token 立刻失效，而且**不能再登录**。 */
+    public function testCancelAccountRevokesTokenAndBlocksLogin(): void
+    {
+        $token = $this->register()['data']['access_token'];
+        $headers = ['Authorization' => 'Bearer ' . $token];
+
+        self::assertSame(200, $this->client->post('/api/v1/auth/cancel', [], $headers)['code']);
+
+        // 这个 token 已经拉黑
+        self::assertSame(401, $this->client->get('/api/v1/user/me', [], $headers)['code']);
+
+        // 重新登录也不行 —— 否则会是「登录成功但每个接口都 401」的死循环
+        $again = $this->login();
+        self::assertSame(10004, $again['code']);
+        self::assertSame('账号已注销，无法登录', $again['message']);
+
+        $user = User::query()->firstOrFail();
+        self::assertSame(User::STATUS_CANCELLED, (int) $user->status);
+        // 余额不在这里动：`docs/01` P15 写的是「提交后后台处理」
+        self::assertSame(0, (int) make(CoinWalletService::class)->balanceOf($user->id));
     }
 
     public function testRefreshToken(): void

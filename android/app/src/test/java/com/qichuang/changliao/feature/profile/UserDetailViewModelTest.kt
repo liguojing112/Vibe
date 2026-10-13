@@ -7,6 +7,8 @@ import com.qichuang.changliao.core.data.model.UserDetail
 import com.qichuang.changliao.core.data.model.UserDetailPrice
 import com.qichuang.changliao.core.data.model.UserPhoto
 import com.qichuang.changliao.core.data.repository.AppConfigRepository
+import com.qichuang.changliao.core.data.model.ReportResult
+import com.qichuang.changliao.core.data.repository.NoticeRepository
 import com.qichuang.changliao.core.data.repository.RelationRepository
 import com.qichuang.changliao.core.data.repository.UserRepository
 import com.qichuang.changliao.core.network.ApiResult
@@ -37,6 +39,7 @@ class UserDetailViewModelTest {
 
     private val userRepository = mockk<UserRepository>()
     private val relationRepository = mockk<RelationRepository>()
+    private val noticeRepository = mockk<NoticeRepository>()
     private val appConfigRepository = mockk<AppConfigRepository>()
 
     private val config = MutableStateFlow<AppConfig?>(
@@ -81,7 +84,7 @@ class UserDetailViewModelTest {
     private fun viewModel(current: UserDetail = detail()): UserDetailViewModel {
         coEvery { userRepository.detail(9) } returns ApiResult.Success(current)
 
-        return UserDetailViewModel(userRepository, relationRepository, appConfigRepository)
+        return UserDetailViewModel(userRepository, relationRepository, noticeRepository, appConfigRepository)
     }
 
     private fun loaded(current: UserDetail = detail()): UserDetailViewModel {
@@ -106,7 +109,7 @@ class UserDetailViewModelTest {
     @Test
     fun `加载失败给出错误`() {
         coEvery { userRepository.detail(9) } returns ApiResult.NetworkError(NETWORK_ERROR_MESSAGE)
-        val viewModel = UserDetailViewModel(userRepository, relationRepository, appConfigRepository)
+        val viewModel = UserDetailViewModel(userRepository, relationRepository, noticeRepository, appConfigRepository)
 
         viewModel.load(9)
 
@@ -239,16 +242,37 @@ class UserDetailViewModelTest {
     }
 
     @Test
-    fun `选了原因后提交如实告知功能还没开放`() {
+    fun `提交举报成功提示服务端文案并清空弹窗`() {
+        coEvery { noticeRepository.report(any(), any(), any(), any()) } returns ApiResult.Success(
+            ReportResult(id = 1, statusText = "举报已提交，我们会尽快处理"),
+        )
         val viewModel = loaded()
         viewModel.onReportVisibleChange(true)
         viewModel.onReportReasonChange(ReportReason.FRAUD)
+        viewModel.onReportContentChange("一上来就让我加微信转账")
 
         viewModel.onSubmitReport()
 
-        // 提交接口是 T6.4 的活，这里不能假装提交成功
-        assertEquals("举报功能还没开放，稍后再试", viewModel.uiState.value.toast)
+        assertEquals("举报已提交，我们会尽快处理", viewModel.uiState.value.toast)
         assertFalse(viewModel.uiState.value.reportVisible)
+        assertNull(viewModel.uiState.value.reportReason)
+        assertEquals("", viewModel.uiState.value.reportContent)
+        coVerify(exactly = 1) { noticeRepository.report(9, "FRAUD", "一上来就让我加微信转账", emptyList()) }
+    }
+
+    @Test
+    fun `举报失败把服务端的话原样提示，弹窗留着`() {
+        coEvery { noticeRepository.report(any(), any(), any(), any()) } returns
+            ApiResult.BizError(40001, "不能举报自己")
+        val viewModel = loaded()
+        viewModel.onReportVisibleChange(true)
+        viewModel.onReportReasonChange(ReportReason.OTHER)
+
+        viewModel.onSubmitReport()
+
+        assertEquals("不能举报自己", viewModel.uiState.value.toast)
+        assertTrue("失败了弹窗还在，可以改", viewModel.uiState.value.reportVisible)
+        assertFalse(viewModel.uiState.value.reportSubmitting)
     }
 
     @Test

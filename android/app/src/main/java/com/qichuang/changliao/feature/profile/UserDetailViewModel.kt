@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.qichuang.changliao.core.data.model.RelationState
 import com.qichuang.changliao.core.data.repository.AppConfigRepository
+import com.qichuang.changliao.core.data.repository.NoticeRepository
 import com.qichuang.changliao.core.data.repository.RelationRepository
 import com.qichuang.changliao.core.data.repository.UserRepository
 import com.qichuang.changliao.core.network.ApiResult
@@ -26,6 +27,7 @@ import javax.inject.Inject
 class UserDetailViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val relationRepository: RelationRepository,
+    private val noticeRepository: NoticeRepository,
     private val appConfigRepository: AppConfigRepository,
 ) : ViewModel() {
 
@@ -140,16 +142,40 @@ class UserDetailViewModel @Inject constructor(
     }
 
     /**
-     * 举报提交（docs/08 T3.8：**提交接口在 T6.4 接**，这里只把弹窗 UI 做好）。
-     * 所以这里**不假装成功**，如实告诉用户功能还没开放。
+     * 举报提交（`docs/05` 第 4.9 节 `/report`，T6.6 接通）。
+     *
+     * 举报完**把弹窗关掉、输入清空**：同一个人再举报一次是另一件事，留着上次的说明只会误导。
+     * 「要提交什么」「能不能提交」都由服务端判（不能举报自己、对象要存在、带的消息得是自己的），
+     * 错了就把服务端的话原样提示出来。
      */
     fun onSubmitReport() {
-        if (_uiState.value.reportReason == null) {
+        val state = _uiState.value
+        val reason = state.reportReason
+        if (reason == null) {
             _uiState.update { it.copy(toast = "请选择举报原因") }
             return
         }
+        if (state.reportSubmitting) {
+            return
+        }
 
-        _uiState.update { it.copy(reportVisible = false, toast = "举报功能还没开放，稍后再试") }
+        _uiState.update { it.copy(reportSubmitting = true) }
+        viewModelScope.launch {
+            when (val result = noticeRepository.report(targetId, reason.code, state.reportContent)) {
+                is ApiResult.Success -> _uiState.update {
+                    it.copy(
+                        reportSubmitting = false,
+                        reportVisible = false,
+                        reportReason = null,
+                        reportContent = "",
+                        toast = result.data.statusText,
+                    )
+                }
+
+                is ApiResult.BizError -> _uiState.update { it.copy(reportSubmitting = false, toast = result.message) }
+                is ApiResult.NetworkError -> _uiState.update { it.copy(reportSubmitting = false, toast = result.message) }
+            }
+        }
     }
 
     // ---------- 相册预览 ----------

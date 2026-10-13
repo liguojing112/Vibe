@@ -96,6 +96,8 @@ final class ProfileService
             'point_balance' => $user->isFemale() ? $this->pointWalletService->summaryOf($user->id)['balance'] : null,
             // 关系统计（关注 / 好友 / 粉丝 / 访客），P04 我的页四格用
             'stats' => $this->relationService->stats($user),
+            // 资料完善度（P04 头部），口径见 completenessOf()
+            'completeness' => $this->completenessOf($user),
         ];
     }
 
@@ -200,6 +202,33 @@ final class ProfileService
         if ($update !== []) {
             $user->update($update);
         }
+    }
+
+    /**
+     * 资料完善度（`docs/01` P04 头部要显示的那个百分比）。
+     *
+     * 文档只写了「资料完善度」四个字，没说**哪些字段算、怎么加权**。这里用一个说得清的口径：
+     * P14 上那几项 —— 头像、昵称、自我介绍、生日、城市、身高、职业、学历，加上「至少一张过审的相册」，
+     * 一共九项，填了就算一分，最后取整百分比。
+     *
+     * 和「完善照片 / 写一句自我介绍」两个任务的条件口径一致（都看**过审**的照片和非空的简介），
+     * 免得同一个东西在任务页和我页面各说各的。
+     */
+    private function completenessOf(User $user): int
+    {
+        $filled = [
+            trim((string) $user->avatar) !== '',
+            trim((string) $user->nickname) !== '',
+            trim((string) $user->bio) !== '',
+            $user->birthday !== null,
+            trim((string) $user->city) !== '',
+            $user->height !== null && (int) $user->height > 0,
+            trim((string) $user->job) !== '',
+            trim((string) $user->education) !== '',
+            $this->photoRepository->countApproved($user->id) > 0,
+        ];
+
+        return intdiv(\count(array_filter($filled)) * 100, \count($filled));
     }
 
     /**

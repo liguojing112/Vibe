@@ -38,6 +38,8 @@ data class UserProfile(
     @SerialName("coin_balance") val coinBalance: Long? = null,
     @SerialName("point_balance") val pointBalance: Long? = null,
     val stats: ProfileStats = ProfileStats(),
+    /** 资料完善度百分比（0~100），服务端按「填了几项」算好给过来。 */
+    val completeness: Int = 0,
 ) {
     fun shownAvatar(): String = pending[FIELD_AVATAR] ?: avatar
 

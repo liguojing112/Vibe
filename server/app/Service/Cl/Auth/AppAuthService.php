@@ -116,6 +116,13 @@ class AppAuthService
 
         $this->assertNotBanned($user);
 
+        // 注销过的账号也登不进来。不加这一条的话：登录能成功，但拿到 token 之后
+        // `findActiveUser` 会因为它已注销而返回 null → 每个接口都 401，
+        // 用户只会看到「登录已失效」的循环（真跑出来过）。
+        if ($user->status === User::STATUS_CANCELLED) {
+            throw new ClBusinessException(BizCode::ACCOUNT_BANNED, '账号已注销，无法登录');
+        }
+
         $user->update([
             'login_fail_count' => 0,
             'locked_until' => null,
@@ -158,6 +165,26 @@ class AppAuthService
             throw new ClBusinessException(BizCode::OLD_PASSWORD_WRONG);
         }
         $user->update(['password' => password_hash($newPassword, \PASSWORD_BCRYPT)]);
+    }
+
+    /**
+     * 注销账号（`docs/01` P15）。
+     *
+     * 二次确认由客户端做（要提示「余额/积分会清零」），这里只做服务端这一半：
+     * 状态置成 `CANCELLED` + **把当前 token 拉黑**。
+     *
+     * 置成 CANCELLED 之后这个人就登不进来了（`findActiveUser` 返回 null → 401），
+     * 别人也看不到他（关系、举报、发现那些地方都挡了 `STATUS_CANCELLED`）。
+     *
+     * **余额/积分不在这里动**：一来没有「注销清零」这种流水类型（钱一动就得有流水，铁律 6），
+     * 二来 `docs/01` P15 写的是「提交后**后台处理**」—— 钱怎么清、什么时候清是后台的事（T7）。
+     */
+    public function cancel(User $user, UnencryptedToken $token): void
+    {
+        Db::transaction(function () use ($user, $token): void {
+            $user->update(['status' => User::STATUS_CANCELLED]);
+            $this->jwt()->addBlackList($token);
+        });
     }
 
     /**

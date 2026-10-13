@@ -124,4 +124,22 @@ final class AuthController
 
         return ApiResult::success();
     }
+
+    #[Post(
+        path: '/api/v1/auth/cancel',
+        operationId: 'clAuthCancel',
+        summary: '注销账号（二次确认在客户端，提交后后台处理余额/积分）',
+        tags: ['app:auth']
+    )]
+    #[Middleware(AppAuthMiddleware::class)]
+    public function cancel(): ApiResult
+    {
+        /** @var User $user */
+        $user = Context::get('cl_user');
+        /** @var UnencryptedToken $token */
+        $token = Context::get('cl_token');
+        $this->authService->cancel($user, $token);
+
+        return ApiResult::success();
+    }
 }

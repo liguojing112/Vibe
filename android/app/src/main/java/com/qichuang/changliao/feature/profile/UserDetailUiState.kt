@@ -25,6 +25,9 @@ data class UserDetailUiState(
     val menuVisible: Boolean = false,
     val blockConfirmVisible: Boolean = false,
     val reportVisible: Boolean = false,
+
+    /** 正在提交举报（按钮转圈、防连点）。 */
+    val reportSubmitting: Boolean = false,
     val reportReason: ReportReason? = null,
     val reportContent: String = "",
     val previewIndex: Int? = null,

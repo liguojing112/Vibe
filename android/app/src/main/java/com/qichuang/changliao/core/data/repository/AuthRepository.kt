@@ -5,10 +5,12 @@ import com.qichuang.changliao.core.network.ApiResult
 import com.qichuang.changliao.core.network.AppApi
 import com.qichuang.changliao.core.network.AuthApi
 import com.qichuang.changliao.core.network.TokenStore
+import com.qichuang.changliao.core.network.dto.ChangePasswordRequestDto
 import com.qichuang.changliao.core.network.dto.LoginRequestDto
 import com.qichuang.changliao.core.network.dto.RegisterRequestDto
 import com.qichuang.changliao.core.network.dto.TokenDto
 import com.qichuang.changliao.core.network.safeApiCall
+import com.qichuang.changliao.core.network.safeApiCallUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -65,6 +67,31 @@ class AuthRepository @Inject constructor(
         runCatching { authApi.logout() }
         tokenStore.clear()
     }
+
+    /**
+     * 修改密码（P15）：旧密码错 → 10006（文案用服务端的）。
+     *
+     * 改完之后**不强制重登**：服务端没有把旧 token 作废，用户接着用就行。
+     */
+    suspend fun changePassword(oldPassword: String, newPassword: String): ApiResult<Unit> =
+        safeApiCallUnit { authApi.changePassword(ChangePasswordRequestDto(oldPassword, newPassword)) }
+
+    /**
+     * 注销账号（P15）。二次确认由页面做（要提示「余额/积分会清零」）。
+     *
+     * 成功之后服务端会把这个 token 拉黑，所以本地也要清掉登录态 ——
+     * 清掉之后导航层会回登录页（见 `ClNavHost` 对 token 的监听）。
+     */
+    suspend fun cancelAccount(): ApiResult<Unit> =
+        when (val result = safeApiCallUnit { authApi.cancel() }) {
+            is ApiResult.Success -> {
+                tokenStore.clear()
+                ApiResult.Success(Unit)
+            }
+
+            is ApiResult.BizError -> result
+            is ApiResult.NetworkError -> result
+        }
 
     private fun saveTokensOnSuccess(result: ApiResult<TokenDto>): ApiResult<Unit> = when (result) {
         is ApiResult.Success -> {

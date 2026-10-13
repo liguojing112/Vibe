@@ -119,4 +119,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRealNameApi(retrofit: Retrofit): RealNameApi = retrofit.create(RealNameApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideNoticeApi(retrofit: Retrofit): NoticeApi = retrofit.create(NoticeApi::class.java)
 }

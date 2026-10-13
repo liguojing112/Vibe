@@ -11,6 +11,10 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.qichuang.changliao.core.designsystem.gallery.DesignSystemGalleryScreen
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
@@ -31,7 +35,10 @@ import com.qichuang.changliao.feature.wallet.WalletRoute
 import com.qichuang.changliao.feature.income.IncomeLevelRoute
 import com.qichuang.changliao.feature.income.IncomeRoute
 import com.qichuang.changliao.feature.realname.RealNameRoute
+import com.qichuang.changliao.feature.notice.NoticeRoute
 import com.qichuang.changliao.feature.relation.VisitorsRoute
+import com.qichuang.changliao.feature.settings.BlockListRoute
+import com.qichuang.changliao.feature.settings.SettingsRoute
 import com.qichuang.changliao.feature.task.DailyTaskRoute
 import com.qichuang.changliao.feature.vip.VipCenterRoute
 import com.qichuang.changliao.feature.withdraw.WithdrawRoute
@@ -48,6 +55,19 @@ fun ClNavHost(
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
+    // 登录态盯着：token 一没（退出登录 / 注销 / 401 刷新也失败）就清本地状态、回登录页
+    val session: SessionViewModel = hiltViewModel()
+    val loggedIn by session.loggedIn.collectAsStateWithLifecycle()
+
+    LaunchedEffect(loggedIn) {
+        if (!loggedIn && navController.currentDestination?.route != Routes.LOGIN) {
+            session.clearSession()
+            navController.navigate(Routes.LOGIN) {
+                // 把整棵栈清掉：登录页按返回键不该回到已经登出的页面
+                popUpTo(navController.graph.id) { inclusive = true }
+            }
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -119,7 +139,9 @@ fun ClNavHost(
                 onOpenVip = { navController.navigate(Routes.VIP) },
             )
         }
-        placeholder(navController, Routes.NOTICES, "系统消息（P10）")
+        composable(Routes.NOTICES) {
+            NoticeRoute(onBack = { navController.popBackStack() })
+        }
         composable(Routes.DAILY_TASK) {
             DailyTaskRoute(
                 onBack = { navController.popBackStack() },
@@ -157,7 +179,15 @@ fun ClNavHost(
         composable(Routes.EDIT_PROFILE) {
             EditProfileRoute(onBack = { navController.popBackStack() })
         }
-        placeholder(navController, Routes.SETTINGS, "设置（P15）")
+        composable(Routes.SETTINGS) {
+            SettingsRoute(
+                onBack = { navController.popBackStack() },
+                onOpenRoute = { navController.navigate(it) },
+            )
+        }
+        composable(Routes.BLOCK_LIST) {
+            BlockListRoute(onBack = { navController.popBackStack() })
+        }
         placeholder(navController, Routes.VOICE_HALL, "语音大厅（P16）")
         placeholder(navController, Routes.CALL_CONFIRM, "拨打前价格确认（P17）")
         placeholder(navController, Routes.CALL_WAITING, "等待接通（P18）")

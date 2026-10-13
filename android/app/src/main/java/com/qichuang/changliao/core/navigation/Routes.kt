@@ -62,6 +62,9 @@ object Routes {
     const val EDIT_PROFILE = "profile/edit"
     const val SETTINGS = "mine/settings"
 
+    /** P15 设置里的黑名单列表。 */
+    const val BLOCK_LIST = "mine/blocks"
+
     // ---------- P02 P16~P21 P25 语音视频（本期只做页面） ----------
 
     const val VOICE_HALL = "match/voice-hall"

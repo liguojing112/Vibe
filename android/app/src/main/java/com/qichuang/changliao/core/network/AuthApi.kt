@@ -33,4 +33,8 @@ interface AuthApi {
 
     @POST("api/v1/auth/password")
     suspend fun changePassword(@Body body: ChangePasswordRequestDto): ApiResponse<JsonElement?>
+
+    /** 注销账号（P15）。二次确认在客户端做。 */
+    @POST("api/v1/auth/cancel")
+    suspend fun cancel(): ApiResponse<JsonElement?>
 }

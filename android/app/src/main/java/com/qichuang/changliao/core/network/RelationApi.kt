@@ -33,5 +33,9 @@ interface RelationApi {
     /** 最近访客。**读一次就把未读清零**（docs/05 第 4.4 节）。 */
     @GET("api/v1/relation/visitors")
     suspend fun visitors(@Query("page") page: Int): ApiResponse<JsonElement?>
+
+    /** 黑名单（P15 设置页）。返回结构和 fans/visitors 一样。 */
+    @GET("api/v1/relation/blocks")
+    suspend fun blocks(@Query("page") page: Int): ApiResponse<JsonElement?>
 }
 

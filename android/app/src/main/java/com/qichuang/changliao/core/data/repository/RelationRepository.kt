@@ -59,6 +59,12 @@ class RelationRepository @Inject constructor(
     /** 加载更多（第 2 页起，不读缓存）。 */
     suspend fun more(kind: RelationKind, page: Int): ApiResult<RelationPage> = fetch(kind, page)
 
+    /**
+     * 黑名单（P15 设置页）。**不缓存** —— 这是设置页里的一个列表，
+     * 打开频率低，而且「移除了谁」要立刻反映出来（缓存住反而会看到刚移除的人还在）。
+     */
+    suspend fun blocks(page: Int): ApiResult<RelationPage> = safeApiCall { relationApi.blocks(page) }
+
     private suspend fun fetch(kind: RelationKind, page: Int): ApiResult<RelationPage> = safeApiCall {
         when (kind) {
             RelationKind.VISITORS -> relationApi.visitors(page)
