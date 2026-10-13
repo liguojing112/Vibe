@@ -8,6 +8,7 @@ use App\Model\Cl\Conversation;
 use App\Repository\IRepository;
 use Hyperf\Carbon\Carbon;
 use Hyperf\Database\Model\Builder;
+use Hyperf\DbConnection\Db;
 
 /**
  * @extends IRepository<Conversation>
@@ -94,6 +95,31 @@ final class ConversationRepository extends IRepository
             ->sum('high_unread');
 
         return $asLow + $asHigh;
+    }
+
+    /**
+     * 留存清理之后修 `last_message_id`（docs/04 第 3 节）。
+     *
+     * 它可能正好指着刚被删掉的那条，不修的话会话列表会显示一条已经不存在的消息。
+     * 一条 UPDATE 修完：**指向的那条没了就回退到当前最新的一条**，一条都不剩就是 null。
+     *
+     * @param array<int,int> $conversationIds
+     */
+    public function refreshLastMessageIds(array $conversationIds): void
+    {
+        if ($conversationIds === []) {
+            return;
+        }
+
+        $this->model->newQuery()
+            ->whereIn('id', $conversationIds)
+            ->whereNotNull('last_message_id')
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM cl_message m WHERE m.id = cl_conversation.last_message_id)')
+            ->update([
+                'last_message_id' => Db::raw(
+                    '(SELECT MAX(m2.id) FROM cl_message m2 WHERE m2.conversation_id = cl_conversation.id)'
+                ),
+            ]);
     }
 
     /** 把我在这个会话里的未读清零（读会话 / 删会话时调用）。 */

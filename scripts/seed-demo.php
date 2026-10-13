@@ -76,7 +76,7 @@ $wanqing = makeUser($pdo, [
     'real_name_status' => 0, 'active_minutes_ago' => 30,
 ]);
 
-$linchuan = makeUser($pdo, [
+$xingye = makeUser($pdo, [
     'phone' => '13800000004', 'gender' => 2, 'nickname' => '星野', 'avatar' => $avatar('xingye'),
     'bio' => '城市漫游爱好者，擅长发现不起眼但很美的小角落。', 'birthday' => '1999-01-15',
     'city' => '北京', 'height' => 168, 'job' => '摄影师', 'education' => '硕士',

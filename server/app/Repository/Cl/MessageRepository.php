@@ -88,6 +88,68 @@ final class MessageRepository extends IRepository
     }
 
     /**
+     * 超期、可以物理删掉的**普通消息** id（docs/04 第 3 节）。
+     *
+     * 三个条件缺一不可：
+     * - 只清文字/图片（礼物牵着钱、系统消息牵着通知，留着）；
+     * - `sensitive_hit = 0`：敏感词命中的是监管证据，不删；
+     * - 没有被举报关联（`cl_report.message_id`）：举报取证要长期保留。
+     *
+     * 用 `NOT EXISTS` 而不是先查一批 id 再 `NOT IN`：被举报的消息可能很多，
+     * 拉成数组再塞进 SQL 又慢又容易踩参数上限。
+     *
+     * @return array<int,int>
+     */
+    public function expiredIds(string $cutoff, int $limit): array
+    {
+        $ids = $this->model->newQuery()
+            ->where('created_at', '<', $cutoff)
+            ->whereIn('type', [Message::TYPE_TEXT, Message::TYPE_IMAGE])
+            ->where('sensitive_hit', 0)
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM cl_report WHERE cl_report.message_id = cl_message.id)')
+            ->orderBy('id')
+            ->limit($limit)
+            ->pluck('id')
+            ->all();
+
+        return array_map(static fn (mixed $id): int => (int) $id, $ids);
+    }
+
+    /**
+     * 这批消息分别属于哪些会话（删完要修这些会话的 `last_message_id`）。
+     *
+     * @param array<int,int> $ids
+     * @return array<int,int>
+     */
+    public function conversationIdsOf(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $ids = $this->model->newQuery()
+            ->whereIn('id', $ids)
+            ->pluck('conversation_id')
+            ->all();
+
+        return array_map(static fn (mixed $id): int => (int) $id, $ids);
+    }
+
+    /**
+     * 物理删除（留存清理专用）。
+     *
+     * @param array<int,int> $ids
+     */
+    public function deleteByIds(array $ids): int
+    {
+        if ($ids === []) {
+            return 0;
+        }
+
+        return $this->model->newQuery()->whereIn('id', $ids)->delete();
+    }
+
+    /**
      * 把我收到的、这个会话里的消息标记成已读（`read_at` 是监管留痕，未读数在会话表上）。
      */
     public function markRead(int $conversationId, int $receiverId): int
