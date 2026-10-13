@@ -6,9 +6,9 @@
 ## 当前状态
 
 - 当前阶段：**P4 私信与计费**（P3 已完成）
-- 当前任务：T4.5 已完成 → 下一步 T4.6 消息页（P03）
+- 当前任务：T4.6 已完成 → 下一步 T4.7 私信聊天页（P06）+ 余额不足弹窗（P30）
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：T4.5 安卓聊天数据层完成（Room v2 三张表 + `MIGRATION_1_2` + `ChatSocket`（30s 心跳、1/2/4…30s 退避）+ `ChatRepository`（本地优先、乐观 UI、`/chat/sync` 增量补拉）），**在模拟器上用真后端跑通并用 `adb` 拉库核对了**：v1→v2 迁移成功、WS 连上（服务端日志「用户 101 上线」）、推送落进本地库、底部未读角标显示 1。`check-android.sh` 通过（**234 单测 / 0 失败**）。下一步按 `docs/08` 做 T4.6（P03 消息页：会话列表 + 未读角标 + 删除会话）。
+- 上次停在哪：T4.6 消息页（P03）完成 + 补上 Robolectric（Q0-21）。P03 是会话列表 + 功能入口 + 最近联系人横条，**在模拟器上用真后端走过一遍**：左滑删除 → 空状态 → 对方来新消息会话自动重新出现（`docs/screenshots/t46-*.png`）。`check-android.sh` 通过（**259 单测 / 0 失败**，含 Robolectric 的 DAO 11 例与迁移 1 例）。下一步按 `docs/08` 做 T4.7（P06 私信聊天页 + P30 余额不足弹窗；验收是 `09` 第 1.3 节聊天页 4 个必测场景）。
 
 ## 任务进度
 
@@ -18,7 +18,7 @@
 - P1：[x] T1.1 [x] T1.2 [x] T1.3 [x] T1.4 [x] T1.5 [x] T1.6 [x] T1.7
 - P2：[x] T2.1 [x] T2.2 [x] T2.3 [x] T2.4 [x] T2.5 [x] T2.6 [x] T2.7 [x] T2.8 [x] T2.9 [x] T2.10 [x] T2.11
 - P3：[x] T3.1 [x] T3.2 [x] T3.3 [x] T3.4 [x] T3.5 [x] T3.6 [x] T3.7 [x] T3.8 [x] T3.9 [x] T3.10
-- P4：[x] T4.1 [x] T4.2 [x] T4.3 [x] T4.4 [x] T4.5 [ ] T4.6 [ ] T4.7 [ ] T4.8 [ ] T4.9
+- P4：[x] T4.1 [x] T4.2 [x] T4.3 [x] T4.4 [x] T4.5 [x] T4.6 [ ] T4.7 [ ] T4.8 [ ] T4.9
 - P5：[ ] T5.1 [ ] T5.2 [ ] T5.3 [ ] T5.4 [ ] T5.5 [ ] T5.6 [ ] T5.7 [ ] T5.8 [ ] T5.9
 - P6：[ ] T6.1 [ ] T6.2 [ ] T6.3 [ ] T6.4 [ ] T6.5 [ ] T6.6 [ ] T6.7
 - P7：[ ] T7.1 [ ] T7.2 [ ] T7.3 [ ] T7.4 [ ] T7.5 [ ] T7.6 [ ] T7.7 [ ] T7.8 [ ] T7.9
@@ -89,7 +89,9 @@
 | 安卓 | androidx.compose.material:material-icons-extended | 1.7.8（Compose BOM 2026.09.00 钉的版本） | `ClIcons` 要用 Material Icons Rounded 全套。**注意**：Google 已弃用这个 artifact（建议自带矢量图），且它会明显增大包体 —— release 构建应打开 `isMinifyEnabled` 让 R8 裁掉没用到的图标，或以后把用到的图标改成自带 ImageVector | T2.2 |
 | 安卓 | androidx.lifecycle:lifecycle-runtime-compose | 2.11.0 | Compose 里用 `collectAsStateWithLifecycle()` 收 StateFlow（随生命周期停止收集） | T2.7 |
 | 安卓 | androidx.hilt:hilt-navigation-compose | 1.4.0 | `hiltViewModel()`：在 `composable(...)` 目的地里拿 @HiltViewModel（目的地的 ViewModelStoreOwner 不是 Activity，普通 `viewModel()` 拿不到 Hilt 工厂） | T2.7 |
-| 后台 | postcss-html | 2.0.0 | stylelint 解析 `.vue` 的 `<style>` 所需；它是上游的隐式 peer 依赖，pnpm 严格布局下未被提升到根 node_modules，必须显式声明才能跑 `lint:stylelint` | T0.3 |
+| 安卓 | androidx.room:room-runtime / room-ktx / room-compiler | 2.8.5 | 聊天记录本地化的**主数据源**（docs/10 第 1 节）。T2.6 建的骨架，T4.5 落成 message/conversation/sync_state 三张表 | T2.6、T4.5 |
+| 安卓 | org.robolectric:robolectric | 4.17 | 本地库的 DAO 与迁移要 Android 环境，用它在 JVM 上跑真 Room 库（Q0-21）。**注意**：本机 compileSdk 是 37，Robolectric 还没有那版预置 SDK，用 `app/src/test/resources/robolectric.properties` 钉 `sdk=34`；它自己下 android-all jar，所以 testOptions 里把仓库指到了阿里云镜像 | T4.6 |
+| 安卓 | androidx.test:core | 1.7.0 | Robolectric 测试里取 Application（`ApplicationProvider.getApplicationContext()`） | T4.6 |
 
 ## 待确认问题
 
@@ -114,7 +116,8 @@
 | Q0-15 | `ClMiniProfileRow` 的 `blurred`（P09 非会员看不全是谁）用 `Modifier.blur`，但它在 **API 31 以下是空操作**，低版本手机上打码不生效 | 先用着（minSdk 26，Android 12+ 生效）；要全机型都糊就得改成盖一层遮罩或直接换成打码文字。做 P09 时决定 | T2.9、T3.9 | ⏳ 待确认（**2026-10-12 模拟器实测：API 37 上打码正常生效**） |
 | Q0-16 | `ClRangeSlider`（`docs/03` 第 5.5 节）是双滑块，但设计图 07 画的是**单滑块**（原型 HTML 也是一个 `<input type=range>`） | 行为以 `docs/01` P07「双滑块 18~60」为准，实现不改；外观差异（M3 竖条 thumb vs 设计图圆 thumb）留到 T3.8 做 P07 时对着设计图定 | T2.5、T3.8 | ⏳ 待 T3.8 定 |
 | Q0-18 | P14 的「学历」`docs/01` 只写「选择」，没给选项清单（原型里只出现过「本科」「硕士」两个值） | 先定成 `高中及以下 / 大专 / 本科 / 硕士 / 博士` 五项；服务端只校验 `string|max:16` 不限制取值，客户给清单后改客户端常量 `EDUCATION_OPTIONS` 即可 | T3.3 | ⏳ 待确认 |
-| Q0-21 | **Room 的 DAO / 迁移没有自动化测试**：`Room.inMemoryDatabaseBuilder` 和 `MigrationTestHelper` 都要 Android 环境，JVM 单测跑不了，目前只靠 `kapt` 在**编译期**校验 SQL 列名 + 我在模拟器上手工跑了一遍 v1→v2（见 T4.5 记录）。要补自动化测试就得加 **Robolectric**（新依赖，还要处理 `compileSdk 37` 对不上 Robolectric 预置 SDK 的问题，可能要钉 `@Config(sdk = [34])`） | 加不加由你定：不加就保持「编译期校验 + T4.8 走查」，加就记进「新增依赖记录」 | T4.5 起 | ⏳ 待确认 |
+| Q0-22 | **设计图 03 的头像横条第一个是「我的小队」**（一个群组图标），但 `01` P03 的描述只写了「最近联系的 5 个人，点进 P06」，`05` 里也没有任何「小队」接口 | 我按 `01` 做的：横条只放最近联系的 5 个人，没做「我的小队」。如果客户要这个功能，需要补需求（是什么、几个人、在哪建） | T4.6 | ⏳ 待确认 |
+| Q0-21 | ~~**Room 的 DAO / 迁移没有自动化测试**~~（**2026-10-13 已解决**：按你的决定加了 Robolectric，`ChatDaoTest` 11 例 + `ChatMigrationTest` 1 例；迁移用例还做了反向验证 —— 故意写错一列，用例立刻红）：`Room.inMemoryDatabaseBuilder` 和 `MigrationTestHelper` 都要 Android 环境，JVM 单测跑不了，目前只靠 `kapt` 在**编译期**校验 SQL 列名 + 我在模拟器上手工跑了一遍 v1→v2（见 T4.5 记录）。要补自动化测试就得加 **Robolectric**（新依赖，还要处理 `compileSdk 37` 对不上 Robolectric 预置 SDK 的问题，可能要钉 `@Config(sdk = [34])`） | 已加，见「新增依赖记录」 | T4.5 起 | ✅ 已解决 |
 | Q0-20 | **401 之后不会自动回登录页**：`AuthInterceptor` 已经清了登录态，但没有页面跳转（`MainActivity` 只在启动时按 token 决定起始页），用户会停在一个报错的页面上 | 计划和「退出登录 / 切换账号」一起做：在导航层监听 token 是否变空，空了就回登录页。另外退出登录时还要顺手清掉 `UserRepository.clearCurrentUser()`、`UnreadStore.clear()`、`LocalCache.clearMemory()` | T3.10、T6.x | ⏳ 待做 |
 | Q0-19 | 「在线」怎么算？`docs` 没定义多久没活跃算离线（P01 要按在线优先排序、卡片上有在线绿点，P07 有「只看在线」） | 先用 **15 分钟**（`DiscoverRepository::ONLINE_MINUTES`）。这是业务上要调的阈值，客户定了以后要么改常量要么提到 `cl_config` | T3.5 | ⏳ 待确认 |
 | Q0-17 | 注册页要不要也放「我已阅读并同意协议」勾选？`docs/01` P00 只在**登录**那条里要求勾选，「注册」那条只列了字段 | 按文档来：**只在登录页勾选**，注册页不放。客户若要求注册也勾，加一个 `ClCheckboxAgreement` 即可 | T3.1 | ⏳ 待确认 |
@@ -926,6 +929,45 @@
     昵称是空的；
   - 聊天图片的本地文件（`localMediaPath`）字段已经留好，实际落盘在 T4.7 做图片消息时接上；
   - Room 的 DAO/迁移自动化测试见 Q0-21。
+
+### T4.6 消息页（P03）—— ✅ 完成（2026-10-13，含模拟器真机走查）
+
+- 读：`01` P03、设计图 03
+- **先补的 Robolectric（Q0-21，你确认要加）**：本地库的 DAO 与迁移以前只有「编译期校验 + 手工跑一遍」，
+  现在有 `ChatDaoTest`（11 例）和 `ChatMigrationTest`（1 例）。两个值得说的点：
+  - `compileSdk` 是 37，Robolectric 还没有那版预置 SDK，用 `src/test/resources/robolectric.properties` 钉 `sdk=34`；
+  - 它跑测试时要自己下 android-all jar，本机 dl.google / maven central 不通，
+    所以 `testOptions` 里用 `robolectric.dependency.repo.url` 指到阿里云镜像（和 Gradle 用同一套源）。
+  - **迁移用例做了反向验证**：故意把 `updatedAt` 写成 `updated_at`，用例立刻红（Room 的 schema 校验挡住），
+    确认这个测试不是白过的。
+- 页面：新增 `feature/message/`（UiState / ViewModel / Screen / Route），`MainScreen` 把 `TAB_MESSAGE` 从占位换成真页面。
+  自上而下：标题栏（搜索 / 筛选）→ 最近联系人横条 → 功能入口行 → 私信会话列表。
+- **会话列表整体来自本地库**（`ChatRepository.conversations()`）：进页面先显示本地已有的（秒开）、
+  同时静默拉一次服务端刷新；**WebSocket 来了新消息，本地库一变，列表和角标自己就更新**，页面不需要手动刷新。
+  刷新失败时，只有在**本地一条都没有**的情况下才整页报错 —— 本来就有数据时静默失败不该把列表换成错误页。
+- 搜索（按昵称）和「只看未读」都是**本地筛选**（会话本来就没多少条），筛选时收起横条和入口行。
+- **功能入口行的文案只用真数据**：`/user/me` 的 `stats` 带回 `fans` / `visitors` / `unread_visitors`，
+  所以「看看谁喜欢我」显示「有 N 人喜欢了你」、「最近访客」显示「有 N 人看过你的主页」+ 未读角标；
+  **没有数据就不摆文案**（不去写一句「你有新的心动消息」骗人 —— 见全局规则里的毕设假数据诊断）。
+  为此给 `UserProfile` 加了 `ProfileStats`。
+- **「附近的人」入口要切到发现页的「同城」Tab**（`01` P03），但发现页是底部导航里的一个 Tab、状态在自己 ViewModel 里，
+  从别处调不到。新增了一个应用级单例 `DiscoverTabIntent`：P03 写请求 → 切 Tab → 发现页读到请求后切自己的 Tab 并消费掉。
+  传字符串而不是枚举，是因为 `core` 不能依赖 `feature`。
+- **新增组件 `ClSwipeToDelete`**（`01` P03 要求「左滑可删除会话」，`03` 的组件表里没有对应组件）：
+  只允许从右往左滑、无二次确认（删除只是「对自己隐藏」，对方来消息会重新出现）。
+  **踩坑**：前景内容一开始没设不透明背景，真机上底下那层红色的「删除」直接透出来盖在会话行上 ——
+  截图一眼就看出来了，已加 `background(surface)`。这条单测和 lint 都发现不了，只有真机能看出来。
+- 顺手加了 `ClSize.peerStripItem`（头像横条一项的宽度）：`check-ui.sh` 禁止 feature 里出现 `.dp` 字面量，
+  尺寸必须来自 token，所以是按规则加到设计系统里而不是就地写死。
+- 真机走查（模拟器 + 真后端，截图在 `docs/screenshots/`）：
+  1. `t46-p03-message.png`：入口行的数据是真的（「有 2 人喜欢了你」「有 2 人看过你的主页」+ 访客角标 2，来自种子数据）；
+  2. 点「系统消息」→ 占位页（P10 还没做，属预期）；
+  3. **左滑删除会话** → 列表空 → 显示空状态「还没有聊天 / 去发现页找个人打个招呼吧」+ 「去发现页」按钮，底部角标同时消失；
+  4. 用 curl 以小满身份再发一条 → **会话自动重新出现**、摘要变成新消息、未读 1、角标回到 1（`t46-conversation-back.png`）
+     —— 「删除后有新消息会重新出现」这条在客户端侧也通了。
+- 自检：`bash scripts/check-android.sh` → **259 单测 / 0 失败**、lint 0 error、`assembleDebug` 成功、`check-ui.sh` 通过。
+- 留给后面的：搜索/筛选是本地筛选（会话数上万才需要考虑服务端搜索）；「互动通知」暂时和「系统消息」进同一个 P10，
+  等 T6.6 做完 P10 的「互动」分类再分开。
 
 ## 阶段验收记录
 

@@ -4,6 +4,7 @@ import com.qichuang.changliao.core.data.local.UnreadStore
 import com.qichuang.changliao.core.data.model.AppConfig
 import com.qichuang.changliao.core.data.repository.AppConfigRepository
 import com.qichuang.changliao.core.data.repository.ChatRepository
+import com.qichuang.changliao.core.navigation.DiscoverTabIntent
 import com.qichuang.changliao.core.navigation.Routes
 import io.mockk.every
 import io.mockk.mockk
@@ -31,6 +32,7 @@ class MainViewModelTest {
     private val repository = mockk<AppConfigRepository>()
     private val unreadStore = UnreadStore()
     private val chatRepository = mockk<ChatRepository>(relaxed = true)
+    private val discoverTabIntent = DiscoverTabIntent()
 
     @Before
     fun setUp() {
@@ -49,7 +51,7 @@ class MainViewModelTest {
     fun `开关打开时有四个 Tab 且顺序固定`() {
         configFlow.value = config(callEnabled = true)
 
-        val state = MainViewModel(repository, unreadStore, chatRepository).uiState.value
+        val state = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent).uiState.value
 
         assertEquals(
             listOf(MainTab.DISCOVER, MainTab.MATCH, MainTab.MESSAGE, MainTab.MINE),
@@ -61,7 +63,7 @@ class MainViewModelTest {
     fun `开关关闭时只有三个 Tab 且没有速配`() {
         configFlow.value = config(callEnabled = false)
 
-        val state = MainViewModel(repository, unreadStore, chatRepository).uiState.value
+        val state = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent).uiState.value
 
         assertEquals(
             listOf(MainTab.DISCOVER, MainTab.MESSAGE, MainTab.MINE),
@@ -74,7 +76,7 @@ class MainViewModelTest {
     fun `配置还没拿到时按关闭处理`() {
         assertNull(configFlow.value)
 
-        val state = MainViewModel(repository, unreadStore, chatRepository).uiState.value
+        val state = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent).uiState.value
 
         assertEquals(3, state.tabs.size)
         assertEquals(MainTab.DISCOVER, state.selected)
@@ -83,7 +85,7 @@ class MainViewModelTest {
     @Test
     fun `能切到消息 Tab`() {
         configFlow.value = config(callEnabled = true)
-        val viewModel = MainViewModel(repository, unreadStore, chatRepository)
+        val viewModel = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent)
 
         viewModel.onTabSelected(Routes.TAB_MESSAGE)
 
@@ -93,7 +95,7 @@ class MainViewModelTest {
     @Test
     fun `配置刷新后多出速配 Tab 但不打断当前 Tab`() {
         configFlow.value = config(callEnabled = false)
-        val viewModel = MainViewModel(repository, unreadStore, chatRepository)
+        val viewModel = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent)
         viewModel.onTabSelected(Routes.TAB_MESSAGE)
 
         configFlow.value = config(callEnabled = true)
@@ -105,7 +107,7 @@ class MainViewModelTest {
     @Test
     fun `开关关闭时点速配不会切过去`() {
         configFlow.value = config(callEnabled = false)
-        val viewModel = MainViewModel(repository, unreadStore, chatRepository)
+        val viewModel = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent)
 
         viewModel.onTabSelected(Routes.TAB_MATCH)
 
@@ -115,7 +117,7 @@ class MainViewModelTest {
     @Test
     fun `开关打开时点速配能切过去`() {
         configFlow.value = config(callEnabled = true)
-        val viewModel = MainViewModel(repository, unreadStore, chatRepository)
+        val viewModel = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent)
 
         viewModel.onTabSelected(Routes.TAB_MATCH)
 
@@ -126,7 +128,7 @@ class MainViewModelTest {
     @Test
     fun `点不认识的路由不改变当前 Tab`() {
         configFlow.value = config(callEnabled = true)
-        val viewModel = MainViewModel(repository, unreadStore, chatRepository)
+        val viewModel = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent)
 
         viewModel.onTabSelected("user/12")
 
@@ -135,7 +137,7 @@ class MainViewModelTest {
 
     @Test
     fun `没有未读时不显示角标`() {
-        val state = MainViewModel(repository, unreadStore, chatRepository).uiState.value
+        val state = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent).uiState.value
 
         assertTrue(state.badges.isEmpty())
     }
@@ -144,7 +146,7 @@ class MainViewModelTest {
     fun `未读数挂在消息 Tab 上`() {
         unreadStore.set(7)
 
-        val state = MainViewModel(repository, unreadStore, chatRepository).uiState.value
+        val state = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent).uiState.value
 
         assertEquals(mapOf(MainTab.MESSAGE.route to 7), state.badges)
     }
@@ -152,7 +154,7 @@ class MainViewModelTest {
     @Test
     fun `未读数变化角标跟着变`() {
         unreadStore.set(3)
-        val viewModel = MainViewModel(repository, unreadStore, chatRepository)
+        val viewModel = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent)
 
         unreadStore.set(12)
 
@@ -162,7 +164,7 @@ class MainViewModelTest {
     @Test
     fun `未读数清零后角标消失`() {
         unreadStore.set(5)
-        val viewModel = MainViewModel(repository, unreadStore, chatRepository)
+        val viewModel = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent)
 
         unreadStore.clear()
 
@@ -173,7 +175,7 @@ class MainViewModelTest {
     fun `未读数超过 99 原样交给组件`() {
         unreadStore.set(120)
 
-        val state = MainViewModel(repository, unreadStore, chatRepository).uiState.value
+        val state = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent).uiState.value
 
         // 显示成「99+」是 ClBadgeDot 的事，ViewModel 不做截断
         assertEquals(120, state.badges[MainTab.MESSAGE.route])
@@ -183,7 +185,7 @@ class MainViewModelTest {
     fun `负数未读当 0`() {
         unreadStore.set(-3)
 
-        val state = MainViewModel(repository, unreadStore, chatRepository).uiState.value
+        val state = MainViewModel(repository, unreadStore, chatRepository, discoverTabIntent).uiState.value
 
         assertTrue(state.badges.isEmpty())
     }

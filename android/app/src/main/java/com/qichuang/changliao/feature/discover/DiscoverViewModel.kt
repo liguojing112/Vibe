@@ -7,6 +7,7 @@ import com.qichuang.changliao.core.data.model.Gender
 import com.qichuang.changliao.core.data.model.UserProfile
 import com.qichuang.changliao.core.data.repository.DiscoverRepository
 import com.qichuang.changliao.core.data.repository.UserRepository
+import com.qichuang.changliao.core.navigation.DiscoverTabIntent
 import com.qichuang.changliao.core.network.ApiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -29,15 +30,31 @@ import javax.inject.Inject
 class DiscoverViewModel @Inject constructor(
     private val discoverRepository: DiscoverRepository,
     private val userRepository: UserRepository,
+    private val discoverTabIntent: DiscoverTabIntent,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DiscoverUiState())
+
     val uiState: StateFlow<DiscoverUiState> = _uiState.asStateFlow()
 
     /** 当前登录用户 id：缓存键要按用户分（docs/10 第 3 节规则 4），所以先拿到它再拉列表。 */
     private var userId: Long = 0
 
     private var listJob: Job? = null
+
+    init {
+        // P03 的「附近的人」入口会请求切到「同城」（docs/01 P03）。
+        // 请求可能在我们建好之前就写下了 —— StateFlow 会把当前值补给我们，所以不会漏。
+        viewModelScope.launch {
+            discoverTabIntent.pending.collect { apiValue ->
+                if (apiValue == null) {
+                    return@collect
+                }
+                DiscoverTab.entries.firstOrNull { it.apiValue == apiValue }?.let(::onTabSelected)
+                discoverTabIntent.consume()
+            }
+        }
+    }
 
     /**
      * 每次进入页面都调一次（含从 P07 筛选页返回）。

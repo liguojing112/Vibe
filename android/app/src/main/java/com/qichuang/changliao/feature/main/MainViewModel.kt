@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.qichuang.changliao.core.data.local.UnreadStore
 import com.qichuang.changliao.core.data.repository.AppConfigRepository
 import com.qichuang.changliao.core.data.repository.ChatRepository
+import com.qichuang.changliao.core.navigation.DiscoverTabIntent
+import com.qichuang.changliao.core.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,6 +24,7 @@ class MainViewModel @Inject constructor(
     appConfigRepository: AppConfigRepository,
     unreadStore: UnreadStore,
     chatRepository: ChatRepository,
+    private val discoverTabIntent: DiscoverTabIntent,
 ) : ViewModel() {
 
     private val selectedTab = MutableStateFlow(MainTab.DISCOVER)
@@ -49,6 +52,15 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.Eagerly,
             initialValue = MainUiState(visibleTabs(false), MainTab.DISCOVER, emptyMap()),
         )
+
+    /**
+     * P03 的「附近的人」入口：先记下「要切到同城的发现页」，再切到发现 Tab
+     * —— 发现页读到请求后会自己切到「同城」（docs/01 P03）。
+     */
+    fun onDiscoverTabRequested(apiValue: String) {
+        discoverTabIntent.request(apiValue)
+        onTabSelected(Routes.TAB_DISCOVER)
+    }
 
     fun onTabSelected(route: String) {
         MainTab.fromRoute(route)?.let { tab ->

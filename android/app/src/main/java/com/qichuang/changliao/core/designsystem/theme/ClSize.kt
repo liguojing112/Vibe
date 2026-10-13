@@ -22,6 +22,8 @@ data class ClSize(
     val iconM: Dp,
     val iconS: Dp,
     val onlineDot: Dp,
+    /** 头像横条里一项的宽度（P03 的「最近联系」）：比头像略宽一点，昵称才不会挤成一团。 */
+    val peerStripItem: Dp,
     val coverHeight: Dp,
 )
 
@@ -39,5 +41,6 @@ val ClSizes = ClSize(
     iconM = 22.dp,
     iconS = 17.dp,
     onlineDot = 13.dp,
+    peerStripItem = 76.dp,
     coverHeight = 290.dp,
 )

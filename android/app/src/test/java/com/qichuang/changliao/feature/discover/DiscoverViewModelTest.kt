@@ -6,6 +6,7 @@ import com.qichuang.changliao.core.data.model.DiscoverUser
 import com.qichuang.changliao.core.data.model.Gender
 import com.qichuang.changliao.core.data.model.UserProfile
 import com.qichuang.changliao.core.data.repository.DiscoverRepository
+import com.qichuang.changliao.core.navigation.DiscoverTabIntent
 import com.qichuang.changliao.core.data.repository.UserRepository
 import com.qichuang.changliao.core.network.ApiResult
 import com.qichuang.changliao.core.network.NETWORK_ERROR_MESSAGE
@@ -99,7 +100,7 @@ class DiscoverViewModelTest {
         } returns flowOf(ApiResult.Success(page))
     }
 
-    private fun viewModel() = DiscoverViewModel(discoverRepository, userRepository)
+    private fun viewModel() = DiscoverViewModel(discoverRepository, userRepository, DiscoverTabIntent())
 
     @Test
     fun `进入页面拿到列表和余额`() {

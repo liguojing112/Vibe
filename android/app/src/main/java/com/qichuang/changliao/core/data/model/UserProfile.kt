@@ -37,6 +37,7 @@ data class UserProfile(
     val auditing: List<String> = emptyList(),
     @SerialName("coin_balance") val coinBalance: Long? = null,
     @SerialName("point_balance") val pointBalance: Long? = null,
+    val stats: ProfileStats = ProfileStats(),
 ) {
     fun shownAvatar(): String = pending[FIELD_AVATAR] ?: avatar
 
@@ -54,6 +55,21 @@ data class UserProfile(
         const val FIELD_PHOTO = "photo"
     }
 }
+
+/**
+ * `/user/me` 带回的关系统计（docs/05 第 4.2 节）。
+ *
+ * P03 的功能入口行要显示「有 N 人喜欢了你」「有 N 人看过你的主页」和访客未读角标，
+ * 这些数都在这里，不用再单独打接口。
+ */
+@Serializable
+data class ProfileStats(
+    val following: Int = 0,
+    val friends: Int = 0,
+    val fans: Int = 0,
+    val visitors: Int = 0,
+    @SerialName("unread_visitors") val unreadVisitors: Int = 0,
+)
 
 /** 相册里的一张（`audit_status`：0 待审 1 通过 2 驳回）。 */
 @Serializable

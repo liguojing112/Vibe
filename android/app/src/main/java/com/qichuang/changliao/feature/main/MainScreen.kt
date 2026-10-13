@@ -22,6 +22,8 @@ import com.qichuang.changliao.feature.common.DevEntriesPage
 import com.qichuang.changliao.feature.common.DevEntry
 import com.qichuang.changliao.feature.common.PlaceholderPage
 import com.qichuang.changliao.feature.discover.DiscoverRoute
+import com.qichuang.changliao.feature.discover.DiscoverTab
+import com.qichuang.changliao.feature.message.MessageRoute
 
 /**
  * 主界面：底部导航 + Tab 内容（docs/01 第 3 节）。
@@ -65,7 +67,13 @@ fun MainScreen(onOpen: (String) -> Unit) {
                 )
             }
             composable(Routes.TAB_MATCH) { PlaceholderPage(title = "速配（P02）") }
-            composable(Routes.TAB_MESSAGE) { PlaceholderPage(title = "消息（P03）") }
+            composable(Routes.TAB_MESSAGE) {
+                MessageRoute(
+                    onOpenChat = { onOpen(Routes.chat(it)) },
+                    onOpenRoute = onOpen,
+                    onOpenDiscoverCity = { viewModel.onDiscoverTabRequested(DiscoverTab.CITY.apiValue) },
+                )
+            }
             composable(Routes.TAB_MINE) {
                 if (BuildConfig.DEBUG) {
                     // P04「我的」还没做（T5.x），但 P14/P08/P09 已经写完却没有入口，

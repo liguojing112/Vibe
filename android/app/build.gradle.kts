@@ -61,6 +61,21 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    testOptions {
+        unitTests {
+            // Robolectric 要读 App 的资源（Q0-21 的 Room DAO/迁移测试）
+            isIncludeAndroidResources = true
+            all { test ->
+                // Robolectric 会在跑测试时自己去下 android-all jar，本机 dl.google/maven central 不通，
+                // 和 Gradle 一样走阿里云镜像
+                test.systemProperty(
+                    "robolectric.dependency.repo.url",
+                    "https://maven.aliyun.com/repository/public",
+                )
+            }
+        }
+    }
 }
 
 kapt {
@@ -110,6 +125,9 @@ dependencies {
     implementation(libs.coil.network.okhttp)
 
     testImplementation(libs.junit)
+    // Room 的 DAO / 迁移在 JVM 上跑（Robolectric 提供 Android 环境）
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
