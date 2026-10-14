@@ -47,6 +47,7 @@ const TEXT: Record<string, string> = {
   REJECTED: '已驳回',
   VIOLATION: '违规',
   INNOCENT: '无违规',
+  NORMAL: '正常',
   BANNED: '已封禁',
   CANCELLED: '已注销',
   NONE: '未认证',

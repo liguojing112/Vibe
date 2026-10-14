@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ClUserDetailVo } from '../api/user'
 import { detail } from '../api/user'
+import { realNameToken, sourceText } from '../status'
 import { computed, ref, watch } from 'vue'
 import ClAmount from './ClAmount.vue'
 import ClImagePreview from './ClImagePreview.vue'
@@ -87,7 +88,7 @@ watch([() => props.modelValue, () => props.userId], async ([open, id]) => {
             {{ user.education || '—' }}
           </el-descriptions-item>
           <el-descriptions-item label="注册来源">
-            {{ user.source || '—' }}
+            {{ sourceText(user.source) }}
           </el-descriptions-item>
           <el-descriptions-item label="批次号">
             {{ user.batchNo || '—' }}
@@ -127,7 +128,7 @@ watch([() => props.modelValue, () => props.userId], async ([open, id]) => {
             {{ data?.vip.expireAt || '—' }}
           </el-descriptions-item>
           <el-descriptions-item label="实名状态">
-            <ClStatusTag :status="data?.realName.status ?? 'NONE'" />
+            <ClStatusTag :status="realNameToken(data?.realName.status ?? 0)" />
           </el-descriptions-item>
           <el-descriptions-item label="身份证号">
             {{ data?.realName.idCardMask || '—' }}
@@ -165,7 +166,7 @@ watch([() => props.modelValue, () => props.userId], async ([open, id]) => {
             最近 20 条流水
           </div>
           <el-table v-if="logs.length" :data="logs" size="small" border>
-            <el-table-column prop="createdAt" label="时间" width="170" />
+            <el-table-column prop="created_at" label="时间" width="170" />
             <el-table-column prop="title" label="说明" show-overflow-tooltip />
             <el-table-column label="变动" width="120" align="right">
               <template #default="{ row }">

@@ -229,6 +229,28 @@ class PointWalletService
         ];
     }
 
+    /**
+     * 批量查余额（后台的用户列表要一次把整页人都带出来）。
+     *
+     * 读也走这个服务、而不是让别处直接查钱包表：钱相关的读写**只在这一个地方**，
+     * `scripts/check-money.sh` 就是靠这条规矩挡住「绕过钱包服务」的改动。
+     *
+     * @param array<int,int> $userIds
+     * @return array<int,array{balance: int, frozen: int}> userId => 余额
+     */
+    public function summaryOfMany(array $userIds): array
+    {
+        $map = [];
+        foreach ($this->repository->listByUserIds($userIds) as $userId => $wallet) {
+            $map[$userId] = [
+                'balance' => (int) $wallet->balance,
+                'frozen' => (int) $wallet->frozen,
+            ];
+        }
+
+        return $map;
+    }
+
     private function lockWallet(int $userId): PointWallet
     {
         $wallet = $this->repository->lockByUserId($userId);

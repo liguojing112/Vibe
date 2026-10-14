@@ -35,4 +35,24 @@ final class PointWalletRepository extends IRepository
     {
         return $this->model->newQuery()->where('user_id', $userId)->lockForUpdate()->first();
     }
+
+    /**
+     * 批量取钱包（后台列表要一次把整页用户的余额带出来，别 N+1）。
+     *
+     * @param array<int,int> $userIds
+     * @return array<int,PointWallet> userId => 钱包
+     */
+    public function listByUserIds(array $userIds): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($this->model->newQuery()->whereIn('user_id', $userIds)->get() as $wallet) {
+            $map[(int) $wallet->user_id] = $wallet;
+        }
+
+        return $map;
+    }
 }

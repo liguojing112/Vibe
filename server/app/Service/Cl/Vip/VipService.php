@@ -123,8 +123,7 @@ final class VipService
             if ($expireBefore !== null && ! $expireBefore->isFuture()) {
                 $expireBefore = null;
             }
-            $expireAfter = ($expireBefore === null ? Carbon::now() : $expireBefore->copy())
-                ->addDays((int) $plan->days);
+            $expireAfter = self::extendExpire($expireBefore, (int) $plan->days);
 
             $order = $this->orderRepository->create([
                 'order_no' => $clientOrderId,
@@ -155,6 +154,27 @@ final class VipService
         });
 
         return $this->buyPayload($user->id, $order);
+    }
+
+    /**
+     * 算延长之后的会员到期时间：**没过期就在原到期时间上加，过期了（或从来没买过）就从现在算**。
+     *
+     * App 买会员（[buy]）和后台开通会员（`AdminUserService::grantVip`）都要这个算法，
+     * 所以抽出来共用 —— 各写一份迟早会走岔，而后台那份要是误写成「从现在算」，
+     * 用户会平白丢掉还没用完的会员时间。
+     *
+     * 参数不收 `?Carbon` 而收 `DateTimeInterface`：模型上的 `vip_expire_at` 到底是
+     * `Carbon\Carbon` 还是 `Hyperf\Carbon\Carbon` 会跟着底层 cast 变，钉死具体类名两边就传不过来了。
+     */
+    public static function extendExpire(mixed $current, int $days): Carbon
+    {
+        $now = Carbon::now();
+        if (! $current instanceof \DateTimeInterface || $current <= $now) {
+            return $now->addDays($days);
+        }
+
+        // 原样保留原来的时刻（含时区），只加天数
+        return $now->setTimestamp($current->getTimestamp())->addDays($days);
     }
 
     /**

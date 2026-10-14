@@ -188,12 +188,22 @@ class AppAuthService
     }
 
     /**
-     * 取当前有效用户：不存在或已注销返回 null（中间件据此回 401）。
+     * 取当前有效用户：不存在、已注销、**已封禁**都返回 null（中间件据此回 401）。
+     *
+     * 封禁也走 401 是有意的：后台一封号，这个人手上那个 token 就当场不能用了
+     * （docs/08 T7.5「让该用户 token 失效」）。客户端拿到 401 会清登录态回登录页，
+     * 再登录时 `login()` 里的 [assertNotBanned] 会把**原因和解封时间**告诉他 ——
+     * 所以用户仍然看得到为什么被封，不是一句冷冰冰的「登录已失效」。
+     *
+     * 封禁到期后这里仍然返回 null，直到他重新登录一次（那时 [assertNotBanned] 会自动解封）。
      */
     public function findActiveUser(int $userId): ?User
     {
         $user = $this->userRepository->findById($userId);
-        if (! $user instanceof User || $user->status === User::STATUS_CANCELLED) {
+        if (! $user instanceof User
+            || $user->status === User::STATUS_CANCELLED
+            || $user->status === User::STATUS_BANNED
+        ) {
             return null;
         }
         return $user;

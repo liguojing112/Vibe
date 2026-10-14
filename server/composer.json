@@ -64,7 +64,8 @@
     "mineadmin/jwt": "3.2.0",
     "mineadmin/support": "3.2.0",
     "mineadmin/swagger": "3.2.0",
-    "mineadmin/upload": "3.2.0"
+    "mineadmin/upload": "3.2.0",
+    "openspout/openspout": "^5.3"
   },
   "require-dev": {
     "doctrine/dbal": "^4.4",

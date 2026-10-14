@@ -126,6 +126,28 @@ class CoinWalletService
         return $wallet === null ? 0 : (int) $wallet->balance;
     }
 
+    /**
+     * 批量查余额（后台的用户列表要一次把整页人都带出来）。
+     *
+     * 读也走这个服务、而不是让别处直接查钱包表：钱相关的读写**只在这一个地方**，
+     * `scripts/check-money.sh` 就是靠这条规矩挡住「绕过钱包服务」的改动。
+     *
+     * @param array<int,int> $userIds
+     * @return array<int,array{balance: int, totalRecharge: int}> userId => 余额
+     */
+    public function summaryOfMany(array $userIds): array
+    {
+        $map = [];
+        foreach ($this->repository->listByUserIds($userIds) as $userId => $wallet) {
+            $map[$userId] = [
+                'balance' => (int) $wallet->balance,
+                'totalRecharge' => (int) $wallet->total_recharge,
+            ];
+        }
+
+        return $map;
+    }
+
     private function lockWallet(int $userId): CoinWallet
     {
         $wallet = $this->repository->lockByUserId($userId);

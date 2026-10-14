@@ -56,6 +56,8 @@ function submit() {
     <p v-if="props.message" class="cl-reason-dialog__message">
       {{ props.message }}
     </p>
+    <!-- 封禁要选天数、调等级要选等级：这些字段放在原因框上面 -->
+    <slot />
     <el-input
       v-model="reason"
       type="textarea"
