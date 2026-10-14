@@ -42,5 +42,6 @@ internal object MessageRoutes {
     val likedMe: String = Routes.LIKED_ME
     val visitors: String = Routes.VISITORS
     val notices: String = Routes.NOTICES
+    val noticeInteract: String = Routes.NOTICE_INTERACT
     val callRecords: String = Routes.CALL_RECORDS
 }

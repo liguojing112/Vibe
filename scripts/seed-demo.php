@@ -52,6 +52,10 @@ function makeUser(PDO $pdo, array $u): int
 $avatar = static fn (string $name): string => 'https://cdn.example.com/' . $name . '.jpg';
 
 // 男号：登录用这个看发现页
+//
+// ⚠️ 这里的 `level` 是**直接写死的**（真实环境里等级由 `LevelService` 按累计收益算出来），
+// 目的是让演示数据同时覆盖几个等级档位的单价/分成。所以会看到「晚晴 Lv3 而累计收益只有 1244」
+// 这种状态 —— 那正是 `06` §5 允许的「后台手动调整等级」，`checkUpgrade` 不会把她降回去。
 $male = makeUser($pdo, [
     'phone' => '13800000001', 'gender' => 1, 'nickname' => '阿宁', 'avatar' => $avatar('male'),
     'bio' => '慢热但真诚。下班后的快乐是做饭、跑步和一部好电影。', 'birthday' => '1996-03-05',

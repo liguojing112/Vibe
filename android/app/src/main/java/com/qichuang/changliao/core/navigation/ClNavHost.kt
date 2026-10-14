@@ -35,6 +35,7 @@ import com.qichuang.changliao.feature.wallet.WalletRoute
 import com.qichuang.changliao.feature.income.IncomeLevelRoute
 import com.qichuang.changliao.feature.income.IncomeRoute
 import com.qichuang.changliao.feature.realname.RealNameRoute
+import com.qichuang.changliao.core.data.model.NoticeCategory
 import com.qichuang.changliao.feature.notice.NoticeRoute
 import com.qichuang.changliao.feature.relation.VisitorsRoute
 import com.qichuang.changliao.feature.settings.BlockListRoute
@@ -141,6 +142,12 @@ fun ClNavHost(
         }
         composable(Routes.NOTICES) {
             NoticeRoute(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.NOTICE_INTERACT) {
+            NoticeRoute(
+                onBack = { navController.popBackStack() },
+                initialCategory = NoticeCategory.INTERACT,
+            )
         }
         composable(Routes.DAILY_TASK) {
             DailyTaskRoute(

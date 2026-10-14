@@ -263,6 +263,7 @@ private fun EntryRows(
             icon = ClIcons.bell,
             tint = ClTheme.colors.coinText,
             title = "系统消息",
+            badge = state.unreadNotices,
             onClick = { onOpenRoute(MessageRoutes.notices) },
         )
         if (state.callEnabled) {
@@ -281,7 +282,7 @@ private fun EntryRows(
             title = "互动通知",
             desc = "关注、送礼物等互动提醒",
             showDivider = false,
-            onClick = { onOpenRoute(MessageRoutes.notices) },
+            onClick = { onOpenRoute(MessageRoutes.noticeInteract) },
         )
     }
 }

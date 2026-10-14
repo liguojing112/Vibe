@@ -56,6 +56,17 @@ class NoticeViewModelTest {
     }
 
     @Test
+    fun `从互动通知进来时直接拉互动分类`() {
+        val vm = NoticeViewModel(repository)
+
+        vm.enter(NoticeCategory.INTERACT)
+
+        assertEquals(NoticeCategory.INTERACT, vm.uiState.value.category)
+        assertEquals("互动", vm.uiState.value.title)
+        coVerify(exactly = 1) { repository.list(NoticeCategory.INTERACT, 1) }
+    }
+
+    @Test
     fun `切到互动 Tab 会重新拉一次`() {
         val vm = viewModel()
 

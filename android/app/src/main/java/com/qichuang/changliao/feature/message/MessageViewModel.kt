@@ -2,6 +2,7 @@ package com.qichuang.changliao.feature.message
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.qichuang.changliao.core.data.local.UnreadStore
 import com.qichuang.changliao.core.data.model.ProfileStats
 import com.qichuang.changliao.core.data.repository.AppConfigRepository
 import com.qichuang.changliao.core.data.repository.ChatRepository
@@ -29,6 +30,7 @@ class MessageViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val userRepository: UserRepository,
     appConfigRepository: AppConfigRepository,
+    unreadStore: UnreadStore,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -44,8 +46,16 @@ class MessageViewModel @Inject constructor(
     private val error = MutableStateFlow<String?>(null)
 
     /** 进页面 / 下拉刷新时拉一次服务端会话列表（补对方资料、校准未读）。 */
-    private val extras = combine(appConfigRepository.config, userRepository.currentUser) { config, me ->
-        Extras(callEnabled = config?.callEnabled == true, stats = me?.stats ?: ProfileStats())
+    private val extras = combine(
+        appConfigRepository.config,
+        userRepository.currentUser,
+        unreadStore.notice,
+    ) { config, me, unreadNotices ->
+        Extras(
+            callEnabled = config?.callEnabled == true,
+            stats = me?.stats ?: ProfileStats(),
+            unreadNotices = unreadNotices,
+        )
     }
 
     /**
@@ -84,6 +94,7 @@ class MessageViewModel @Inject constructor(
                 fanCount = extra.stats.fans,
                 visitorCount = extra.stats.visitors,
                 unreadVisitors = extra.stats.unreadVisitors,
+                unreadNotices = extra.unreadNotices,
                 callEnabled = extra.callEnabled,
             )
         }.stateIn(
@@ -138,6 +149,8 @@ class MessageViewModel @Inject constructor(
     private fun refresh() {
         viewModelScope.launch {
             refreshing.value = true
+            // 通知的红点只有服务端有，顺路校准一次（docs/01 P03「系统消息」角标）
+            chatRepository.refreshNoticeUnread()
             when (val result = chatRepository.refreshConversations()) {
                 is ApiResult.Success -> {
                     error.value = null
@@ -193,5 +206,6 @@ class MessageViewModel @Inject constructor(
     private data class Extras(
         val callEnabled: Boolean,
         val stats: ProfileStats,
+        val unreadNotices: Int,
     )
 }

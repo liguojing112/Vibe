@@ -113,6 +113,18 @@ final class LevelServiceTest extends TestCase
         self::assertSame(1, Notice::query()->where('user_id', $female->id)->count());
     }
 
+    /**
+     * 后台手动调高等级（`06` §5）后，累计收益低于该级门槛也不能被降回去 —— 只升不降。
+     * 演示数据里的晚晴就是 Lv3 而累计收益只有 1244，真机会看到这个状态。
+     */
+    public function testManualHigherLevelIsNotDowngraded(): void
+    {
+        $female = $this->makeFemale(level: 3, earned: 1244);
+
+        self::assertNull($this->service->checkUpgrade($female));
+        self::assertSame(3, (int) $female->refresh()->level);
+    }
+
     public function testBelowThresholdDoesNotUpgrade(): void
     {
         $female = $this->makeFemale(level: 1, earned: 19999);

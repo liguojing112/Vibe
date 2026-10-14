@@ -11,6 +11,8 @@ import com.qichuang.changliao.core.network.ApiResult
 import com.qichuang.changliao.core.network.ChatApi
 import com.qichuang.changliao.core.network.FakeTokenStore
 import com.qichuang.changliao.core.network.buildTestRetrofit
+import com.qichuang.changliao.core.network.dto.UnreadDto
+import com.qichuang.changliao.core.network.ws.ChatFrame
 import com.qichuang.changliao.core.network.ws.ChatSocket
 import io.mockk.every
 import io.mockk.mockk
@@ -47,6 +49,8 @@ class ChatRepositoryTest {
     private lateinit var conversationDao: FakeConversationDao
     private lateinit var syncStateDao: FakeSyncStateDao
     private lateinit var repository: ChatRepository
+    private lateinit var unreadStore: UnreadStore
+    private lateinit var frames: MutableSharedFlow<ChatFrame>
 
     private val me = 7L
     private val peer = 2L
@@ -62,6 +66,8 @@ class ChatRepositoryTest {
         messageDao = FakeMessageDao()
         conversationDao = FakeConversationDao()
         syncStateDao = FakeSyncStateDao()
+        unreadStore = UnreadStore()
+        frames = MutableSharedFlow(extraBufferCapacity = 8)
 
         val retrofit = buildTestRetrofit(server.url("/").toString(), FakeTokenStore(access = "token"))
         val userRepository = mockk<UserRepository>()
@@ -69,7 +75,7 @@ class ChatRepositoryTest {
 
         // 这个测试不碰连接，只测数据层；socket 给个不出声的替身
         val socket = mockk<ChatSocket>(relaxed = true)
-        every { socket.frames } returns MutableSharedFlow()
+        every { socket.frames } returns frames
         every { socket.connected } returns MutableStateFlow(false)
 
         repository = ChatRepository(
@@ -79,7 +85,7 @@ class ChatRepositoryTest {
             syncStateDao = syncStateDao,
             socket = socket,
             imageUploader = mockk<ImageUploader>(relaxed = true),
-            unreadStore = UnreadStore(),
+            unreadStore = unreadStore,
             userRepository = userRepository,
         )
     }
@@ -385,6 +391,39 @@ class ChatRepositoryTest {
         val request = server.takeRequest()
         assertEquals("/api/v1/chat/read", request.path)
         assertTrue(request.body.readUtf8().contains("\"conversation_id\":5"))
+    }
+
+    // ---------- 通知未读（P03 的「系统消息」红点） ----------
+
+    @Test
+    fun `unread 把服务端的通知未读校准进来`() = runTest {
+        server.enqueue(
+            ok("""{"code":200,"message":"成功","data":{"conversation":3,"visitor":1,"notice":2,"total":6}}"""),
+        )
+
+        repository.refreshNoticeUnread()
+
+        assertEquals(2, unreadStore.notice.value)
+    }
+
+    @Test
+    fun `收到 notice_new 推送先把红点加一`() = runTest {
+        unreadStore.setNotice(1)
+
+        // 服务端发通知时不会顺带推 unread.update（NoticeService::send），
+        // 所以本地不自己加的话，红点要等下次进消息页才会动。
+        repository.onFrame(ChatFrame.NoticeNew)
+
+        assertEquals(2, unreadStore.notice.value)
+    }
+
+    @Test
+    fun `收到新消息推送不改通知红点`() = runTest {
+        unreadStore.setNotice(1)
+
+        repository.onFrame(ChatFrame.UnreadUpdate(UnreadDto(notice = 9)))
+
+        assertEquals(1, unreadStore.notice.value)
     }
 
     // ---------- 工具 ----------

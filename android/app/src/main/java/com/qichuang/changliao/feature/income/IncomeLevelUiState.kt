@@ -25,12 +25,12 @@ data class IncomeLevelUiState(
     /** 进度条用的 0~1（服务端给的是百分比）。 */
     val progress: Float get() = (level?.progressPercent ?: 0) / 100f
 
-    /** 「距离 Lv3 还差 180000 积分」；满级就说满了。 */
+    /** 「距离 Lv4 还差 180000 积分」；满级就说满了。 */
     val progressText: String
         get() = when {
             level == null -> ""
             level.nextLevel == null -> "已经是最高等级"
-            else -> "距离 ${level.name} 的下一级还差 ${MoneyFormat.points(level.pointsToNext)}"
+            else -> "距离 Lv${level.nextLevel} 还差 ${MoneyFormat.points(level.pointsToNext)}"
         }
 
     /** 「10 金币/条」——私信单价按我的等级定。 */

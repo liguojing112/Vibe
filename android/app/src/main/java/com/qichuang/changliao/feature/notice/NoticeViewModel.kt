@@ -30,12 +30,14 @@ class NoticeViewModel @Inject constructor(
 
     private var loaded = false
 
-    fun enter() {
+    /** @param category 进来时停在哪个分类（P03 的「互动通知」入口直接落到「互动」）。 */
+    fun enter(category: NoticeCategory = _uiState.value.category) {
         if (loaded) {
             return
         }
         loaded = true
-        load(category = _uiState.value.category)
+        _uiState.update { it.copy(category = category) }
+        load(category = category)
     }
 
     fun onCategoryChange(category: NoticeCategory) {

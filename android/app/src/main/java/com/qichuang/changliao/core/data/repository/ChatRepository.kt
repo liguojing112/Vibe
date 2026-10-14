@@ -469,13 +469,23 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    /** 未读总览（会话 / 访客 / 通知）。**会话未读以本地库为准**，这里用于校准和服务端对账。 */
+    /**
+     * 未读总览（会话 / 访客 / 通知）。**会话未读以本地库为准**，这里用于校准和服务端对账。
+     *
+     * 会话未读**不**拿服务端这份覆盖（本地库才是权威），但通知未读只有服务端有，
+     * 所以顺手把它校准进 [UnreadStore]。
+     */
     suspend fun unread(): ApiResult<ChatUnread> =
         when (val result = safeApiCall<UnreadDto> { chatApi.unread() }) {
-            is ApiResult.Success -> ApiResult.Success(result.data.toModel())
+            is ApiResult.Success -> ApiResult.Success(result.data.toModel().also { unreadStore.setNotice(it.notice) })
             is ApiResult.BizError -> result
             is ApiResult.NetworkError -> result
         }
+
+    /** 校准 P03「系统消息」的红点（进消息页 / 下拉刷新时调）。 */
+    suspend fun refreshNoticeUnread() {
+        unread()
+    }
 
     /** 收费说明弹窗的条目（服务端按当前配置生成，客户端不拼文案）。 */
     suspend fun feeRules(): ApiResult<List<String>> =
@@ -487,13 +497,21 @@ class ChatRepository @Inject constructor(
 
     // ---------- 内部 ----------
 
-    /** 推送来了：写本地库 + 刷会话摘要。推送的钱是服务端算好的，本地只存不算。 */
-    private suspend fun onFrame(frame: ChatFrame) {
+    /**
+     * 推送来了：写本地库 + 刷会话摘要。推送的钱是服务端算好的，本地只存不算。
+     *
+     * `internal` 是为了能直接单测这条链路（推送收集跑在 IO 线程上，测试里跑不稳）。
+     */
+    internal suspend fun onFrame(frame: ChatFrame) {
         when (frame) {
             is ChatFrame.MessageNew -> store(ownerId(), listOf(frame.message))
             // 未读数以本地库为准（服务端那份和本地是同一份数据的两种视角），
             // 所以这里不直接用推送里的数覆盖 LocalUnreadStore，只把它当作「该刷新了」的信号。
             is ChatFrame.UnreadUpdate -> Unit
+            // 通知未读只有服务端有，本地没有对应数据，所以这里先 +1 顶上，
+            // 打开消息页时再由 `/chat/unread` 校准（服务端发通知时不会顺带发 unread.update，
+            // 见 `NoticeService::send`，所以不接这个事件的话红点永远不动）。
+            ChatFrame.NoticeNew -> unreadStore.bumpNotice()
             ChatFrame.Pong -> Unit
         }
     }

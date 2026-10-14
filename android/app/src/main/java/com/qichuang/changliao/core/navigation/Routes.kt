@@ -48,6 +48,10 @@ object Routes {
     // ---------- P10 系统消息 / P11 每日任务 ----------
 
     const val NOTICES = "message/notices"
+
+    /** P10 直接落在「互动」分类（P03 的「互动通知」入口，docs/01 P03）。 */
+    const val NOTICE_INTERACT = "message/notices/interact"
+
     const val DAILY_TASK = "task/daily"
 
     // ---------- P12 会员 / P13 P22 P24 金币 ----------

@@ -53,8 +53,15 @@ class ChatFrameTest {
     }
 
     @Test
+    fun `notice_new 只认事件本身，不解载荷`() {
+        assertEquals(
+            ChatFrame.NoticeNew,
+            ChatFrame.parse("""{"event":"notice.new","data":{"id":1,"category":2,"title":"收到礼物"}}"""),
+        )
+    }
+
+    @Test
     fun `认不出来的事件丢掉，不抛错`() {
-        assertNull(ChatFrame.parse("""{"event":"notice.new","data":{"id":1}}"""))
         assertNull(ChatFrame.parse("""{"event":"account.banned","data":{"reason":"违规"}}"""))
         assertNull(ChatFrame.parse("""{"event":"","data":{}}"""))
     }

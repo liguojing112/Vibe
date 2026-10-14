@@ -23,6 +23,8 @@ data class MessageUiState(
     val fanCount: Int = 0,
     val visitorCount: Int = 0,
     val unreadVisitors: Int = 0,
+    /** 「系统消息」入口的红点（docs/01 P03）。服务端的 `/chat/unread` 把它算在 `notice` 里。 */
+    val unreadNotices: Int = 0,
     val callEnabled: Boolean = false,
 ) {
 

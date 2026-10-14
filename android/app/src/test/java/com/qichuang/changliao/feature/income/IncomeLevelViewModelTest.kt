@@ -58,7 +58,17 @@ class IncomeLevelViewModelTest {
         assertEquals("Lv3", state.levelText)
         assertEquals("120000 积分", state.earnedText)
         assertEquals(0.1f, state.progress, 0.001f)
-        assertEquals("距离 Lv3 的下一级还差 180000 积分", state.progressText)
+        assertEquals("距离 Lv4 还差 180000 积分", state.progressText)
+    }
+
+    /** 满级时不能说「距离 Lvnull 还差…」（服务端 `next_level` 给 null）。 */
+    @Test
+    fun `满级显示已经是最高等级`() {
+        coEvery { incomeRepository.level() } returns ApiResult.Success(
+            level().copy(level = 5, name = "Lv5", nextLevel = null, pointsToNext = 0, progressPercent = 100),
+        )
+
+        assertEquals("已经是最高等级", viewModel().uiState.value.progressText)
     }
 
     @Test

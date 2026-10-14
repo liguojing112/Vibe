@@ -1,5 +1,6 @@
 package com.qichuang.changliao.feature.message
 
+import com.qichuang.changliao.core.data.local.UnreadStore
 import com.qichuang.changliao.core.data.model.AppConfig
 import com.qichuang.changliao.core.data.model.ChatConversation
 import com.qichuang.changliao.core.data.model.ProfileStats
@@ -39,6 +40,7 @@ class MessageViewModelTest {
     private val chatRepository = mockk<ChatRepository>()
     private val userRepository = mockk<UserRepository>()
     private val appConfigRepository = mockk<AppConfigRepository>()
+    private val unreadStore = UnreadStore()
 
     private val conversations = MutableStateFlow<List<ChatConversation>>(emptyList())
 
@@ -55,6 +57,7 @@ class MessageViewModelTest {
         every { userRepository.currentUser } returns currentUser
         every { appConfigRepository.config } returns config
         coEvery { chatRepository.refreshConversations() } returns ApiResult.Success(Unit)
+        coEvery { chatRepository.refreshNoticeUnread() } returns Unit
         coEvery { userRepository.me() } returns ApiResult.Success(currentUser.value!!)
     }
 
@@ -63,7 +66,25 @@ class MessageViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = MessageViewModel(chatRepository, userRepository, appConfigRepository)
+    private fun viewModel() = MessageViewModel(chatRepository, userRepository, appConfigRepository, unreadStore)
+
+    /** 「系统消息」入口的红点跟着未读通知走（docs/01 P03）。 */
+    @Test
+    fun `系统消息红点跟着通知未读走`() {
+        val vm = viewModel()
+        assertEquals(0, vm.uiState.value.unreadNotices)
+
+        unreadStore.setNotice(3)
+
+        assertEquals(3, vm.uiState.value.unreadNotices)
+    }
+
+    @Test
+    fun `进页面会校准一次通知未读`() {
+        viewModel()
+
+        coVerify(exactly = 1) { chatRepository.refreshNoticeUnread() }
+    }
 
     // ---------- 列表 ----------
 
