@@ -115,6 +115,27 @@ final class AdminUserRepository extends IRepository
         return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) ? $value . ' 23:59:59' : $value;
     }
 
+    /**
+     * 某个前缀下**已经用过的最大编号**（批量开号的账号规则：前缀 + 8 位数字）。
+     *
+     * 从「最大号 + 1」往下发号，而不是随机生成再查重 —— 随机在 10^8 空间里撞车概率虽然低，
+     * 但「撞了要重试」这件事会让「生成的账号一定唯一」变成一个概率保证，而号段是能数出来的。
+     *
+     * @return int 还没用过前缀时（账号里没有 `前缀+8位数字` 这种）返回 0
+     */
+    public function maxAccountNumber(string $prefix): int
+    {
+        $max = 0;
+        $pattern = '/^' . preg_quote($prefix, '/') . '(\d{8})$/';
+        foreach ($this->model->newQuery()->where('account', 'like', $prefix . '%')->pluck('account') as $account) {
+            if (preg_match($pattern, (string) $account, $matches) === 1) {
+                $max = max($max, (int) $matches[1]);
+            }
+        }
+
+        return $max;
+    }
+
     /** 只要传了值就按等值筛；空串 / null 当没传（前端清掉搜索框就会传空串）。 */
     private function exact(Builder $query, string $column, array $filters, string $key): void
     {

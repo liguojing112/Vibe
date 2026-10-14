@@ -143,3 +143,43 @@ export async function exportExcel(data: ClUserSearch): Promise<void> {
   link.click()
   URL.revokeObjectURL(url)
 }
+
+// ---------- 批量开号（docs/07 第 3.3 节） ----------
+
+export interface ClBatchRow {
+  id: number
+  batch_no: string
+  gender: number
+  count: number
+  account_prefix: string
+  operator_name: string
+  remark: string
+  exported: boolean
+  created_at?: string
+}
+
+/** 开号的结果。**`accounts[].password` 只在这个响应里出现一次**，服务端不存。 */
+export interface ClBatchCreateResult {
+  batch_no: string
+  gender: number
+  count: number
+  accounts: Array<{ account: string, nickname: string, password: string }>
+}
+
+export function batchCreate(data: {
+  gender: number
+  count: number
+  prefix?: string
+  remark?: string
+}): Promise<ResponseStruct<ClBatchCreateResult>> {
+  return useHttp().post('/admin/cl/user/batch-create', data)
+}
+
+export function batchList(data: { page?: number, page_size?: number }): Promise<ResponseStruct<PageList<ClBatchRow>>> {
+  return useHttp().get('/admin/cl/user/batch/list', { params: data })
+}
+
+/** 标记这批明文已经导出过了（批次列表的「是否已导出」）。服务端不会再给一次密码。 */
+export function markBatchExported(batchNo: string): Promise<ResponseStruct<object>> {
+  return useHttp().post(`/admin/cl/user/batch/${batchNo}/export`)
+}

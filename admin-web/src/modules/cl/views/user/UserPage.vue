@@ -285,6 +285,21 @@ function afterAction(res: { code: number, message: string }, successText: string
     msg.error(res.message)
   }
 }
+
+/**
+ * 从「批量开号」页点批次号跳过来时带上 `?batch_no=`，这里把它填进搜索框再查一次
+ * （docs/07 第 3.3 节：点击批次号查看批次内账号）。
+ */
+onMounted(async () => {
+  const batchNo = useRoute().query.batch_no
+  if (typeof batchNo !== 'string' || batchNo === '') {
+    return
+  }
+
+  await nextTick()
+  proTableRef.value?.setSearchForm({ batch_no: batchNo })
+  proTableRef.value?.search()
+})
 </script>
 
 <template>
