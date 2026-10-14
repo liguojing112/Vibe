@@ -67,4 +67,52 @@ final class UserPhotoRepository extends IRepository
             ->where('audit_status', UserPhoto::AUDIT_APPROVED)
             ->count();
     }
+
+    /**
+     * 批量通过（后台资料审核里相册那一条通过时用）。
+     *
+     * @param array<int,int> $ids
+     */
+    public function approveByIds(array $ids): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $this->model->newQuery()->whereIn('id', $ids)->update(['audit_status' => UserPhoto::AUDIT_APPROVED]);
+    }
+
+    /**
+     * 批量删除（相册审核被驳回时，把这批待审的照片丢掉）。
+     *
+     * @param array<int,int> $ids
+     */
+    public function deleteByIds(array $ids): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $this->model->newQuery()->whereIn('id', $ids)->delete();
+    }
+
+    /**
+     * 按 id 取 URL（审核列表要把「旧相册 / 新相册」的 id 换成图给前端看）。
+     *
+     * @param array<int,int> $ids
+     * @return array<int,array{id: int, url: string}>
+     */
+    public function listByIds(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $list = [];
+        foreach ($this->model->newQuery()->whereIn('id', $ids)->orderBy('sort')->get() as $photo) {
+            $list[] = ['id' => (int) $photo->id, 'url' => (string) $photo->url];
+        }
+
+        return $list;
+    }
 }

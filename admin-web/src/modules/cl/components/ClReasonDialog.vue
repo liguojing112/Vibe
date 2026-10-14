@@ -12,11 +12,14 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   /** 提交中：按钮转圈并挡住重复点击。 */
   loading?: boolean
+  /** 预填的原因（调用方点「常用原因」时用）；打开时填进去，用户还是可以改。 */
+  defaultReason?: string
 }>(), {
   message: '',
   confirmText: '确定',
   placeholder: '请填写原因（会记入操作日志）',
   loading: false,
+  defaultReason: '',
 })
 
 const emit = defineEmits<{
@@ -32,10 +35,10 @@ const visible = computed({
   set: value => emit('update:modelValue', value),
 })
 
-// 危险操作二次确认，所以每次打开都是干净的：不带上一次填的原因
-watch(() => props.modelValue, (open) => {
+// 危险操作二次确认，所以每次打开都是干净的：不带上一次填的原因（除非调用方指定了预填）
+watch([() => props.modelValue, () => props.defaultReason], ([open]) => {
   if (open) {
-    reason.value = ''
+    reason.value = props.defaultReason ?? ''
     touched.value = false
   }
 })
