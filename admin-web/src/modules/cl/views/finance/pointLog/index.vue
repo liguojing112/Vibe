@@ -1,16 +1,9 @@
 <script setup lang="ts">
+import WalletLogPage from '../WalletLogPage.vue'
+
 defineOptions({ name: 'cl:finance:point-log' })
 </script>
 
 <template>
-  <div class="p-4">
-    <el-card shadow="never">
-      <div class="text-base font-medium">
-        积分流水
-      </div>
-      <div class="mt-2 text-sm text-gray-500">
-        页面待建（T7.6 资金管理）。
-      </div>
-    </el-card>
-  </div>
+  <WalletLogPage :points="true" />
 </template>

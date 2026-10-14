@@ -16,6 +16,8 @@ export interface UserTableActions {
   openVip: (row: ClUserRow) => void
   openGender: (row: ClUserRow) => void
   resetPassword: (row: ClUserRow) => void
+  /** 超管的兜底手段（docs/06 第 8 节）：mode 决定扣金币还是调积分。 */
+  openAdjust: (row: ClUserRow, mode: 'coin' | 'point') => void
 }
 
 export default function getTableColumns(female: boolean, actions: UserTableActions): MaProTableColumns[] {
@@ -159,6 +161,20 @@ export default function getTableColumns(female: boolean, actions: UserTableActio
             icon: 'ri:vip-crown-line',
             show: () => !female && hasAuth('cl:user:vip-grant'),
             onClick: ({ row }) => actions.openVip(row),
+          },
+          {
+            name: 'coinDeduct',
+            text: '扣金币',
+            icon: 'ri:coins-line',
+            show: () => !female && hasAuth('cl:finance:coin-deduct'),
+            onClick: ({ row }) => actions.openAdjust(row, 'coin'),
+          },
+          {
+            name: 'pointAdjust',
+            text: '调整积分',
+            icon: 'ri:star-smile-line',
+            show: () => female && hasAuth('cl:finance:point-adjust'),
+            onClick: ({ row }) => actions.openAdjust(row, 'point'),
           },
           {
             name: 'gender',

@@ -35,6 +35,11 @@ final class AdminActionLog extends MineModel
 
     public const ACTION_PASSWORD = 'PASSWORD';
 
+    /** 后台扣金币 / 调积分（docs/06 第 8 节，只有超管能做）。 */
+    public const ACTION_COIN_DEDUCT = 'COIN_DEDUCT';
+
+    public const ACTION_POINT_ADJUST = 'POINT_ADJUST';
+
     protected ?string $table = 'cl_admin_action_log';
 
     protected array $fillable = [

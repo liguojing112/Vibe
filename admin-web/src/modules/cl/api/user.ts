@@ -66,6 +66,8 @@ export interface ClUserSearch {
   account?: string
   phone?: string
   nickname?: string
+  /** 一句话搜：ID / 账号 / 手机号 / 昵称 里任意一个命中（后台选人用）。 */
+  keyword?: string
   status?: number
   source?: number
   batch_no?: string

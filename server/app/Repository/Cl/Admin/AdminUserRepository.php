@@ -24,7 +24,7 @@ final class AdminUserRepository extends IRepository
 {
     /** 列表和导出共用同一套筛选项，避免两边的条件写歪。 */
     public const FILTER_KEYS = [
-        'id', 'account', 'phone', 'nickname', 'status', 'source', 'batch_no',
+        'id', 'account', 'phone', 'nickname', 'keyword', 'status', 'source', 'batch_no',
         'level', 'real_name_status', 'is_vip', 'created_from', 'created_to',
     ];
 
@@ -72,6 +72,18 @@ final class AdminUserRepository extends IRepository
             ])
             // 男女列表是两个页面，所以 gender 是必传的
             ->where('cl_user.gender', (int) ($filters['gender'] ?? User::GENDER_MALE));
+
+        // 后台「选人」的地方（充值、送会员、封号…）都是一句话搜到底，
+        // 所以除了逐字段精确搜，还有一个 keyword：ID / 账号 / 手机号 / 昵称 里任意一个命中就算
+        $keyword = $filters['keyword'] ?? null;
+        if ($keyword !== null && $keyword !== '') {
+            $kw = (string) $keyword;
+            $query->where(static fn (Builder $q) => $q
+                ->where('cl_user.id', $kw)
+                ->orWhere('cl_user.account', 'like', '%' . $kw . '%')
+                ->orWhere('cl_user.phone', 'like', '%' . $kw . '%')
+                ->orWhere('cl_user.nickname', 'like', '%' . $kw . '%'));
+        }
 
         $this->exact($query, 'cl_user.id', $filters, 'id');
         $this->like($query, 'cl_user.account', $filters, 'account');

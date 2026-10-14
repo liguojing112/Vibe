@@ -3,6 +3,7 @@ import type { MaProTableExpose, MaProTableOptions, MaProTableSchema } from '@min
 import type { Ref } from 'vue'
 import type { ClUserRow } from '../../api/user'
 import * as api from '../../api/user'
+import * as financeApi from '../../api/finance'
 import ClReasonDialog from '../../components/ClReasonDialog.vue'
 import ClUserDrawer from '../../components/ClUserDrawer.vue'
 import getTableColumns from './data/columns'
@@ -220,6 +221,53 @@ async function submitGender(reason: string) {
   }
 }
 
+// ---------- 扣金币 / 调整积分（超管，docs/06 第 8 节）----------
+const adjustVisible = ref(false)
+const adjustTarget = ref<ClUserRow | null>(null)
+const adjustMode = ref<'coin' | 'point'>('coin')
+const adjustAmount = ref(0)
+const adjustReason = ref('')
+const adjustLoading = ref(false)
+
+function openAdjust(row: ClUserRow, mode: 'coin' | 'point') {
+  adjustTarget.value = row
+  adjustMode.value = mode
+  adjustAmount.value = 0
+  adjustReason.value = ''
+  adjustVisible.value = true
+}
+
+async function submitAdjust() {
+  if (adjustAmount.value === 0) {
+    msg.error('数量不能是 0')
+    return
+  }
+  if (adjustReason.value.trim() === '') {
+    msg.error('必须填原因')
+    return
+  }
+
+  adjustLoading.value = true
+  try {
+    const payload = {
+      user_id: adjustTarget.value!.id!,
+      amount: adjustAmount.value,
+      reason: adjustReason.value.trim(),
+    }
+    // 扣金币只接受正数（服务端取绝对值）；调积分正数补发、负数扣减
+    const res = adjustMode.value === 'coin'
+      ? await financeApi.coinDeduct({ ...payload, amount: Math.abs(adjustAmount.value) })
+      : await financeApi.pointAdjust(payload)
+    afterAction(res, adjustMode.value === 'coin' ? '金币已扣减' : '积分已调整')
+    if (res.code === ResultCode.SUCCESS) {
+      adjustVisible.value = false
+    }
+  }
+  finally {
+    adjustLoading.value = false
+  }
+}
+
 // ---------- 导出 ----------
 const exporting = ref(false)
 
@@ -273,6 +321,7 @@ const schema = ref<MaProTableSchema>({
     openVip,
     openGender,
     resetPassword,
+    openAdjust,
   }),
 })
 
@@ -397,6 +446,43 @@ onMounted(async () => {
         </el-form-item>
       </el-form>
     </ClReasonDialog>
+
+    <el-dialog
+      v-model="adjustVisible"
+      :title="adjustMode === 'coin' ? '扣减金币' : '调整积分'"
+      width="460px"
+    >
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        class="mb-3"
+        :title="adjustMode === 'coin'
+          ? '余额不允许扣成负数；每一笔都会写后台动作流水。'
+          : '正数是补发、负数是扣减；补发不计入累计收益，等级不会被顶上去。'"
+      />
+      <el-form label-width="80px">
+        <el-form-item :label="adjustMode === 'coin' ? '扣减数量' : '调整数量'">
+          <el-input-number
+            v-model="adjustAmount"
+            :min="adjustMode === 'coin' ? 1 : -1000000"
+            :max="1000000"
+            controls-position="right"
+          />
+        </el-form-item>
+        <el-form-item label="原因">
+          <el-input v-model="adjustReason" maxlength="200" placeholder="会记入后台动作流水" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="adjustVisible = false">
+          取消
+        </el-button>
+        <el-button type="danger" :loading="adjustLoading" @click="submitAdjust">
+          确认
+        </el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="vipVisible" title="开通会员" width="460px">
       <el-form label-width="80px">
