@@ -38,4 +38,18 @@ class PlatformIncomeService
             'income_date' => Carbon::now()->toDateString(),
         ]);
     }
+
+    /**
+     * 毛收入（分）：全部用整数算，先按汇率换算再相减，不出现浮点。
+     *
+     * 后台「平台收入」页和数据看板都读同一个口径，所以公式只留这一份 ——
+     * 抄一份到看板上的话，哪天汇率算法改了就会出现「两个页面两个数」。
+     */
+    public static function incomeFen(int $coins, int $points, int $coinPerYuan, int $pointPerYuan): int
+    {
+        $coinPerYuan = max(1, $coinPerYuan);
+        $pointPerYuan = max(1, $pointPerYuan);
+
+        return intdiv($coins * 100, $coinPerYuan) - intdiv($points * 100, $pointPerYuan);
+    }
 }

@@ -16,6 +16,7 @@ use App\Repository\Cl\Admin\AdminFinanceRepository;
 use App\Repository\Cl\UserRepository;
 use App\Service\Cl\Chat\Concerns\RetriesTransactions;
 use App\Service\Cl\Wallet\CoinWalletService;
+use App\Service\Cl\Wallet\PlatformIncomeService;
 use App\Service\Cl\Wallet\PointWalletService;
 
 /**
@@ -206,7 +207,7 @@ final class AdminFinanceService
         $totalPoints = 0;
         $totalFen = 0;
         foreach ($list as &$row) {
-            $row['income_fen'] = $this->incomeFen((int) $row['coins'], (int) $row['points'], $coinPerYuan, $pointPerYuan);
+            $row['income_fen'] = PlatformIncomeService::incomeFen((int) $row['coins'], (int) $row['points'], $coinPerYuan, $pointPerYuan);
             $totalCoins += (int) $row['coins'];
             $totalPoints += (int) $row['points'];
             $totalFen += (int) $row['income_fen'];
@@ -219,15 +220,6 @@ final class AdminFinanceService
             'total_points' => $totalPoints,
             'total_income_fen' => $totalFen,
         ];
-    }
-
-    /** 毛收入（分）：全部用整数算，先按汇率换算再相减，不出现浮点。 */
-    private function incomeFen(int $coins, int $points, int $coinPerYuan, int $pointPerYuan): int
-    {
-        $coinPerYuan = max(1, $coinPerYuan);
-        $pointPerYuan = max(1, $pointPerYuan);
-
-        return intdiv($coins * 100, $coinPerYuan) - intdiv($points * 100, $pointPerYuan);
     }
 
     // ---------- 内部 ----------
