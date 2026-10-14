@@ -5,10 +5,10 @@
 
 ## 当前状态
 
-- 当前阶段：**P6 女用户收益、等级、实名、提现、通知、举报**（P5 已完成）
-- 当前任务：T6.7 P6 阶段验收 已完成 → 下一步 T7.1 后台公共组件、菜单与角色种子
+- 当前阶段：**P7 管理后台**（P6 已完成）
+- 当前任务：T7.1 后台公共组件、菜单与角色种子 已完成 → 下一步 T7.2 用户管理（男用户、女用户、用户详情抽屉）
 - 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：**P6 阶段验收（T6.7）通过**。P6 七个任务（等级、实名、提现、通知与举报、P26~P29、P10/P04/P15）全部完成并真机走查。这次阶段验收**抓到并修掉了 3 个跨模块接线的真缺口**：① 服务端推的 `notice.new` **客户端从来没接**（收礼/被关注时对方毫无提示）；② P03「系统消息」入口没有未读数角标；③ P03「互动通知」点进去落在「系统通知」Tab 而不是「互动」。顺带补了一条服务端用例（后台手动调高的等级不会被降回去）和 P27 的进度文案。三端走查：男号 P01 上晚晴 10 币/条 / 星野 8 / 小满 5（等级→单价可见）、P04 另一套菜单（VIP 剩余 30 天、450 金币、无收益无实名）；女号 6264 积分、P26 可提现 ¥62.64、P27 Lv3、P28 只有 50 档亮 + 收款人不可改、P29 已通过打码号无表单、P10 两个 Tab、P15 全入口 + 黑名单空态 + 退出登录直接回登录页；**外部送礼 → 女号 P03 上「系统消息」红点当场冒出来**（纯推送，页面没重进）。`bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；admin lint+build；android **414 单测** + lint + assemble + check-ui）。P6 完成，下一步 P7 管理后台（T7.1 起）。
+- 上次停在哪：T7.1 完成，后台的骨架搭起来了。服务端 `zz_cl_menu_seeder_20261014.php` 种下「畅撩交友」48 个节点（27 页面 + 21 权限码）和客服/财务/审核员 3 个角色 + 3 个账号（`kefu`/`caiwu`/`shenhe`，密码 `123456`）；admin-web 建了 `src/modules/cl/`（7 个公共组件 + 27 个占位页）。**踩到并记录了两个坑**：种子的执行顺序是**按文件名**排的，按 `07` 写的 `cl_menu_seeder.php` 会被后面 `menu_seeder`/`user_seeder` 的 truncate 清掉（所以加了 `zz_` 前缀）；`$this->create()` 不是基类方法而是各菜单种子自带的辅助方法。**验收两条都过了**：admin 看到完整菜单树且页面能打开，客服只看到自己的（没有审核中心、没有批量开号、没有提现审核），连「权限管理/日志/数据中心」三个基础菜单也没露出来。这是**后台前端第一次真的在浏览器里跑起来**（T0.3 那次没验成）。P6 阶段验收记录见「阶段验收记录」。下一步 T7.2 起逐个做后台页面。
 
 ## 任务进度
 
@@ -21,7 +21,7 @@
 - P4：[x] T4.1 [x] T4.2 [x] T4.3 [x] T4.4 [x] T4.5 [x] T4.6 [x] T4.7 [x] T4.8 [x] T4.9（T4.8 = 阶段验收，见「阶段验收记录」）
 - P5：[x] T5.1 [x] T5.2 [x] T5.3 [x] T5.4 [x] T5.5 [x] T5.6 [x] T5.7 [x] T5.8 [x] T5.9（T5.9 = 阶段验收，见「阶段验收记录」）
 - P6：[x] T6.1 [x] T6.2 [x] T6.3 [x] T6.4 [x] T6.5 [x] T6.6 [x] T6.7（T6.7 = 阶段验收，见「阶段验收记录」）
-- P7：[ ] T7.1 [ ] T7.2 [ ] T7.3 [ ] T7.4 [ ] T7.5 [ ] T7.6 [ ] T7.7 [ ] T7.8 [ ] T7.9
+- P7：[x] T7.1 [ ] T7.2 [ ] T7.3 [ ] T7.4 [ ] T7.5 [ ] T7.6 [ ] T7.7 [ ] T7.8 [ ] T7.9
 - P8：[ ] T8.1 [ ] T8.2 [ ] T8.3 —— ⏸ **本期不做**（2026-10-12 客户确认「视频和语音功能先不做」：`feature.call_enabled` 保持 0、所有音视频入口隐藏，P8 三个任务跳过）
 - P9：[ ] T9.1 [ ] T9.2 [ ] T9.3
 
@@ -56,7 +56,13 @@
    - ⚠️ **脚本会先 `DELETE` 这 5 个手机号再重建**，所以**每次重跑 id 都会变**（2026-10-13 跑完是 101~105），
      而且上一次登录拿到的 token 对应的用户已经没了 —— T4.5 真机验证时就踩到：App 里的 token 直接失效。
      **登录 App 之前先跑一次 seed**，别用上次留下的号。
-3. **WebSocket 也要 `adb reverse`**（T4.4 做完了）。后端 WS 服务在 **9502**，地址 `ws://{host}:9502/ws?token={access_token}`
+3. **后台账号**（T7.1 起）。`php bin/hyperf.php db:seed` 会建 4 个后台账号，**密码统一 `123456`**：
+   `admin`（超级管理员，看全部菜单）、`kefu`（客服）、`caiwu`（财务）、`shenhe`（审核员）。
+   角色和菜单在 `server/databases/seeders/zz_cl_menu_seeder_20261014.php` 里配（⚠️ 文件名必须以 `zz_` 开头，原因见该文件头部注释）。
+   启后台：`cd admin-web && pnpm dev`（端口 2888，接口直连 `http://127.0.0.1:9501`，见 `admin-web/.env.development`）。
+   仓库根有 `.claude/launch.json` 可直接让内置浏览器起这个服务；**但内置预览面板只有 342px 宽**，
+   低于 MineAdmin 的 `lg`（1024px）断点，侧边栏会被隐藏 —— 要看菜单观感请用 1024px 以上的窗口自己开。
+5. **WebSocket 也要 `adb reverse`**（T4.4 做完了）。后端 WS 服务在 **9502**，地址 `ws://{host}:9502/ws?token={access_token}`
    （`CL_WS_PORT` 在 `server/.env` 里，默认 9502）。模拟器同 9501 一样连不上 `10.0.2.2`，所以：
    ```bash
    adb reverse tcp:9501 tcp:9501
@@ -64,15 +70,15 @@
    cd android && ./gradlew assembleDebug -PapiBaseUrl=http://127.0.0.1:9501
    ```
    客户端 `WS_URL` 同样要能覆盖（T4.5 做 `ChatSocket` 时按这个来，别再写死 `10.0.2.2`）。
-4. **⚠️ 跑后端测试一定要用 `composer test`（或自己带上 `DB_DATABASE=cl_test REDIS_DB=15`）**：
+6. **⚠️ 跑后端测试一定要用 `composer test`（或自己带上 `DB_DATABASE=cl_test REDIS_DB=15`）**：
    测试库隔离**只靠 `composer test` 脚本里那几个环境变量**（`phpunit.xml.dist` 的 env 元素不生效，见 `09` 第 1.1 节）。
    直接跑 `vendor/bin/phpunit --filter Xxx` 会用**开发库**，而用例里的 `clearAll()` 会删表数据 ——
    T4.5 时「演示账号突然登录不上」就是这个原因（用户被测试删了）。**血泪教训：一律走 `composer test`。**
-5. **⚠️ 新增带注解的类（控制器、命令、定时任务）之后要清一次 `runtime/container` 再启动**：
+7. **⚠️ 新增带注解的类（控制器、命令、定时任务）之后要清一次 `runtime/container` 再启动**：
    注解扫描结果有缓存，不清的话新类**静默不生效**。T4.9 给定时任务踩的这个坑：
    加完 `app/Crontab/CleanExpiredMessagesCrontab.php` 后第一次启动，crontab 一直不触发，
    清掉容器缓存 + 重启（冷启动那一次路由会 404，再启动一次就好，见下一条）之后才正常。
-6. **⚠️ 删了 `runtime/container` 之后第一次启动，注解路由会整片 404**（T4.4 排查出来的）：
+8. **⚠️ 删了 `runtime/container` 之后第一次启动，注解路由会整片 404**（T4.4 排查出来的）：
    `/` 能通、`/api/v1/...` 全 `{"code":500,"message":"Not Found"}`。原因是 Hyperf 的注解扫描在**子进程**里做，
    父进程不等它 —— 冷缓存那一次启动，swagger 注册注解路由时 `AnnotationCollector` 还是空的，于是路由表里一条都没有；
    扫描结果会写进 `runtime/container/scan.cache`，**再启动一次就好了**（热缓存）。
@@ -1688,6 +1694,57 @@
   （`ChatFrameTest` 原来**断言 `notice.new` 被丢掉**，`MessageViewModelTest` 构造参数）。
   服务端新增 1 条。
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
+  admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
+
+### T7.1 后台公共组件、菜单与角色种子 —— ✅ 完成（2026-10-14）
+
+- 读：`07` 第 1、2、4 节（自检项 `S` `A`）
+- 服务端新增 `server/databases/seeders/zz_cl_menu_seeder_20261014.php`：`07` §1 那棵「畅撩交友」菜单树
+  （**27 个页面 + 21 个只做权限判断的按钮码**，共 48 个节点）+ 客服/财务/审核员 3 个角色和 3 个登录账号
+  （`kefu` / `caiwu` / `shenhe`，密码和 admin 一样都是 `123456`）。
+- **踩到一个只有真跑 `db:seed` 才会发现的坑：种子是「按文件名排序」执行的。**
+  `Seed::getSeederName()` 返回的是**文件名的 basename**（不是类名 —— 虽然它长得像类名，
+  因为 `Str::studly()` 正好能把 `menu_seeder_20240926` 变成 `MenuSeeder20240926`，容易看错），
+  然后 `sortBy` 排序。而：
+  - `menu_seeder_20240926.php` 里有 `Menu::truncate()`，
+  - `user_seeder_20240926.php` 里有 `Role::truncate()` + `User::truncate()`。
+  `cl_*` 开头的名字排在 `menu_seeder_*` **前面**，所以按 `07` §1 写的 `cl_menu_seeder.php` 命名的话，
+  这里建好的菜单和角色会被后面两个种子**清掉**（而且 `db:seed` 全部报「Seeded」，一声不吭）。
+  改法：文件名前面加 `zz_`（`z` 比 `m`/`u` 都大，排在最后跑），并在文件头把原因写清楚。
+  上游自己后加菜单用的 `menu_update_*` 也是同一个思路。
+- 另一个坑：**`$this->create()` 不是 `Seeder` 基类的方法**，是 `menu_seeder_20240926.php` 里
+  **自己定义**的一个递归插入辅助方法（在文件第 360 行，我只读了前 80 行就被它坑了一次：
+  照着写 `$this->create($this->data())` 直接 `Call to undefined method`）。
+  各菜单种子各带一份，这里也照抄一份。
+- **验证方式是新建一个空库跑完整的 `migrate` + `db:seed`**（`cl_seedtest`，也是安装脚本走的那条路），
+  而不是在开发库上试 —— 这样既验证了从零安装，又不会把开发库的菜单/角色弄坏。
+- admin-web 新增 `src/modules/cl/`：
+  - `components/`：`ClUserCell`、`ClUserDrawer`、`ClAmount`、`ClStatusTag`、`ClImagePreview`、
+    `ClReasonDialog`、`ClConfigForm` 七个（`07` §2）。`ClStatusTag` 的颜色口径按 `03` §8 第 5 条写死
+    （待处理橙 / 成功绿 / 驳回红 / 关闭灰），英文枚举名和中文都认，认不出来按灰处理 ——
+    后端以后加新状态不会画错颜色。
+  - `api/user.ts`（详情接口，`ClUserDrawer` 用）、`types.ts`（跨页面共用的两个类型）。
+  - **27 个占位页**（`views/*/index.vue`）：菜单里的 `component` 路径必须指向真实文件，
+    否则 `useRouteStore` 拿不到组件，点进去是**空白**（它只是不注册路由，不会报错）。
+    占位页写明「页面待建（T7.x）」，各任务做到时替换掉。
+  - 组件**不会被自动导入**（`vite/components.ts` 里 `dirs` 只有 `src/components`），页面里要显式 `import`。
+- 验收（docs/08 要求的两条）——**后台前端第一次真的在浏览器里跑起来**（T0.3 那次只跑了构建，
+  没验成「浏览器登录看到菜单」，这次补上了）：
+  | 账号 | 结果 |
+  |---|---|
+  | `admin`（超管） | 侧边栏出现「畅撩交友」，展开是**数据看板 / 用户管理 / 审核中心 / 聊天管理 / 资金管理 / 运营配置**；运营配置下 11 个子页全在；点「数据看板」→ 路由 `#/cl/dashboard`、内容区渲染出占位页（说明 `component` 路径映射是通的） |
+  | `kefu`（客服） | **只有** 数据看板 / 用户管理 / 聊天管理 / 资金管理 / 运营配置，**没有「审核中心」**；用户管理下只有男用户、女用户（**没有批量开号**）；聊天管理下只有举报处理；资金管理下只有后台充值/充值记录/金币流水/积分流水（**没有提现审核和平台收入**）；运营配置下只有系统通知 |
+  | `kefu` 看不到的 | 「权限管理 / 日志管理 / 数据中心」三个基础菜单也没露出来 —— 说明是按角色过滤的，不是把所有菜单都发下来 |
+- **这一轮的走查方式有个限制**：内置预览面板只有 342px 宽，低于 MineAdmin 的 `lg`（1024px）断点，
+  侧边栏被整个隐藏（不是抽屉），所以**没截到能看清菜单树的图**。上面那张表是用
+  `preview_eval` 读渲染后的 DOM 得到的（比截图更准，能确切看到每一项）。
+  要看观感的话，把浏览器窗口拉到 1024px 以上自己开一次即可（`cd admin-web && pnpm dev`，默认 `admin/123456`）。
+- 顺手建了 `.claude/launch.json`（在 `C:\Workspace\android\vibe\.claude\`，内置浏览器按这个路径找），
+  里面是后台前端的启动配置，以后 P7 各任务走查直接用。
+- 服务端新增 6 条用例（`tests/Feature/Cl/Admin/ClMenuSeederTest.php`）：3 个角色各自**该有的有、不该有的没有**、
+  父级分组跟着子菜单一起给（少给的话前端建不出树）、权限码不重名。种子文件在全局命名空间、
+  没进 composer autoload，所以用例里 `require_once` 一次再跑 —— 和 `db:seed` 是同一份代码。
+  `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **443 测试 / 2657 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
 ## 阶段验收记录
