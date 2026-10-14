@@ -112,4 +112,34 @@ final class NoticeRepository extends IRepository
             ->map(static fn ($id): int => (int) $id)
             ->all();
     }
+
+    /**
+     * 后台「已发布」列表（docs/07 第 3.20 节）：只列**后台从这里发出去的**那些
+     * （全员公告 + 定向发送），用户正常的系统通知不混进来。
+     *
+     * @param array<int,string> $bizTypes
+     * @return array{list: array<int,array<string,mixed>>, total: int}
+     */
+    public function pageByBizTypes(array $bizTypes, int $page, int $pageSize): array
+    {
+        $query = $this->model->newQuery()->whereIn('biz_type', $bizTypes);
+
+        $total = (clone $query)->count();
+        $rows = $query->orderByDesc('id')->offset(($page - 1) * $pageSize)->limit($pageSize)->get();
+
+        $list = [];
+        foreach ($rows as $row) {
+            $list[] = [
+                'id' => (int) $row->id,
+                'user_id' => (int) $row->user_id,
+                'title' => (string) $row->title,
+                'content' => (string) $row->content,
+                'biz_type' => (string) $row->biz_type,
+                'created_at' => $row->created_at?->toDateTimeString(),
+            ];
+        }
+
+        return ['list' => $list, 'total' => $total];
+    }
+
 }

@@ -1,16 +1,13 @@
 <script setup lang="ts">
+import ConfigGroupPage from '../ConfigGroupPage.vue'
+
 defineOptions({ name: 'cl:operation:feature' })
 </script>
 
 <template>
-  <div class="p-4">
-    <el-card shadow="never">
-      <div class="text-base font-medium">
-        功能开关
-      </div>
-      <div class="mt-2 text-sm text-gray-500">
-        页面待建（T7.7 运营配置）。
-      </div>
-    </el-card>
-  </div>
+  <ConfigGroupPage
+    :groups="['feature']"
+    title="功能开关"
+    subtitle="语音/视频开关打开后 App 只显示入口，点拨打会提示「功能暂未开放」——本轮不做音视频。"
+  />
 </template>

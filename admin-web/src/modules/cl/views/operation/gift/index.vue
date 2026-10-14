@@ -1,16 +1,17 @@
 <script setup lang="ts">
+import CatalogPage from '../CatalogPage.vue'
+
 defineOptions({ name: 'cl:operation:gift' })
 </script>
 
 <template>
-  <div class="p-4">
-    <el-card shadow="never">
-      <div class="text-base font-medium">
-        礼物管理
-      </div>
-      <div class="mt-2 text-sm text-gray-500">
-        页面待建（T7.7 运营配置）。
-      </div>
-    </el-card>
-  </div>
+  <CatalogPage
+    entity="gift"
+    title="礼物管理"
+    subtitle="图标可以填 emoji（如 🌹），也可以填上传后的图片地址。停用只是不让新的选，历史记录不受影响。"
+    has-icon
+    :fields="[
+      { key: 'price_coins', label: '价格(金币)', type: 'number', min: 0 },
+    ]"
+  />
 </template>

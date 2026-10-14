@@ -20,4 +20,15 @@ final class ConfigRepository extends IRepository
     {
         return $this->model->newQuery()->where('key', $key)->first();
     }
+
+    /**
+     * 某个分组的全部配置项（后台按分组铺表单）。
+     *
+     * @return \Hyperf\Database\Model\Collection<int,Config>
+     */
+    public function listByGroup(string $group): \Hyperf\Database\Model\Collection
+    {
+        return $this->model->newQuery()->where('group', $group)->orderBy('key')->get();
+    }
+
 }
