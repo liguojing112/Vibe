@@ -122,6 +122,21 @@ final class NoticeService
         );
     }
 
+    /**
+     * 举报处理结果（docs/07 第 3.9 节：处理后通知举报人）。
+     *
+     * 无论判不判违规都要告诉举报人一声 —— 举报了没下文，下次就没人举报了。
+     */
+    public function reportHandled(int $reporterId, string $targetNickname, bool $violation, string $remark): Notice
+    {
+        $title = $violation ? '举报已处理' : '举报已核实';
+        $content = $violation
+            ? sprintf('你举报的「%s」已被判定违规，我们会继续跟进。%s', $targetNickname, $remark === '' ? '' : '处理说明：' . $remark)
+            : sprintf('你举报的「%s」经核实未发现违规。%s', $targetNickname, $remark === '' ? '' : '处理说明：' . $remark);
+
+        return $this->send($reporterId, Notice::CATEGORY_SYSTEM, $title, $content, 'REPORT');
+    }
+
     // ---------- 列表与已读（P10） ----------
 
     /**

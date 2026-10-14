@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -39,6 +40,19 @@ class SessionViewModel @Inject constructor(
             started = SharingStarted.Eagerly,
             initialValue = tokenStore.accessToken() != null,
         )
+
+    init {
+        // 被封号：服务端推 `account.banned`（docs/08 T7.5），这里把 token 清掉 ——
+        // 导航层盯着 `loggedIn`，一空就清本地状态并回登录页（和 401 / 退出登录走同一条路）。
+        // 封禁原因不用在这里显示：回到登录页再登录时，服务端会用 10004 把原因和到期时间一次说清。
+        viewModelScope.launch {
+            chatRepository.banned.collect { banned ->
+                if (banned != null) {
+                    tokenStore.clear()
+                }
+            }
+        }
+    }
 
     /**
      * 退出登录 / 注销 / 401 之后清本地状态。

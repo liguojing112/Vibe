@@ -426,6 +426,17 @@ class ChatRepositoryTest {
         assertEquals(1, unreadStore.notice.value)
     }
 
+    /** 封号：数据层只负责**记下来**，「清登录态、回登录页」交给 SessionViewModel。 */
+    @Test
+    fun `收到封号推送会记下来`() = runTest {
+        assertNull(repository.banned.value)
+
+        repository.onFrame(ChatFrame.AccountBanned("发布违规内容", "2026-11-01 00:00:00"))
+
+        assertEquals("发布违规内容", repository.banned.value?.reason)
+        assertEquals("2026-11-01 00:00:00", repository.banned.value?.until)
+    }
+
     // ---------- 工具 ----------
 
     private fun ok(body: String) = MockResponse().setResponseCode(200).setBody(body)

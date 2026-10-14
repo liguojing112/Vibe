@@ -41,6 +41,31 @@ final class SensitiveWordService
         return false;
     }
 
+    /**
+     * 命中了哪几个词（后台待审消息要**把命中的词标红**，docs/07 第 3.7 节）。
+     *
+     * 消息表上只存了「有没有命中」，没存命中的是哪几个 —— 那是会跟着词库变的，
+     * 存下来的话删了个词它还在。所以这里用**当前**词库现算。
+     *
+     * @return array<int,string>
+     */
+    public function matches(string $content): array
+    {
+        $content = trim($content);
+        if ($content === '') {
+            return [];
+        }
+
+        $hits = [];
+        foreach ($this->words() as $word) {
+            if (mb_strpos($content, $word) !== false) {
+                $hits[] = $word;
+            }
+        }
+
+        return $hits;
+    }
+
     /** 后台改词库后调一次（测试里也用它清缓存）。 */
     public function flush(): void
     {

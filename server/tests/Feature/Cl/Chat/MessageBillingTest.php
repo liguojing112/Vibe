@@ -354,9 +354,22 @@ final class MessageBillingTest extends TestCase
         self::assertSame(1, $result['message']['sensitive_hit']);
         self::assertSame(1, Message::query()->count(), '命中敏感词也照常送达');
 
+        // 命中的消息要进后台待审队列（`04` 第 3 节「只标记不拦截」）。
+        // 这两个字段**必须一起写**：只写 sensitive_hit 的话，后台审核中心那一页永远是空的。
+        self::assertSame(
+            Message::REVIEW_PENDING,
+            (int) Message::query()->firstOrFail()->review_status,
+            '命中的消息要进待审队列',
+        );
+
         // 正常内容不打标
         $clean = $this->send($male, $female, '很干净的内容');
         self::assertSame(0, $clean['message']['sensitive_hit']);
+        self::assertSame(
+            Message::REVIEW_NONE,
+            (int) Message::query()->orderByDesc('id')->firstOrFail()->review_status,
+            '没命中的不用审',
+        );
     }
 
     // ---------- 场景 17~19：升级 ----------

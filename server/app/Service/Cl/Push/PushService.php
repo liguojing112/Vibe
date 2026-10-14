@@ -30,6 +30,9 @@ final class PushService
 
     public const EVENT_NOTICE_NEW = 'notice.new';
 
+    /** 账号被封（docs/08 T7.5）：客户端收到就把本地登录态清掉、回登录页。 */
+    public const EVENT_ACCOUNT_BANNED = 'account.banned';
+
     public const EVENT_PONG = 'pong';
 
     /** 无效 token 断开时的业务关闭码（4000~4999 是应用自定义区间）。 */
@@ -119,6 +122,25 @@ final class PushService
             'biz_type' => $notice->biz_type,
             'biz_id' => $notice->biz_id === null ? null : (int) $notice->biz_id,
             'created_at' => $notice->created_at?->toDateTimeString(),
+        ]);
+    }
+
+    /**
+     * 封号：推给这个人的所有在线连接（多设备都推）。
+     *
+     * 载荷带上原因和到期时间 —— 客户端拿到就用来提示，不用再回查（它这会儿也已经调不动接口了）。
+     * 这只是**体验**上的即时踢下线；真正的闸在鉴权那层：封禁之后 `findActiveUser` 返回 null，
+     * 每个接口都 401（`docs/08` T7.5 的「让该用户 token 失效」）。
+     */
+    public function accountBanned(User $user, string $reason, ?string $banUntil): void
+    {
+        if (! $this->registry->isOnline($user->id)) {
+            return;
+        }
+
+        $this->toUser($user->id, self::EVENT_ACCOUNT_BANNED, [
+            'reason' => $reason,
+            'until' => $banUntil,
         ]);
     }
 

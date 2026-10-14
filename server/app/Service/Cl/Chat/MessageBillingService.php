@@ -97,6 +97,7 @@ final class MessageBillingService
                 $points = $sender->isMale() ? $this->pricingService->pointsFor($quote->price, $shareRate) : 0;
 
                 // ⑤ 先落消息：扣费的流水要用消息 id 当 ref
+                $sensitiveHit = $this->sensitiveWordService->hit($content);
                 $message = $this->messageRepository->create([
                     'conversation_id' => $conversation->id,
                     'sender_id' => $sender->id,
@@ -109,7 +110,11 @@ final class MessageBillingService
                     'receiver_level' => $quote->receiverLevel,
                     'share_rate' => $sender->isMale() ? $shareRate : null,
                     'receiver_points' => $points,
-                    'sensitive_hit' => $this->sensitiveWordService->hit($content) ? 1 : 0,
+                    'sensitive_hit' => $sensitiveHit ? 1 : 0,
+                    // 命中的消息进后台待审队列（docs/07 第 3.7 节）。
+                    // **这两个字段必须一起写**：只写 sensitive_hit 的话，
+                    // 后台「待审消息」永远是空的（它按 review_status 筛）。
+                    'review_status' => $sensitiveHit ? Message::REVIEW_PENDING : Message::REVIEW_NONE,
                 ]);
 
                 // ④ 收费相关的动作

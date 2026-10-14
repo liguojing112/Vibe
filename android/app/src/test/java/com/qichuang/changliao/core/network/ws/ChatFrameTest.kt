@@ -8,8 +8,7 @@ import org.junit.Test
 /**
  * 服务端推下来的一帧怎么解析（T4.5 / docs/05 第 5 节）。
  *
- * 这里最要紧的一条是**认不出来就丢**：服务端以后加新事件（比如 P6 的 `notice.new`、
- * `account.banned`），现在这版客户端不能因此崩掉或者断开。
+ * 这里最要紧的一条是**认不出来就丢**：服务端以后加新事件，现在这版客户端不能因此崩掉或者断开。
  */
 class ChatFrameTest {
 
@@ -60,9 +59,20 @@ class ChatFrameTest {
         )
     }
 
+    /** 封号：原因和到期时间要带过来（docs/08 T7.5）；永久封禁时 `until` 是 null。 */
+    @Test
+    fun `account_banned 带上原因和解封时间`() {
+        val frame = ChatFrame.parse("""{"event":"account.banned","data":{"reason":"发布违规内容","until":"2026-11-01 00:00:00"}}""")
+
+        assertEquals(ChatFrame.AccountBanned("发布违规内容", "2026-11-01 00:00:00"), frame)
+
+        val forever = ChatFrame.parse("""{"event":"account.banned","data":{"reason":"屡教不改","until":null}}""")
+        assertEquals(ChatFrame.AccountBanned("屡教不改", null), forever)
+    }
+
     @Test
     fun `认不出来的事件丢掉，不抛错`() {
-        assertNull(ChatFrame.parse("""{"event":"account.banned","data":{"reason":"违规"}}"""))
+        assertNull(ChatFrame.parse("""{"event":"friend.request","data":{"id":1}}"""))
         assertNull(ChatFrame.parse("""{"event":"","data":{}}"""))
     }
 

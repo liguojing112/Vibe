@@ -20,6 +20,7 @@ use App\Repository\Cl\VipOrderRepository;
 use App\Repository\Cl\VipPlanRepository;
 use App\Service\Cl\Chat\Concerns\RetriesTransactions;
 use App\Service\Cl\Notice\NoticeService;
+use App\Service\Cl\Push\PushService;
 use App\Service\Cl\Vip\VipService;
 use App\Service\Cl\Wallet\CoinWalletService;
 use App\Service\Cl\Wallet\PointWalletService;
@@ -57,6 +58,7 @@ final class AdminUserService
         private readonly VipPlanRepository $vipPlanRepository,
         private readonly VipOrderRepository $vipOrderRepository,
         private readonly NoticeService $noticeService,
+        private readonly PushService $pushService,
     ) {}
 
     // ---------- 读 ----------
@@ -182,6 +184,10 @@ final class AdminUserService
 
             $this->noticeService->banned($user->id, $reason, $days > 0 ? $days : null);
         });
+
+        // 事务提交之后再推：封禁要**当场**把人踢下线（docs/08 T7.5），
+        // 放在事务里推的话，万一后面回滚了，用户已经被踢了但号其实没封。
+        $this->pushService->accountBanned($user, $reason, $until?->toDateTimeString());
     }
 
     public function unban(AdminUser $operator, int $id, string $reason): void

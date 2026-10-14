@@ -188,6 +188,37 @@ final class PushServiceTest extends TestCase
     }
 
     /**
+     * 封号推送（docs/08 T7.5）：安卓端按这个事件名和载荷清登录态、回登录页，
+     * 名字写错了客户端会当未知事件丢掉 —— 那就变成「封了号但人还在线上」。
+     */
+    public function testAccountBannedCarriesReasonAndUntil(): void
+    {
+        $this->registry()->attach(101, 7);
+
+        /** @var User $user */
+        $user = new User(['id' => 7]);
+        $this->push()->accountBanned($user, '发布违规内容', '2026-11-01 00:00:00');
+
+        self::assertSame('account.banned', $this->payload(0)['event']);
+        self::assertSame(
+            ['reason' => '发布违规内容', 'until' => '2026-11-01 00:00:00'],
+            $this->payload(0)['data'],
+        );
+    }
+
+    /** 永久封禁时 `until` 是 null（客户端据此显示「永久」）。 */
+    public function testAccountBannedForeverHasNullUntil(): void
+    {
+        $this->registry()->attach(101, 7);
+
+        /** @var User $user */
+        $user = new User(['id' => 7]);
+        $this->push()->accountBanned($user, '屡教不改', null);
+
+        self::assertNull($this->payload(0)['data']['until']);
+    }
+
+    /**
      * **推不出去不能抛**：fd 是假的（客户端已经断了 / 这条连接不在当前 worker），
      * 真实环境里 `Sender` 会失败甚至抛异常，业务必须照常往下走。
      */

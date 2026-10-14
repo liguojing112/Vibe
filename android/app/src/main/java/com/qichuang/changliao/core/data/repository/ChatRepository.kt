@@ -40,6 +40,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -82,6 +85,17 @@ class ChatRepository @Inject constructor(
     private val syncMutex = Mutex()
 
     private var started = false
+
+    private val _banned = MutableStateFlow<ChatFrame.AccountBanned?>(null)
+
+    /**
+     * 账号被封的信号（docs/08 T7.5）。
+     *
+     * 服务端封号时会推 `account.banned`；这一层只负责**收到并记下来**，
+     * 「清登录态、回登录页」是上层的事（`SessionViewModel`）——
+     * 数据层不该知道 token 存在哪。
+     */
+    val banned: StateFlow<ChatFrame.AccountBanned?> = _banned.asStateFlow()
 
     /**
      * 开始实时同步（幂等）。登录后在主界面调一次。
@@ -512,6 +526,12 @@ class ChatRepository @Inject constructor(
             // 打开消息页时再由 `/chat/unread` 校准（服务端发通知时不会顺带发 unread.update，
             // 见 `NoticeService::send`，所以不接这个事件的话红点永远不动）。
             ChatFrame.NoticeNew -> unreadStore.bumpNotice()
+            // 封号：把这件事交给上层（`SessionViewModel` 收到就清登录态），
+            // 顺便断开连接 —— 号都封了，挂着也没意义
+            is ChatFrame.AccountBanned -> {
+                _banned.value = frame
+                socket.stop()
+            }
             ChatFrame.Pong -> Unit
         }
     }

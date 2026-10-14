@@ -104,6 +104,17 @@ data class SyncDataDto(
     val unread: UnreadDto = UnreadDto(),
 )
 
+/**
+ * `account.banned` 推送的载荷（docs/08 T7.5）。
+ *
+ * `until` 为 null 表示永久封禁。
+ */
+@Serializable
+data class AccountBannedDto(
+    val reason: String = "",
+    val until: String? = null,
+)
+
 /** 进聊天页的返回（docs/05 第 4.5 节）：会话 id 可能为 null（第一次发消息时才建）+ 收费信息。 */
 @Serializable
 data class ChatEntryDto(
