@@ -2,6 +2,7 @@ package com.qichuang.changliao.core.designsystem.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +24,8 @@ import com.qichuang.changliao.core.designsystem.theme.ClTheme
 /**
  * 主按钮（docs/03 第 5.2 节）：黄底、`buttonHeight`、胶囊形。
  * 请求中显示 loading 并禁用（docs/03 第 6 节第 4 条）。
+ *
+ * [onLongClick] 只给 P17 的「确认拨打」用：**debug 包里**长按进 P18 演示（docs/01 P17）。
  */
 @Composable
 fun ClPrimaryButton(
@@ -32,6 +35,7 @@ fun ClPrimaryButton(
     enabled: Boolean = true,
     loading: Boolean = false,
     fillMaxWidth: Boolean = true,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val clickable = enabled && !loading
@@ -41,7 +45,17 @@ fun ClPrimaryButton(
             .height(ClTheme.size.buttonHeight)
             .clip(ClTheme.shapes.pill)
             .background(if (clickable) ClTheme.colors.primary else ClTheme.colors.line)
-            .clickable(enabled = clickable, onClick = onClick)
+            .then(
+                if (onLongClick == null) {
+                    Modifier.clickable(enabled = clickable, onClick = onClick)
+                } else {
+                    Modifier.combinedClickable(
+                        enabled = clickable,
+                        onLongClick = onLongClick,
+                        onClick = onClick,
+                    )
+                },
+            )
             .padding(horizontal = ClTheme.spacing.l),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,

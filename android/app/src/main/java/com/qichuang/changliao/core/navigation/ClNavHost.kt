@@ -7,8 +7,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,9 +20,14 @@ import com.qichuang.changliao.core.designsystem.theme.ClTheme
 import com.qichuang.changliao.feature.auth.AgreementRoute
 import com.qichuang.changliao.feature.auth.LoginRoute
 import com.qichuang.changliao.feature.auth.RegisterRoute
+import com.qichuang.changliao.core.data.model.CallKind
+import com.qichuang.changliao.feature.call.CallBillRoute
+import com.qichuang.changliao.feature.call.CallConfirmRoute
+import com.qichuang.changliao.feature.call.CallInProgressRoute
+import com.qichuang.changliao.feature.call.CallRecordsRoute
+import com.qichuang.changliao.feature.call.CallWaitingRoute
 import com.qichuang.changliao.feature.chat.ChatRoute
 import com.qichuang.changliao.feature.gift.GiftPanelRoute
-import com.qichuang.changliao.feature.common.PlaceholderPage
 import com.qichuang.changliao.feature.discover.FilterRoute
 import com.qichuang.changliao.feature.main.MainScreen
 import com.qichuang.changliao.feature.profile.EditProfileRoute
@@ -47,8 +51,8 @@ import com.qichuang.changliao.feature.withdraw.WithdrawRoute
 /**
  * 全 App 唯一导航图（docs/02 第 4.3 节）：所有页面的路由都在这里注册。
  *
- * 除了已经实现的页面，其余统一挂 [PlaceholderPage]（「开发中」）；
- * 每个页面任务完成后，把对应的 `placeholder(...)` 换成真实页面即可。
+ * `docs/01` 第 5 节那 31 个页面**已经全部实现**，所以这里没有任何「开发中」占位了
+ * （P8 的三个占位在 T8.2 换成了真页面，`PlaceholderPage` 随之删掉）。
  */
 @Composable
 fun ClNavHost(
@@ -196,11 +200,56 @@ fun ClNavHost(
             BlockListRoute(onBack = { navController.popBackStack() })
         }
         // P02/P16 挂在主界面的 Tab 导航树里（底部导航要一直在），见 MainScreen
-        placeholder(navController, Routes.CALL_CONFIRM, "拨打前价格确认（P17）")
-        placeholder(navController, Routes.CALL_WAITING, "等待接通（P18）")
-        placeholder(navController, Routes.VOICE_CALL, "一对一语音通话（P19）")
-        placeholder(navController, Routes.VIDEO_CALL, "一对一视频通话（P20）")
-        placeholder(navController, Routes.CALL_BILL, "结束通话账单（P21）")
+        composable(Routes.CALL_CONFIRM) { entry ->
+            CallConfirmRoute(
+                userId = entry.userId(),
+                kind = entry.callKind(),
+                onBack = { navController.popBackStack() },
+                onOpenRoute = { navController.navigate(it) },
+            )
+        }
+        composable(Routes.CALL_WAITING) { entry ->
+            CallWaitingRoute(
+                userId = entry.userId(),
+                kind = entry.callKind(),
+                onBack = { navController.popBackStack() },
+                onOpenRoute = { navController.navigate(it) },
+            )
+        }
+        composable(Routes.VOICE_CALL) { entry ->
+            CallInProgressRoute(
+                userId = entry.userId(),
+                kind = CallKind.VOICE,
+                onOpenRoute = { navController.navigate(it) },
+            )
+        }
+        composable(Routes.VIDEO_CALL) { entry ->
+            CallInProgressRoute(
+                userId = entry.userId(),
+                kind = CallKind.VIDEO,
+                onOpenRoute = { navController.navigate(it) },
+            )
+        }
+        composable(Routes.CALL_BILL) { entry ->
+            CallBillRoute(
+                userId = entry.userId(),
+                kind = entry.callKind(),
+                seconds = entry.arguments?.getString("seconds")?.toIntOrNull() ?: 0,
+                onBack = { navController.popBackStack() },
+                onOpenRoute = { navController.navigate(it) },
+            )
+        }
+        composable(Routes.CALL_RECORDS) {
+            CallRecordsRoute(
+                onBack = { navController.popBackStack() },
+                onOpenDiscover = {
+                    navController.navigate(Routes.MAIN) {
+                        popUpTo(Routes.MAIN) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
         composable(Routes.GIFT_PANEL) { entry ->
             GiftPanelRoute(
                 userId = entry.arguments?.getString("user_id")?.toLongOrNull() ?: 0L,
@@ -208,7 +257,6 @@ fun ClNavHost(
                 onOpenRoute = { navController.navigate(it) },
             )
         }
-        placeholder(navController, Routes.CALL_RECORDS, "通话记录（P25）")
         composable(Routes.INCOME) {
             IncomeRoute(
                 onBack = { navController.popBackStack() },
@@ -234,12 +282,10 @@ fun ClNavHost(
     }
 }
 
-private fun NavGraphBuilder.placeholder(
-    navController: NavHostController,
-    route: String,
-    title: String,
-) {
-    composable(route) {
-        PlaceholderPage(title = title, onBack = { navController.popBackStack() })
-    }
-}
+/** 路由参数里的 `user_id`（P17~P21 都要）。 */
+private fun NavBackStackEntry.userId(): Long =
+    arguments?.getString("user_id")?.toLongOrNull() ?: 0L
+
+/** 路由参数里的 `kind`（`voice` / `video`），认不出来按语音算。 */
+private fun NavBackStackEntry.callKind(): CallKind =
+    CallKind.fromApiValue(arguments?.getString("kind"))
