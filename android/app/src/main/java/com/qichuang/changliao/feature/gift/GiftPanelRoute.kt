@@ -11,6 +11,7 @@ import com.qichuang.changliao.core.navigation.Routes
 @Composable
 fun GiftPanelRoute(
     userId: Long,
+    peerName: String,
     onBack: () -> Unit,
     onOpenRoute: (String) -> Unit,
     viewModel: GiftPanelViewModel = hiltViewModel(),
@@ -21,6 +22,7 @@ fun GiftPanelRoute(
 
     GiftPanelScreen(
         state = state,
+        peerName = peerName,
         onBack = onBack,
         onSelect = viewModel::onSelect,
         onSend = viewModel::onSend,

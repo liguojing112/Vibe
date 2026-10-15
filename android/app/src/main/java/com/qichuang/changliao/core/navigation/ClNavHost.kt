@@ -116,7 +116,7 @@ fun ClNavHost(
                 userId = entry.arguments?.getString("user_id")?.toLongOrNull() ?: 0L,
                 onBack = { navController.popBackStack() },
                 onChat = { navController.navigate(Routes.chat(it)) },
-                onOpenGift = { navController.navigate(Routes.giftPanel(it)) },
+                onOpenGift = { id, name -> navController.navigate(Routes.giftPanel(id, name)) },
             )
         }
 
@@ -253,6 +253,7 @@ fun ClNavHost(
         composable(Routes.GIFT_PANEL) { entry ->
             GiftPanelRoute(
                 userId = entry.arguments?.getString("user_id")?.toLongOrNull() ?: 0L,
+                peerName = entry.arguments?.getString("name").orEmpty(),
                 onBack = { navController.popBackStack() },
                 onOpenRoute = { navController.navigate(it) },
             )

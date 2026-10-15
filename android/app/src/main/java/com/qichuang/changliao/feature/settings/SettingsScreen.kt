@@ -169,6 +169,15 @@ fun SettingsScreen(
                     }
                 }
 
+                // 安全提醒（设计图 15 底部那一段）。`docs/01` P15 的清单里没有它，
+                // 但对一个付费交友产品来说这句是**该有的**：平台不做担保，用户得自己防转账诈骗。
+                Text(
+                    text = SAFETY_TIP,
+                    style = ClTheme.typography.micro,
+                    color = ClTheme.colors.muted,
+                    modifier = Modifier.padding(horizontal = ClTheme.spacing.xs),
+                )
+
                 ClTextButton(
                     text = "退出登录",
                     modifier = Modifier.fillMaxWidth(),
@@ -279,3 +288,7 @@ private fun ChangePasswordSheet(state: SettingsUiState, actions: ChangePasswordA
         }
     }
 }
+
+/** 设置页底部的安全提醒（设计图 15）。 */
+private const val SAFETY_TIP =
+    "畅撩交友提醒你警惕交友陷阱：平台不提供任何担保，请保护好个人信息，谨慎处理转账请求。"

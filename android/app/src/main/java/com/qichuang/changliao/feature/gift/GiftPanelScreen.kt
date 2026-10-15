@@ -20,15 +20,16 @@ import com.qichuang.changliao.feature.common.CoinNotEnoughSheet
 /**
  * 礼物面板整页版（P23，设计图 23）。
  *
- * 顶部标题 + 礼物网格 + 底部「赠送 XX · N 金币」。
+ * 顶部标题「送给 X」+ 礼物网格 + 底部「赠送 XX · N 金币」。
  *
- * **没做设计图里那张「对方头像 + 昵称」的卡片**：那需要多打一次 `/user/{id}`，
- * 而那个接口会**记一次访客**（T3.8 的行为）—— 为了一个标题多记一次访客不值当，
- * 而且 `01` P23 的功能清单里也没有这一项。
+ * [peerName] 由上一页（P05）通过路由带过来，**不是在这里再查一次 `/user/{id}`** ——
+ * 那个接口会**记一次访客**（T3.8 的行为），为了一个标题多记一次访客不值当。
+ * 也正因为如此，设计图里那张「对方头像 + 昵称」的卡片没有做：头像一个请求都不打拿不到。
  */
 @Composable
 fun GiftPanelScreen(
     state: GiftPanelUiState,
+    peerName: String,
     onBack: () -> Unit,
     onSelect: (Gift) -> Unit,
     onSend: () -> Unit,
@@ -41,7 +42,7 @@ fun GiftPanelScreen(
     ClScaffold(
         modifier = modifier,
         containerColor = ClTheme.colors.bgPage,
-        topBar = { ClTopBar(title = "给 TA 送礼物", onBack = onBack) },
+        topBar = { ClTopBar(title = "送给 " + peerName.ifBlank { "TA" }, onBack = onBack) },
         fixedBottom = {
             ClFixedBottomArea {
                 GiftSendButton(state = state, onSend = onSend)

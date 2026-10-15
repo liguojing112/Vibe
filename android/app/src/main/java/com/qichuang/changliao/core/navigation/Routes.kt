@@ -1,5 +1,6 @@
 package com.qichuang.changliao.core.navigation
 
+import android.net.Uri
 import com.qichuang.changliao.core.data.model.CallKind
 
 /**
@@ -101,9 +102,11 @@ object Routes {
 
     // ---------- P23 礼物面板 ----------
 
-    const val GIFT_PANEL = "gift/{user_id}"
+    const val GIFT_PANEL = "gift/{user_id}?name={name}"
 
-    fun giftPanel(userId: Long): String = "gift/$userId"
+    /** [name] 是对方昵称，用来当标题（设计图 23 的「送给小满」）；空着就写「TA」。 */
+    fun giftPanel(userId: Long, name: String = ""): String =
+        "gift/$userId?name=" + Uri.encode(name)
 
     // ---------- P26~P29 收益 ----------
 

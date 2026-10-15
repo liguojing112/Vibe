@@ -13,7 +13,7 @@ fun UserDetailRoute(
     userId: Long,
     onBack: () -> Unit,
     onChat: (Long) -> Unit,
-    onOpenGift: (Long) -> Unit,
+    onOpenGift: (Long, String) -> Unit,
     viewModel: UserDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -27,10 +27,10 @@ fun UserDetailRoute(
         }
     }
 
-    val actions = remember(viewModel, userId, onChat, onOpenGift) {
+    val actions = remember(viewModel, userId, onChat, onOpenGift, state.detail?.nickname) {
         UserDetailActions(
             onChat = { onChat(userId) },
-            onOpenGift = { onOpenGift(userId) },
+            onOpenGift = { onOpenGift(userId, state.detail?.nickname.orEmpty()) },
             onToggleFollow = viewModel::onToggleFollow,
             onMenuVisibleChange = viewModel::onMenuVisibleChange,
             onBlockConfirmVisibleChange = viewModel::onBlockConfirmVisibleChange,
