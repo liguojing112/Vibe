@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -21,7 +22,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    appConfigRepository: AppConfigRepository,
+    private val appConfigRepository: AppConfigRepository,
     unreadStore: UnreadStore,
     chatRepository: ChatRepository,
     private val discoverTabIntent: DiscoverTabIntent,
@@ -33,6 +34,11 @@ class MainViewModel @Inject constructor(
         // 登录后（主界面出现）就把 WebSocket 连上：连上会补拉一次离线消息，
         // 之后收到推送直接进本地库（docs/10 第 1.4 节）。
         chatRepository.start()
+
+        // 进主界面时再拉一次启动配置（`ClApp` 启动时也拉过）。
+        // 多这一次是为了让运营在后台改「语音/视频开关」之后，**不用重装/强杀 App** 就能生效 ——
+        // 否则要等下一次冷启动，演示和验收时很别扭。
+        viewModelScope.launch { appConfigRepository.refresh() }
     }
 
     val uiState: StateFlow<MainUiState> =

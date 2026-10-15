@@ -195,7 +195,7 @@ fun ClNavHost(
         composable(Routes.BLOCK_LIST) {
             BlockListRoute(onBack = { navController.popBackStack() })
         }
-        placeholder(navController, Routes.VOICE_HALL, "语音大厅（P16）")
+        // P02/P16 挂在主界面的 Tab 导航树里（底部导航要一直在），见 MainScreen
         placeholder(navController, Routes.CALL_CONFIRM, "拨打前价格确认（P17）")
         placeholder(navController, Routes.CALL_WAITING, "等待接通（P18）")
         placeholder(navController, Routes.VOICE_CALL, "一对一语音通话（P19）")

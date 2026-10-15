@@ -3,8 +3,10 @@ package com.qichuang.changliao.feature.discover
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.qichuang.changliao.core.common.MoneyFormat
+import com.qichuang.changliao.core.data.model.AppConfig
 import com.qichuang.changliao.core.data.model.Gender
 import com.qichuang.changliao.core.data.model.UserProfile
+import com.qichuang.changliao.core.data.repository.AppConfigRepository
 import com.qichuang.changliao.core.data.repository.DiscoverRepository
 import com.qichuang.changliao.core.data.repository.UserRepository
 import com.qichuang.changliao.core.navigation.DiscoverTabIntent
@@ -31,6 +33,7 @@ class DiscoverViewModel @Inject constructor(
     private val discoverRepository: DiscoverRepository,
     private val userRepository: UserRepository,
     private val discoverTabIntent: DiscoverTabIntent,
+    appConfigRepository: AppConfigRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DiscoverUiState())
@@ -43,6 +46,14 @@ class DiscoverViewModel @Inject constructor(
     private var listJob: Job? = null
 
     init {
+        // `feature.call_enabled`（docs/01 第 4 节）打开时多出「视频/语音」两个 Tab；
+        // 关掉时如果正停在其中一个上，退回「推荐」—— 不然会停在一个已经不该存在的 Tab 上。
+        viewModelScope.launch {
+            appConfigRepository.config.collect { config ->
+                applyCallEnabled(config)
+            }
+        }
+
         // P03 的「附近的人」入口会请求切到「同城」（docs/01 P03）。
         // 请求可能在我们建好之前就写下了 —— StateFlow 会把当前值补给我们，所以不会漏。
         viewModelScope.launch {
@@ -50,7 +61,9 @@ class DiscoverViewModel @Inject constructor(
                 if (apiValue == null) {
                     return@collect
                 }
-                DiscoverTab.entries.firstOrNull { it.apiValue == apiValue }?.let(::onTabSelected)
+                DiscoverTab.entries
+                    .firstOrNull { it.apiValue == apiValue && it in _uiState.value.tabs }
+                    ?.let(::onTabSelected)
                 discoverTabIntent.consume()
             }
         }
@@ -76,7 +89,8 @@ class DiscoverViewModel @Inject constructor(
     }
 
     fun onTabSelected(tab: DiscoverTab) {
-        if (tab == _uiState.value.tab) {
+        // 不在可见列表里的 Tab 一律忽略（开关关着时有人请求切「语音」tab 就走这里）
+        if (tab == _uiState.value.tab || tab !in _uiState.value.tabs) {
             return
         }
         // 切 Tab 当成一次刷新：要立刻看到这个 Tab 的内容，不等节流
@@ -221,6 +235,20 @@ class DiscoverViewModel @Inject constructor(
                     profile.pointBalance?.toString()
                 },
                 balanceUnit = if (male) MoneyFormat.UNIT_COIN else MoneyFormat.UNIT_POINT,
+            )
+        }
+    }
+
+    private fun applyCallEnabled(config: AppConfig?) {
+        val callEnabled = config?.callEnabled == true
+        val tabs = DiscoverTab.visibleTabs(callEnabled)
+        _uiState.update { state ->
+            state.copy(
+                tabs = tabs,
+                callEnabled = callEnabled,
+                voicePriceMin = config?.voicePriceMin ?: 0,
+                videoPriceMin = config?.videoPriceMin ?: 0,
+                tab = if (state.tab in tabs) state.tab else DiscoverTab.RECOMMEND,
             )
         }
     }

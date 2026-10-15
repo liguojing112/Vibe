@@ -24,6 +24,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import com.qichuang.changliao.core.data.model.CallKind
 import com.qichuang.changliao.core.data.model.ChatMessage
 import com.qichuang.changliao.core.data.model.MessageStatus
 import com.qichuang.changliao.core.designsystem.component.ClBottomSheet
@@ -63,7 +64,7 @@ fun ChatScreen(
     onOpenProfile: () -> Unit,
     onOpenRecharge: () -> Unit,
     onOpenGift: () -> Unit,
-    onOpenCall: () -> Unit,
+    onOpenCall: (CallKind) -> Unit,
     onOpenFeeRules: () -> Unit,
     onDismissFeeRules: () -> Unit,
     onDismissCoinNotEnough: () -> Unit,
@@ -249,7 +250,7 @@ private fun MessageList(
 private fun ChatTools(
     state: ChatUiState,
     onOpenGift: () -> Unit,
-    onOpenCall: () -> Unit,
+    onOpenCall: (CallKind) -> Unit,
 ) {
     val items = buildList {
         if (state.callEnabled) {
@@ -267,7 +268,13 @@ private fun ChatTools(
 
     ClChatToolBar(
         items = items,
-        onSelect = { key -> if (key == TOOL_GIFT) onOpenGift() else onOpenCall() },
+        onSelect = { key ->
+            when (key) {
+                TOOL_GIFT -> onOpenGift()
+                TOOL_VIDEO -> onOpenCall(CallKind.VIDEO)
+                else -> onOpenCall(CallKind.VOICE)
+            }
+        },
     )
 }
 

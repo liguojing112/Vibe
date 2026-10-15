@@ -35,7 +35,10 @@ import com.qichuang.changliao.core.designsystem.component.ClImagePreview
 import com.qichuang.changliao.core.designsystem.component.ClLoading
 import com.qichuang.changliao.core.designsystem.component.ClPasswordField
 import com.qichuang.changliao.core.designsystem.component.ClPullRefreshList
+import com.qichuang.changliao.core.designsystem.component.ClQuickCard
 import com.qichuang.changliao.core.designsystem.component.ClRangeSlider
+import com.qichuang.changliao.core.designsystem.component.videoQuickCard
+import com.qichuang.changliao.core.designsystem.component.voiceQuickCard
 import com.qichuang.changliao.core.designsystem.component.ClSelectField
 import com.qichuang.changliao.core.designsystem.component.ClTextField
 import com.qichuang.changliao.core.designsystem.component.ClBadgeDot
@@ -399,6 +402,19 @@ fun DesignSystemGalleryScreen(onBack: (() -> Unit)? = null) {
                         available = false,
                         onAction = {},
                         onClick = {},
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(ClTheme.spacing.s)) {
+                    ClQuickCard(
+                        card = voiceQuickCard("60 币/分钟"),
+                        onClick = {},
+                        modifier = Modifier.weight(1f),
+                    )
+                    ClQuickCard(
+                        card = videoQuickCard("120 币/分钟"),
+                        onClick = {},
+                        modifier = Modifier.weight(1f),
                     )
                 }
 

@@ -12,6 +12,15 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class AppConfig(
     @SerialName("call_enabled") val callEnabled: Boolean = false,
+    /**
+     * 语音/视频的「示例价格」（各等级里的最低单价）。
+     *
+     * P01 的两张快捷卡、P02 的提示、P16 的横幅要一个全局示例价 —— 它们看到的是**别人**的
+     * 价格，而 `/wallet/coin` 只能男用户调，所以放在启动配置里。
+     * 开关关着时服务端返回 0，页面据此不显示价格。
+     */
+    @SerialName("voice_price_min") val voicePriceMin: Int = 0,
+    @SerialName("video_price_min") val videoPriceMin: Int = 0,
     @SerialName("compliance_disclosure") val complianceDisclosure: String = "",
     val service: AppService = AppService(),
     @SerialName("chat_max_length") val chatMaxLength: Int = 0,

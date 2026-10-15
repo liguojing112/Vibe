@@ -9,6 +9,9 @@ use Hyperf\Validation\Request\FormRequest;
 
 /**
  * 发现页筛选（docs/05 第 4.3 节、docs/01 P07）。
+ *
+ * `video` / `voice` 是「在线可接听」那两个 Tab（docs/01 第 4 节，P01/P02/P16）：
+ * 开关关着时客户端不会传，但服务端一直认 —— 页面开关不该改接口的校验规则。
  */
 class DiscoverRequest extends FormRequest
 {
@@ -17,7 +20,7 @@ class DiscoverRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tab' => 'sometimes|string|in:recommend,new,city',
+            'tab' => 'sometimes|string|in:recommend,new,city,video,voice',
             'keyword' => 'sometimes|nullable|string|max:32',
             'city' => 'sometimes|nullable|string|max:32',
             'age_min' => 'sometimes|nullable|integer|min:18|max:99',

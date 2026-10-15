@@ -164,9 +164,57 @@ final class DiscoverControllerTest extends TestCase
     {
         $this->loginAs(User::GENDER_MALE);
 
-        $result = $this->get('/api/v1/discover', ['tab' => 'video']);
+        $result = $this->get('/api/v1/discover', ['tab' => 'bogus']);
 
         self::assertSame(422, $result['code']);
+    }
+
+    /**
+     * 「视频在线 / 语音在线」两个 Tab（docs/01 第 4 节，P01/P02/P16）：只给**现在能接**的人。
+     *
+     * 两个 Tab 是同一批人 —— 库里没有「只接语音 / 只接视频」这个字段，
+     * 差别只在客户端显示哪一栏单价（见 `DiscoverRepository::applyTab` 的说明）。
+     */
+    public function testVideoAndVoiceTabsOnlyShowAvailableUsers(): void
+    {
+        $this->loginAs(User::GENDER_MALE);
+
+        $available = $this->makeUser(User::GENDER_FEMALE, [
+            'last_active_at' => Carbon::now()->subMinutes(1)->toDateTimeString(),
+        ]);
+        // 活跃过，但太久没动（超过 15 分钟）→ 不算「现在能接」
+        $idle = $this->makeUser(User::GENDER_FEMALE, [
+            'last_active_at' => Carbon::now()->subMinutes(30)->toDateTimeString(),
+        ]);
+        // 关掉了「在线接听」→ 不出现（和「推荐」一个口径）
+        $this->makeUser(User::GENDER_FEMALE, [
+            'show_in_recommend' => 0,
+            'last_active_at' => Carbon::now()->subMinutes(1)->toDateTimeString(),
+        ]);
+        // 从没活跃过
+        $this->makeUser(User::GENDER_FEMALE, ['last_active_at' => null]);
+
+        foreach (['video', 'voice'] as $tab) {
+            self::assertSame([$available->id], $this->ids($this->discover(['tab' => $tab])), $tab . ' tab');
+        }
+        // 久没动的那个在「新人」里还是看得到的（两个 Tab 只筛「在线」这一件事）
+        self::assertContains($idle->id, $this->ids($this->discover(['tab' => 'new'])));
+    }
+
+    /** 开关关着时客户端不传这两个 tab，但服务端一直认 —— 页面开关不该改接口的校验规则。 */
+    public function testCallTabsAreAcceptedEvenWhenFeatureSwitchIsOff(): void
+    {
+        $this->loginAs(User::GENDER_MALE);
+        $this->makeUser(User::GENDER_FEMALE, [
+            'last_active_at' => Carbon::now()->subMinutes(1)->toDateTimeString(),
+        ]);
+
+        // 测试库里 `feature.call_enabled` 就是种子里的默认值（关着），不用特意去改它 ——
+        // 改共享配置要还原，能不碰就不碰
+        self::assertFalse((bool) make(AppConfigService::class)->get('feature.call_enabled', false), '开关默认是关的');
+
+        self::assertSame(200, $this->discover(['tab' => 'video'])['code']);
+        self::assertSame(200, $this->discover(['tab' => 'voice'])['code']);
     }
 
     // ---------- 筛选 ----------

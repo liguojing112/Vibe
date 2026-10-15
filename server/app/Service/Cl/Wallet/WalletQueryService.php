@@ -51,12 +51,8 @@ final class WalletQueryService
         $callEnabled = (bool) $this->configService->get('feature.call_enabled', false);
 
         $messagePrices = [];
-        $voicePrices = [];
-        $videoPrices = [];
         foreach ($this->levelConfigRepository->allOrdered() as $level) {
             $messagePrices[] = (int) $level->message_price;
-            $voicePrices[] = (int) $level->voice_price;
-            $videoPrices[] = (int) $level->video_price;
         }
 
         $data = [
@@ -69,10 +65,11 @@ final class WalletQueryService
 
         if ($callEnabled) {
             // 开关关着时不返回语音/视频价格（docs/01 第 4 节：入口都不显示，价格更不该露出来）
-            $data['voice_price_min'] = $voicePrices === [] ? 0 : min($voicePrices);
-            $data['voice_price_max'] = $voicePrices === [] ? 0 : max($voicePrices);
-            $data['video_price_min'] = $videoPrices === [] ? 0 : min($videoPrices);
-            $data['video_price_max'] = $videoPrices === [] ? 0 : max($videoPrices);
+            $callPrices = $this->levelConfigRepository->callPriceRange();
+            $data['voice_price_min'] = $callPrices['voice_min'];
+            $data['voice_price_max'] = $callPrices['voice_max'];
+            $data['video_price_min'] = $callPrices['video_min'];
+            $data['video_price_max'] = $callPrices['video_max'];
         }
 
         return $data;

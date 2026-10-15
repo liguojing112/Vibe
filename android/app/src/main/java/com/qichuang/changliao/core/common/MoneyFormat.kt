@@ -16,6 +16,9 @@ object MoneyFormat {
     /** 通话价格单位（`60 币/分钟`）。 */
     const val UNIT_PER_MINUTE = "分钟"
 
+    /** 卡片按钮上挤不下「分钟」，用这个简写（`60 币/分`，设计图 01）。 */
+    const val UNIT_PER_MINUTE_SHORT = "分"
+
     /** 金币的单位字（`ClCoinPill(amount, unit)` 要分开传）。 */
     const val UNIT_COIN = "币"
 

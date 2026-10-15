@@ -7,6 +7,7 @@ namespace App\Http\Api\Controller\V1;
 use App\Http\Api\ApiResult;
 use App\Model\Cl\Tag;
 use App\Repository\Cl\CityRepository;
+use App\Repository\Cl\LevelConfigRepository;
 use App\Repository\Cl\TagRepository;
 use App\Service\Cl\Config\AppConfigService;
 use Hyperf\HttpServer\Contract\RequestInterface;
@@ -23,6 +24,7 @@ final class AppConfigController
         private readonly AppConfigService $configService,
         private readonly TagRepository $tagRepository,
         private readonly CityRepository $cityRepository,
+        private readonly LevelConfigRepository $levelConfigRepository,
     ) {}
 
     #[OA\Get(
@@ -33,8 +35,16 @@ final class AppConfigController
     )]
     public function config(): ApiResult
     {
+        $callEnabled = (bool) $this->configService->get('feature.call_enabled', false);
+        $callPrices = $this->levelConfigRepository->callPriceRange();
+
         return ApiResult::success([
-            'call_enabled' => (bool) $this->configService->get('feature.call_enabled', false),
+            'call_enabled' => $callEnabled,
+            // 「示例价格」（P01 的两张快捷卡、P02 的提示、P16 的横幅）：
+            // 给的是各等级里的最低单价，页面上写「X 币/分钟起」。
+            // **开关关着时不返回**（给 0）—— 和 P13 一个口径：入口都不显示，价格更不该露出来。
+            'voice_price_min' => $callEnabled ? $callPrices['voice_min'] : 0,
+            'video_price_min' => $callEnabled ? $callPrices['video_min'] : 0,
             'compliance_disclosure' => (string) $this->configService->get('compliance.disclosure', ''),
             'service' => [
                 'wechat' => (string) $this->configService->get('service.wechat', ''),

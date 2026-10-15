@@ -1,10 +1,12 @@
 package com.qichuang.changliao.feature.discover
 
+import com.qichuang.changliao.core.data.model.AppConfig
 import com.qichuang.changliao.core.data.model.DiscoverFilter
 import com.qichuang.changliao.core.data.model.DiscoverPage
 import com.qichuang.changliao.core.data.model.DiscoverUser
 import com.qichuang.changliao.core.data.model.Gender
 import com.qichuang.changliao.core.data.model.UserProfile
+import com.qichuang.changliao.core.data.repository.AppConfigRepository
 import com.qichuang.changliao.core.data.repository.DiscoverRepository
 import com.qichuang.changliao.core.navigation.DiscoverTabIntent
 import com.qichuang.changliao.core.data.repository.UserRepository
@@ -38,13 +40,16 @@ class DiscoverViewModelTest {
 
     private val discoverRepository = mockk<DiscoverRepository>()
     private val userRepository = mockk<UserRepository>()
+    private val appConfigRepository = mockk<AppConfigRepository>()
 
     private val currentUser = MutableStateFlow<UserProfile?>(null)
+    private val appConfig = MutableStateFlow<AppConfig?>(null)
 
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         every { userRepository.currentUser } returns currentUser
+        every { appConfigRepository.config } returns appConfig
         coEvery { discoverRepository.filter(any()) } returns DiscoverFilter()
         coEvery { userRepository.me() } returns ApiResult.Success(maleProfile())
     }
@@ -100,7 +105,86 @@ class DiscoverViewModelTest {
         } returns flowOf(ApiResult.Success(page))
     }
 
-    private fun viewModel() = DiscoverViewModel(discoverRepository, userRepository, DiscoverTabIntent())
+    private fun viewModel() = DiscoverViewModel(discoverRepository, userRepository, DiscoverTabIntent(), appConfigRepository)
+
+    // ---------- P8：语音/视频 Tab 的显隐 ----------
+
+    /** 开关关着时只有三个 Tab —— P8 的验收要求「开关关闭时所有入口都不显示」。 */
+    @Test
+    fun `开关关着时没有视频和语音 Tab`() {
+        currentUser.value = maleProfile()
+        stubFirstPage(page(listOf(user(1))))
+
+        val viewModel = viewModel()
+
+        assertEquals(listOf(DiscoverTab.RECOMMEND, DiscoverTab.NEW, DiscoverTab.CITY), viewModel.uiState.value.tabs)
+        assertFalse(viewModel.uiState.value.callEnabled)
+    }
+
+    @Test
+    fun `开关打开时多出视频和语音 Tab`() {
+        currentUser.value = maleProfile()
+        appConfig.value = AppConfig(callEnabled = true, voicePriceMin = 60, videoPriceMin = 120)
+        stubFirstPage(page(listOf(user(1))), tab = "video")
+
+        val viewModel = viewModel()
+
+        assertEquals(5, viewModel.uiState.value.tabs.size)
+        assertTrue(DiscoverTab.VIDEO in viewModel.uiState.value.tabs)
+        assertTrue(DiscoverTab.VOICE in viewModel.uiState.value.tabs)
+        // 快捷卡上的「示例价格」也是从启动配置来的
+        assertEquals(60, viewModel.uiState.value.voicePriceMin)
+        assertEquals(120, viewModel.uiState.value.videoPriceMin)
+    }
+
+    /** 切到「视频」Tab 会按 `tab=video` 去请求（服务端只给「现在能接」的人）。 */
+    @Test
+    fun `切到视频 Tab 用 video 参数请求`() {
+        currentUser.value = maleProfile()
+        appConfig.value = AppConfig(callEnabled = true)
+        stubFirstPage(page(emptyList()))
+        stubFirstPage(page(emptyList()), tab = "video")
+
+        val viewModel = viewModel()
+        // 先 enter 一次拿到 userId（没进过页面时 userId 还是 0，切 Tab 会直接返回）
+        viewModel.enter()
+        viewModel.onTabSelected(DiscoverTab.VIDEO)
+
+        verify { discoverRepository.firstPage("video", 7, any(), true) }
+    }
+
+    /** 开关**关掉**时如果正停在「语音」Tab 上，要退回「推荐」—— 不能停在一个不该存在的 Tab 上。 */
+    @Test
+    fun `开关关掉后从语音 Tab 退回推荐`() {
+        currentUser.value = maleProfile()
+        appConfig.value = AppConfig(callEnabled = true)
+        stubFirstPage(page(emptyList()))
+        stubFirstPage(page(emptyList()), tab = "voice")
+
+        val viewModel = viewModel()
+        viewModel.enter()
+        viewModel.onTabSelected(DiscoverTab.VOICE)
+        assertEquals(DiscoverTab.VOICE, viewModel.uiState.value.tab)
+
+        appConfig.value = AppConfig(callEnabled = false)
+
+        assertEquals(DiscoverTab.RECOMMEND, viewModel.uiState.value.tab)
+        assertEquals(3, viewModel.uiState.value.tabs.size)
+    }
+
+    /** 开关关着时有人请求切「语音」Tab（例如旧的深链）要被忽略，不能把页面切过去。 */
+    @Test
+    fun `开关关着时切语音 Tab 被忽略`() {
+        currentUser.value = maleProfile()
+        stubFirstPage(page(listOf(user(1))))
+
+        val viewModel = viewModel()
+        viewModel.enter()
+        viewModel.onTabSelected(DiscoverTab.VOICE)
+
+        assertEquals(DiscoverTab.RECOMMEND, viewModel.uiState.value.tab)
+    }
+
 
     @Test
     fun `进入页面拿到列表和余额`() {

@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.qichuang.changliao.core.common.MoneyFormat
+import com.qichuang.changliao.core.data.model.CallKind
 
 /**
  * 把 [DiscoverViewModel] 和 [DiscoverScreen] 连起来。
@@ -20,6 +21,9 @@ fun DiscoverRoute(
     onOpenIncome: () -> Unit,
     onOpenUser: (Long) -> Unit,
     onChat: (Long) -> Unit,
+    onCall: (Long, CallKind) -> Unit,
+    onOpenVoiceHall: () -> Unit,
+    onOpenVideoMatch: () -> Unit,
     viewModel: DiscoverViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -36,6 +40,9 @@ fun DiscoverRoute(
         },
         onOpenUser = onOpenUser,
         onChat = { onChat(it.id) },
+        onCall = { user, kind -> onCall(user.id, kind) },
+        onOpenVoiceHall = onOpenVoiceHall,
+        onOpenVideoMatch = onOpenVideoMatch,
         onRefresh = viewModel::onRefresh,
         onLoadMore = viewModel::onLoadMore,
         onRetry = viewModel::enter,

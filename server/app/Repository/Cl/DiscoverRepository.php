@@ -104,6 +104,17 @@ final class DiscoverRepository extends IRepository
                 // 「推荐」尊重 show_in_recommend 开关（其它 tab 不看这个开关）
                 $query->where('show_in_recommend', 1);
                 break;
+            case 'video':
+            case 'voice':
+                // 「视频在线 / 语音在线」（docs/01 第 4 节，P01/P02/P16）：
+                // 只给**现在能接**的人 —— 开着「在线接听」且最近活跃过。
+                //
+                // 两个 tab 取的是同一批人：库里没有「只接语音 / 只接视频」这个字段
+                // （`docs/04` 也没有），所以差别只在客户端拿哪一栏单价去显示按钮文案。
+                // 真要做区分得先加字段，见 PROGRESS 的 Q0-23。
+                $query->where('show_in_recommend', 1);
+                $query->where('last_active_at', '>=', Carbon::now()->subMinutes(self::ONLINE_MINUTES)->toDateTimeString());
+                break;
             default:
                 // 搜索之类不按 tab 过滤
                 break;

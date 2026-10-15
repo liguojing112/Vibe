@@ -14,7 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.qichuang.changliao.core.common.MoneyFormat
-import com.qichuang.changliao.core.data.model.DiscoverFilter
+import com.qichuang.changliao.core.data.model.CallKind
 import com.qichuang.changliao.core.data.model.DiscoverUser
 import com.qichuang.changliao.core.designsystem.component.ClChipGroup
 import com.qichuang.changliao.core.designsystem.component.ClCoinPill
@@ -26,12 +26,15 @@ import com.qichuang.changliao.core.designsystem.component.ClPersonCard
 import com.qichuang.changliao.core.designsystem.component.ClPersonCardData
 import com.qichuang.changliao.core.designsystem.component.ClPersonTag
 import com.qichuang.changliao.core.designsystem.component.ClPullRefreshList
+import com.qichuang.changliao.core.designsystem.component.ClQuickCard
 import com.qichuang.changliao.core.designsystem.component.ClScaffold
 import com.qichuang.changliao.core.designsystem.component.ClSoftButton
 import com.qichuang.changliao.core.designsystem.component.ClSoftButtonKind
 import com.qichuang.changliao.core.designsystem.component.ClTagKind
 import com.qichuang.changliao.core.designsystem.component.ClTextButton
 import com.qichuang.changliao.core.designsystem.component.rememberClToast
+import com.qichuang.changliao.core.designsystem.component.videoQuickCard
+import com.qichuang.changliao.core.designsystem.component.voiceQuickCard
 import com.qichuang.changliao.core.designsystem.icon.ClIcons
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
 import com.qichuang.changliao.core.designsystem.theme.clTopWashBackground
@@ -41,6 +44,9 @@ import com.qichuang.changliao.core.designsystem.theme.clTopWashBackground
  *
  * 一级页面：顶部渐变 + 大标题 + 余额胶囊 + Tab 行；下面是可下拉刷新、上拉分页的卡片列表。
  * 卡片上的价格、在线/新人/已认证都是服务端给的数据，这里只显示。
+ *
+ * `feature.call_enabled` 打开时（docs/01 第 4 节）多三样东西：Tab 行的「视频/语音」两个 Tab、
+ * 列表顶部两张快捷卡、卡片上的语音/视频按钮 —— 开关关着时这些**一个都不显示**。
  */
 @Composable
 fun DiscoverScreen(
@@ -50,6 +56,9 @@ fun DiscoverScreen(
     onOpenWallet: () -> Unit,
     onOpenUser: (Long) -> Unit,
     onChat: (DiscoverUser) -> Unit,
+    onCall: (DiscoverUser, CallKind) -> Unit,
+    onOpenVoiceHall: () -> Unit,
+    onOpenVideoMatch: () -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
@@ -103,16 +112,20 @@ fun DiscoverScreen(
                         key = { it.id },
                         header = {
                             ListHeader(
-                                filter = state.filter,
+                                state = state,
                                 onOpenFilter = onOpenFilter,
                                 onOnlySameCity = { onTabSelected(DiscoverTab.CITY) },
+                                onOpenVoiceHall = onOpenVoiceHall,
+                                onOpenVideoMatch = onOpenVideoMatch,
                             )
                         },
                     ) { user ->
                         PersonCard(
                             user = user,
+                            callEnabled = state.callEnabled,
                             onClick = { onOpenUser(user.id) },
                             onChat = { onChat(user) },
+                            onCall = { kind -> onCall(user, kind) },
                         )
                     }
                 }
@@ -179,14 +192,36 @@ private fun DiscoverHeader(
     }
 }
 
-/** 跟着列表一起滚的区块标题（设计图 01 的「现在有空聊」+「只看同城」）。 */
+/** 跟着列表一起滚的区块：开关打开时是两张快捷卡，然后是「现在有空聊」+「只看同城」。 */
 @Composable
 private fun ListHeader(
-    filter: DiscoverFilter,
+    state: DiscoverUiState,
     onOpenFilter: () -> Unit,
     onOnlySameCity: () -> Unit,
+    onOpenVoiceHall: () -> Unit,
+    onOpenVideoMatch: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
+        if (state.callEnabled) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = ClTheme.spacing.m),
+                horizontalArrangement = Arrangement.spacedBy(ClTheme.spacing.s),
+            ) {
+                ClQuickCard(
+                    card = voiceQuickCard(examplePrice(state.voicePriceMin)),
+                    onClick = onOpenVoiceHall,
+                    modifier = Modifier.weight(1f),
+                )
+                ClQuickCard(
+                    card = videoQuickCard(examplePrice(state.videoPriceMin)),
+                    onClick = onOpenVideoMatch,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -194,12 +229,12 @@ private fun ListHeader(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = if (filter.isActive) "按你的筛选" else "现在有空聊",
+                text = if (state.filter.isActive) "按你的筛选" else "现在有空聊",
                 style = ClTheme.typography.sectionTitle,
                 color = ClTheme.colors.ink,
                 modifier = Modifier.weight(1f),
             )
-            if (filter.isActive) {
+            if (state.filter.isActive) {
                 ClTextButton(text = "改条件", onClick = onOpenFilter)
             } else {
                 ClTextButton(text = "只看同城", onClick = onOnlySameCity)
@@ -211,8 +246,10 @@ private fun ListHeader(
 @Composable
 private fun PersonCard(
     user: DiscoverUser,
+    callEnabled: Boolean,
     onClick: () -> Unit,
     onChat: () -> Unit,
+    onCall: (CallKind) -> Unit,
 ) {
     ClPersonCard(
         user = ClPersonCardData(
@@ -235,6 +272,27 @@ private fun PersonCard(
         ),
         onClick = onClick,
         actions = {
+            // 开关打开时才显示这两颗（docs/01 第 4 节）；服务端没给单价也不显示 ——
+            // 没价格就没法写「语音 60 币/分」，宁可少一颗按钮也不要写个假数字
+            if (callEnabled) {
+                user.voicePrice?.let { price ->
+                    ClSoftButton(
+                        text = callLabel("语音", price),
+                        kind = ClSoftButtonKind.Yellow,
+                        leadingIcon = ClIcons.mic,
+                        onClick = { onCall(CallKind.VOICE) },
+                    )
+                }
+                user.videoPrice?.let { price ->
+                    ClSoftButton(
+                        text = callLabel("视频", price),
+                        kind = ClSoftButtonKind.Peach,
+                        leadingIcon = ClIcons.video,
+                        onClick = { onCall(CallKind.VIDEO) },
+                    )
+                }
+            }
+
             ClSoftButton(
                 text = chatLabel(user),
                 kind = ClSoftButtonKind.Gray,
@@ -244,6 +302,14 @@ private fun PersonCard(
         },
     )
 }
+
+/** 「60 币/分钟」；服务端没给（0）就返回空串，调用方据此不显示价格那一截。 */
+private fun examplePrice(price: Int): String =
+    if (price > 0) MoneyFormat.coinPrice(price.toLong(), MoneyFormat.UNIT_PER_MINUTE) else ""
+
+/** 「语音 60币/分」—— 卡片上的按钮挤，用简写单位。 */
+private fun callLabel(prefix: String, price: Long): String =
+    "$prefix " + MoneyFormat.coinPrice(price, MoneyFormat.UNIT_PER_MINUTE_SHORT)
 
 /** 「26 岁 · 上海 · 品牌设计师」，缺哪项就不显示哪项。 */
 private fun metaOf(user: DiscoverUser): String = listOfNotNull(

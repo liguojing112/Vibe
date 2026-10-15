@@ -1,5 +1,7 @@
 package com.qichuang.changliao.core.navigation
 
+import com.qichuang.changliao.core.data.model.CallKind
+
 /**
  * 全部页面路由（docs/01 第 5 节的 31 个页面 + P00 登录/注册/协议）。
  *
@@ -72,22 +74,30 @@ object Routes {
     // ---------- P02 P16~P21 P25 语音视频（本期只做页面） ----------
 
     const val VOICE_HALL = "match/voice-hall"
-    const val CALL_CONFIRM = "call/confirm/{user_id}"
-    const val CALL_WAITING = "call/waiting/{user_id}"
+
+    /**
+     * P17 起要区分语音/视频（标题、单价、控制区按钮都不一样），所以带上 `kind`。
+     * `kind` 有默认值，老的 `callConfirm(id)` 调用不会因此报错。
+     */
+    const val CALL_CONFIRM = "call/confirm/{user_id}?kind={kind}"
+    const val CALL_WAITING = "call/waiting/{user_id}?kind={kind}"
     const val VOICE_CALL = "call/voice/{user_id}"
     const val VIDEO_CALL = "call/video/{user_id}"
-    const val CALL_BILL = "call/bill/{user_id}"
+
+    /** P21 账单：时长从 P19/P20 传过来（演示计时器数出来的秒数）。 */
+    const val CALL_BILL = "call/bill/{user_id}?kind={kind}&seconds={seconds}"
     const val CALL_RECORDS = "call/records"
 
-    fun callConfirm(userId: Long): String = "call/confirm/$userId"
+    fun callConfirm(userId: Long, kind: CallKind): String = "call/confirm/$userId?kind=${kind.apiValue}"
 
-    fun callWaiting(userId: Long): String = "call/waiting/$userId"
+    fun callWaiting(userId: Long, kind: CallKind): String = "call/waiting/$userId?kind=${kind.apiValue}"
 
     fun voiceCall(userId: Long): String = "call/voice/$userId"
 
     fun videoCall(userId: Long): String = "call/video/$userId"
 
-    fun callBill(userId: Long): String = "call/bill/$userId"
+    fun callBill(userId: Long, kind: CallKind, seconds: Int): String =
+        "call/bill/$userId?kind=${kind.apiValue}&seconds=$seconds"
 
     // ---------- P23 礼物面板 ----------
 

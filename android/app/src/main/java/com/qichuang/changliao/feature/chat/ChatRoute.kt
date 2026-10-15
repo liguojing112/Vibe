@@ -54,8 +54,8 @@ fun ChatRoute(
         onOpenRecharge = { onOpenRoute(Routes.RECHARGE) },
         // 聊天页的「送礼物」是**弹窗**（P31），不是跳页面（P23 才是整页）
         onOpenGift = { giftVisible = true },
-        // 语音/视频页面在 P8 才做（本期只做页面），先按 docs/01 第 4 节跳过去
-        onOpenCall = { onOpenRoute(Routes.callConfirm(userId)) },
+        // 语音/视频只做页面（docs/01 第 4 节）：点进去是 P17，确认拨打只提示「功能暂未开放」
+        onOpenCall = { kind -> onOpenRoute(Routes.callConfirm(userId, kind)) },
         onOpenFeeRules = viewModel::onOpenFeeRules,
         onDismissFeeRules = viewModel::onDismissFeeRules,
         onDismissCoinNotEnough = viewModel::onDismissCoinNotEnough,

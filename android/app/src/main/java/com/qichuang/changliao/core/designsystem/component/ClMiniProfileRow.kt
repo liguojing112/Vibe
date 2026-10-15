@@ -34,6 +34,9 @@ fun ClMiniProfileRow(
     blurred: Boolean = false,
     buttonText: String? = null,
     showDivider: Boolean = true,
+    /** 昵称旁边的小标签（P16 的「可接听」）；不传就不显示。 */
+    tagText: String? = null,
+    tagKind: ClTagKind = ClTagKind.Green,
     onClick: (() -> Unit)? = null,
     onAction: (() -> Unit)? = null,
 ) {
@@ -59,13 +62,20 @@ fun ClMiniProfileRow(
                     .padding(start = ClTheme.spacing.m),
                 verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.xxs),
             ) {
-                Text(
-                    text = name,
-                    style = ClTheme.typography.cardTitle,
-                    color = ClTheme.colors.ink,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ClTheme.spacing.xs),
+                ) {
+                    Text(
+                        text = name,
+                        style = ClTheme.typography.cardTitle,
+                        color = ClTheme.colors.ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    // P16 语音大厅要在昵称旁边挂「可接听」（设计图 16）
+                    tagText?.let { ClTag(text = it, kind = tagKind) }
+                }
                 if (desc != null) {
                     Text(
                         text = desc,
