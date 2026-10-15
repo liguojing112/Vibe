@@ -7,6 +7,11 @@
 *.iml
 .vscode/
 
+# ---- AI/编辑器工具目录（本机配置，不进仓库）----
+.claude/
+.cursor/
+.aider*
+
 # ---- 后端 server/ (MineAdmin / Hyperf) ----
 vendor/
 runtime/
