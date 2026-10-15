@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 只有 debug 包才允许明文 HTTP（连本机后端：adb reverse 打到 127.0.0.1，或模拟器的 10.0.2.2）。
+     release 包不挂这个配置 —— targetSdk 28+ 平台默认就禁明文，正式环境必须 HTTPS（docs/02 第 4.4 节）。
+     放在 src/debug/ 而不是 src/main/，是为了不把「允许明文」这条带进正式包（T9.3 从 main 挪过来的）。 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+
+</manifest>

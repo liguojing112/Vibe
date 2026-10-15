@@ -5,10 +5,15 @@
 
 ## 当前状态
 
-- 当前阶段：**P9 最终验收**（正在走 T9.1~T9.3）
-- 当前任务：T9.2 UI 一致性走查已完成 → 下一步 T9.3 收尾（README、`.env.example`、最终总结）
-- 任务状态：待开始 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：**T9.2 UI 一致性走查做完**。31 个页面逐个和设计图对照（把「设计图 | 实机」拼成对比图看的），
+- 当前阶段：**P9 最终验收 —— 全部完成**（T9.1~T9.3 都做完了，项目收尾）
+- 当前任务：无（下一个任务要等新需求）
+- 任务状态：全部完成 <!-- 未开始 / 进行中 / 已完成 -->
+- 上次停在哪：**T9.3 收尾做完**（`.env.example` 重写并拆掉一枚泄露的密钥、README 重写、
+  `network_security_config.xml` 挪进 `src/debug/`、本文件补上「最终总结」），
+  `check-all.sh` → **`✅✅✅ 全部检查通过`**。
+  **`docs/08` 的 T0.1~T9.3 全部完成** —— 完成情况 / 已知限制（15 条）/ 待确认问题（10 条）
+  都写在下面的「最终总结」里；要接着做就先把那 10 条待确认过一遍（每条都写了「客户要决定什么」）。
+- 上次停在哪（T9.2）：**T9.2 UI 一致性走查做完**。31 个页面逐个和设计图对照（把「设计图 | 实机」拼成对比图看的），
   **结构上全部一致**，修掉 2 处真差异：
   ① **P15 设置**少了设计图底部那段「安全提醒」→ 补上（付费交友产品该有的一句：不提供担保、防转账诈骗）；
   ② **P23 礼物面板**标题写「给 TA 送礼物」，**和 P31 弹窗（「送给 X」）自相矛盾**、也和设计图不一致 →
@@ -16,7 +21,100 @@
   还有两处是**有意保留**的差异，都写进表里了：P25 通话记录用空态（不摆假记录骗用户）、
   P26 不做设计图那块「收益构成（示例）」（`01` P26 的清单里没有它）。
   `check-all.sh` → **`✅✅✅ 全部检查通过`**（server 572/3169、android **440 单测**、admin lint+build）。
-  **下一步 T9.3 收尾**：README、`.env.example` 完整性、最终总结（完成情况 / 已知限制 / 待确认问题汇总）。
+  **T9.3 收尾已完成主体**：`.env.example` 重写成「必填/可留空」分组的完整版 + 拆掉一枚泄露的密钥（Q0-25）、
+  `network_security_config.xml` 挪进 `src/debug/`、README 重写、本文件补上「最终总结」。
+
+## 最终总结（T9.3，2026-10-15）
+
+> 这一段是**整个项目的收口**：做完什么、什么没做、还挂着哪些待确认。
+> 想知道「某个东西为什么是这样」，往下翻到对应的任务记录；想知道「现在什么状态」，看这里。
+
+### 1. 完成情况
+
+**`docs/08` 的 T0.1~T9.3 全部完成**（P0~P9 九个阶段，每个阶段收尾都有一次 `check-all.sh` 全绿记录，见「阶段验收记录」）。
+
+| 端 | 规模 | 说明 |
+|---|---|---|
+| 安卓 App | **31 个页面**（P00~P31，其中 P30/P31 是弹窗）+ **20 个 feature 模块** | Kotlin + Compose + Material3；Hilt / Room（聊天本地化）/ Retrofit / OkHttp WebSocket。所有 UI 只能来自 `core/designsystem`，由 `check-ui.sh` 守着 |
+| 后端 | **34 张 `cl_*` 业务表**，HTTP 9501 / WebSocket 9502 / Swagger 9503 | Hyperf 3.2 + MySQL 8 + Redis。金额一律服务端算、可调数值一律走 `cl_config`、**每次余额变动都在事务里落一行账本**（`check-money.sh` 守） |
+| 管理后台 | 数据看板 + 用户 / 审核 / 聊天 / 资金 / 运营 5 组菜单，4 个角色 | MineAdmin-Vue 3.2；业务代码全在 `admin-web/src/modules/cl/` 下，**没改过任何 MineAdmin 上游源码** |
+
+**业务流程是通的**（T9.1 用真实三端 + 真后端走过一遍 17 步，结果见该任务记录）：
+
+```
+注册/登录 → 发现页/筛选 → 个人主页 → 私信（免费条数 → 金币计费 → 敏感词审核）
+   → 余额不足 → 充值 → 礼物 / 会员 / 每日任务 → 收益 / 等级 / 实名 / 提现
+   → 通知 / 举报 → 后台：审核、聊天管理、资金审核、运营配置、数据看板
+```
+
+**质量门槛（T9.3 收尾时最后一次全量跑）**：
+
+- 后端 **572 测试 / 3169 断言** + phpstan `[OK] No errors` + `check-money.sh`
+- 安卓 **440 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`
+- 后台 `pnpm lint` + `pnpm build`
+- `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**
+
+**走查方式**（不是「跑通测试就算完」）：每个阶段都在**模拟器 + 真后端**上按真实路径走一遍（男女号各走一遍）；
+T9.1 走 17 步完整流程并对账了 `cl_platform_income`（当天 1615 金币 / 5481 积分 → 10669 分，公式精确成立）；
+T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 lint 看不见的 bug（余额缓存不刷新、
+扣费失败后费用条不更新、底部导航高亮错位、echarts 传 computed 导致图表静默空白）都是这么抓出来的。
+
+### 2. 已知限制
+
+**A. 功能范围上就没做**（不是 bug，是 `docs` 规定的范围）
+
+1. **语音/视频只有页面、没有真通话**（`docs/01` 第 4 节）。`feature.call_enabled` 关闭时所有音视频入口都不显示；
+   打开后能进 P02/P16~P21/P25，点「确认拨打」只提示「功能暂未开放」，**一个请求都不发、不扣币、不写流水**。
+   服务端的通话计费（`docs/06` 里语音/视频的单价）**没有实现，也没有测试**。
+2. **P25 通话记录是空态**（连同上面的原因），没有真通话就没有记录可显示。
+3. **「视频在线 / 语音在线」两个 Tab 取的是同一批人**（Q0-24）：库里只有「在线接听」一个开关，
+   没有按通话类型区分可用性的字段。两个 Tab 的差别只在客户端显示哪一栏单价。
+4. **后台数据看板的几个图表**是基于真实流水聚合的，但演示库数据量小，曲线不好看 —— 不是功能问题。
+
+**B. 技术取舍**（做了权衡，记在这里免得以后被当成 bug）
+
+5. **`Modifier.blur` 在 API 31 以下不生效**（Q0-15）：minSdk 是 26，所以 Android 11 及以下的机器上，
+   P09「喜欢我的人」非会员的打码**只糊文字不糊头像**。要全机型生效得改成盖一层遮罩。
+6. **`material-icons-extended` 已被 Google 弃用**，且包体不小 —— release 构建必须开 R8（`isMinifyEnabled`）裁；
+   更彻底的做法是把用到的图标改成自带 `ImageVector`（记录在「新增依赖记录」里）。
+7. **release 包的接口地址是占位域名**（`https://api.changliao.example.com`，见 `app/build.gradle.kts`），
+   正式发布前要换成真域名。
+8. **`openspout` 锁在 5.3**（最新版要 PHP 8.4+，本机 8.3）；**Robolectric 钉 `sdk=34`**
+   （本机 compileSdk 37，Robolectric 还没有那版预置 SDK）。升环境时可以放开。
+9. **演示库里有走查留下的数据**：T7.3 的批量账号、T7.5 的两条消息（一条在待审队列）、
+   T7.7 的全员公告、T7.6 的充值单，还有一条我自己冒烟脚本写的「冒烟收益 +10000」流水
+   （它撑起了后面的提现，**删了余额会变负**）。这些是真实后台操作产生的，**留着当演示数据**。
+10. **所有演示账号都是弱口令**（后台 `123456`、App `abc12345`），只适合本地演示。
+
+**C. 环境 / 交付层面**
+
+11. **只验证过模拟器**（`emulator-5554`），没有真机测试；**没打过正式签名包**（release 只验证了清单合并）。
+12. **后端跑在 WSL2 里**，Windows 侧没有原生 PHP —— 换机器部署要照 README 第二节重建环境。
+13. **`JWT_SECRET` 曾经是「能用的真钥匙」且进了 git**（Q0-25）：`.env.example` 里那个值是 MineAdmin 上游
+    自带的示例密钥，本机 `.env` 一直在用同一个值。T9.3 已把示例文件里的值清空，但**旧值仍在 git 历史里** ——
+    这个仓库一旦要对外发布或部署到服务器，**必须先重新生成 `JWT_SECRET`、`CL_ID_CARD_KEY`、`CL_APP_JWT_SECRET`**
+    （本机开发环境没受影响，所以没动 `.env`，免得把在跑的后台登录态踢掉）。
+14. **`composer test` 排除了 MineAdmin 自带的 7 个用例**（Q0-9）：它们期望 422、实得 401，根因是上游中间件优先级，
+    401 先返回本来就是对的。改的是 `composer.json` 的 filter，没动上游源码。
+15. **本机环境有三处非默认配置**（换机器会踩，细节见「环境信息」）：`.wslconfig` 开 mirrored 网络、
+    Swoole 从源码编译 + `swoole.use_shortname=Off`、安卓走阿里云 Maven 镜像。
+
+### 3. 待确认问题汇总
+
+全部未关闭项（细节与「我暂时怎么做的」见上面的「待确认问题」表）：
+
+| 编号 | 一句话 | 现状 / 影响 | 客户要决定什么 |
+|---|---|---|---|
+| Q0-13 | `app.version` 是什么语义？ | 当成「启动配置版本号」用，默认 `1.0.0`，后台可改。**不影响功能** | 如果它有别的定义（比如客户端版本），改个配置项说明即可 |
+| Q0-14 | `ClSoftButton` 三种底色对应哪三种操作 | 映射到了最接近的 token（语音/视频/私信）。T9.2 走查判为可接受 | 要精确配色就请给原型里那三个色值 |
+| Q0-15 | 低版本安卓打码不生效 | minSdk 26，Android 12+ 正常；11 及以下只糊文字 | 要不要为老机型改成遮罩方案 |
+| Q0-16 | 年龄滑块是单滑块还是双滑块 | 按 `docs/01` 做**双滑块**，外观是 Material3 的竖条 thumb。已定，不再改 | 无（除非要求外观完全复刻设计图） |
+| Q0-17 | 注册页要不要「同意协议」勾选 | 按 `docs/01` **只在登录页**勾 | 要注册也勾，加一个组件即可（半小时） |
+| Q0-18 | 学历的选项清单 | 暂定 `高中及以下 / 大专 / 本科 / 硕士 / 博士`，服务端不限制取值 | 给一份正式清单 |
+| Q0-19 | 「在线」的判定阈值 | 暂定 **15 分钟**（`DiscoverRepository::ONLINE_MINUTES`） | 定个数，或改成后台可配 |
+| Q0-22 | 设计图 P03 的「我的小队」入口 | **没做**（`docs/01` P03 没这个功能，`docs/05` 也没有接口） | 要的话得先补需求：是什么、几个人、在哪建 |
+| Q0-24 | 语音/视频两个 Tab 是同一批人 | 都按「现在能接」筛（开着接听 + 15 分钟内活跃） | 要做真区分，得给 `cl_user` 加两个字段 + 后台开关 |
+| Q0-25 | 密钥泄露（见上面「已知限制」13） | 示例文件已清空，**历史里的旧值仍在** | 发布/部署前轮换三把密钥 |
 
 ## 任务进度
 
@@ -31,7 +129,7 @@
 - P6：[x] T6.1 [x] T6.2 [x] T6.3 [x] T6.4 [x] T6.5 [x] T6.6 [x] T6.7（T6.7 = 阶段验收，见「阶段验收记录」）
 - P7：[x] T7.1 [x] T7.2 [x] T7.3 [x] T7.4 [x] T7.5 [x] T7.6 [x] T7.7 [x] T7.8 [x] T7.9（T7.9 = 阶段验收，见「阶段验收记录」）
 - P8：[x] T8.1 [x] T8.2 [x] T8.3（T8.3 = 阶段验收，见「阶段验收记录」）—— **只做页面，不做功能**（`01` 第 4 节）。`feature.call_enabled` 默认 0，关闭时所有音视频入口隐藏；打开后能进 P02/P16~P21/P25，点「确认拨打」只提示「功能暂未开放」，不发请求不扣币
-- P9：[x] T9.1 [x] T9.2 [ ] T9.3
+- P9：[x] T9.1 [x] T9.2 [x] T9.3 —— **P9 完成，全部任务收尾**（完成情况 / 已知限制 / 待确认问题见上面的「最终总结」）
 
 ## 环境信息（T0 阶段填写）
 
@@ -106,6 +204,10 @@
    所以这个限制在官方代码里从没暴露过。
 10. **⚠️ Hyperf 的 query builder 没有 `groupByRaw()`**（T7.8 踩的）：`BadMethodCallException`。
     按表达式分组要用**select 别名**：`->selectRaw('DATE(created_at) as day, ...')->groupBy('day')`（MySQL 允许按别名分组）。
+11. **⚠️ WSL 里以 root 跑后端检查会报 `detected dubious ownership`**（T9.3 踩的）：
+    `/mnt/c` 下的仓库在 WSL 眼里属主是 Windows 用户，不是 root，git 就拒绝使用。
+    **`composer test` 里这条是警告不是错误**（Composer 探测根包版本时会读 git），测试照跑，但输出看着像失败。
+    修法是按 git 的提示放行：`git config --global --add safe.directory /mnt/c/Workspace/android/vibe/changliao`（WSL 的 root 家目录里，已加）。
 
 **缺失（阻塞对应任务）**：
 - 安卓 → 需 Android SDK（`ANDROID_HOME` 未设置，无 `adb`）：**阻塞 T0.4**，等你装 Android Studio
@@ -137,7 +239,7 @@
 | Q0-5 | `02` 文档 4.3 安卓包结构里没有本地数据库目录 | 已在 `02` 4.3 新增 `core/data/local/db/` 与 `LocalCache.kt`（见 T0.6） | T0.4、T2.6 | ✅ 已解决 |
 | Q0-6 | token 存 DataStore 默认不加密，是否需要加密存储 | 客户确认：本期明文 DataStore 即可 | T2.6 | ✅ 已解决 |
 | Q0-7 | **本机（Windows）无 PHP/Composer/Redis，Hyperf+Swoole 不能原生运行** | 已解决：改用 **WSL2 Ubuntu 24.04** 跑后端（PHP 8.3 + 源码编译 Swoole + Redis）；并新建 `.wslconfig` 开 mirrored 网络解决 Clash 代理不通 | T0.2 | ✅ 已解决 |
-| Q0-8 | **本机无 Android SDK**（`ANDROID_HOME` 未设、无 `adb`），T0.4 建不了安卓工程 | 你已选择「装 Android Studio」，等你装好后我设 `ANDROID_HOME` | T0.4 | ⏳ 待你装 Android Studio |
+| Q0-8 | **本机无 Android SDK**（`ANDROID_HOME` 未设、无 `adb`），T0.4 建不了安卓工程 | 你装了 Android Studio，SDK 在 `C:\Users\34252\AppData\Local\Android\Sdk`。此后每个阶段都在 `emulator-5554` 上真机走查（走 `adb reverse`，见「模拟器连后端」段） | T0.4 | ✅ 已解决 |
 | Q0-9 | **`composer test` 有 7 个 MineAdmin 自带测试失败**（期望 422、实得 401）。根因：后台控制器 `AccessTokenMiddleware` 用 `#[Middleware(priority: 100)]`，优先级高于全局 `ValidationMiddleware`，先鉴权返回 401 | 你决定：**排除这 7 个用例**。已改 `server/composer.json` 的 test 脚本，用 phpunit 的 filter 反向排除 `Menu/Role/UserControllerTest::{testCreate,testSave,testUpdateInfo}`；原因写在 `server/phpunit.xml.dist` 注释里。**未改任何 MineAdmin 源码**；401 先返回本就是正确行为。排除后 44 测试全过 | T0.2、T0.4、T1.2 | ✅ 已解决（排除） |
 | Q0-12 | **`composer analyse`（phpstan）在 MineAdmin 自带代码上报 5 个错**（`IRepository` 泛型模板返回值 3 处、`RoleService` 调 `Model::menus()` 1 处、`User::getPolicy()` 1 处） | 已用 PHPStan 官方 **baseline** 机制精确豁免这 5 条（`server/phpstan-baseline.neon` + `phpstan.neon.dist` 里 includes），以后新增的问题仍会让 analyse 失败。未改 MineAdmin 源码 | T0.4 | ✅ 已解决 |
 | Q0-13 | `docs/05` 第 4.1 节的 `GET /app/config` 要返回 `version`，但 06 的 key 清单与其它文档都没定义它是什么（客户端版本？配置版本？） | 按铁律 7「可调项从配置读」新增配置项 **`app.version`**（默认 `1.0.0`，group=feature，后台可改），当「启动配置版本号」用。若客户另有定义再改 | T1.4、T7.7 | ⏳ 待确认语义 |
@@ -145,15 +247,16 @@
 | Q0-10 | MineAdmin 自带测试默认连 `.env` 里的开发库，会 `truncate` 种子表 | 已解决：`composer test` 脚本前置 `DB_DATABASE=cl_test REDIS_DB=15`（Hyperf dotenv 是 immutable，shell 变量优先；phpunit 的 `<env>` 因测试引导先建容器而无效） | T0.2 | ✅ 已解决 |
 | Q0-11 | **MineAdmin-Vue 3.2.1 自带代码有大量 lint 错误**（eslint 13 error：未使用变量/`prefer-promise-reject-errors`；stylelint 328 error：单行声明数、重复选择器、空 style 块等），导致 `pnpm lint` 直接失败 | 你已决定：**在配置里给上游目录放宽**。已改 `admin-web/eslint.config.js`（`src/**` 放宽两条规则，`src/modules/cl/**` 重新收紧）与 `admin-web/stylelint.config.js`（对 `src/{components,layouts,plugins,assets,modules/base}/**` 用 overrides 关掉相关规则；`@apply` 加白名单；`.md` 加入 ignores）。**未改任何 MineAdmin 源码** | T0.3、T7.x | ✅ 已解决 |
 | Q0-15 | `ClMiniProfileRow` 的 `blurred`（P09 非会员看不全是谁）用 `Modifier.blur`，但它在 **API 31 以下是空操作**，低版本手机上打码不生效 | 先用着（minSdk 26，Android 12+ 生效）；要全机型都糊就得改成盖一层遮罩或直接换成打码文字。做 P09 时决定 | T2.9、T3.9 | ⏳ 待确认（**2026-10-12 模拟器实测：API 37 上打码正常生效**） |
-| Q0-16 | `ClRangeSlider`（`docs/03` 第 5.5 节）是双滑块，但设计图 07 画的是**单滑块**（原型 HTML 也是一个 `<input type=range>`） | 行为以 `docs/01` P07「双滑块 18~60」为准，实现不改；外观差异（M3 竖条 thumb vs 设计图圆 thumb）留到 T3.8 做 P07 时对着设计图定 | T2.5、T3.8 | ⏳ 待 T3.8 定 |
+| Q0-16 | `ClRangeSlider`（`docs/03` 第 5.5 节）是双滑块，但设计图 07 画的是**单滑块**（原型 HTML 也是一个 `<input type=range>`） | 行为以 `docs/01` P07「双滑块 18~60」为准，实现不改；外观差异（M3 竖条 thumb vs 设计图圆 thumb）留到 T3.8 做 P07 时对着设计图定 | T2.5、T3.8 | ✅ 已定（T9.2）：**保留现状** —— 行为按 `docs/01` 的双滑块，外观由 Material3 决定（竖条 thumb）。T9.2 逐页走查时 P07 判为一致，不再为 thumb 形状改组件 |
 | Q0-18 | P14 的「学历」`docs/01` 只写「选择」，没给选项清单（原型里只出现过「本科」「硕士」两个值） | 先定成 `高中及以下 / 大专 / 本科 / 硕士 / 博士` 五项；服务端只校验 `string|max:16` 不限制取值，客户给清单后改客户端常量 `EDUCATION_OPTIONS` 即可 | T3.3 | ⏳ 待确认 |
 | Q0-22 | **设计图 03 的头像横条第一个是「我的小队」**（一个群组图标），但 `01` P03 的描述只写了「最近联系的 5 个人，点进 P06」，`05` 里也没有任何「小队」接口 | 我按 `01` 做的：横条只放最近联系的 5 个人，没做「我的小队」。如果客户要这个功能，需要补需求（是什么、几个人、在哪建） | T4.6 | ⏳ 待确认 |
 | Q0-21 | ~~**Room 的 DAO / 迁移没有自动化测试**~~（**2026-10-13 已解决**：按你的决定加了 Robolectric，`ChatDaoTest` 11 例 + `ChatMigrationTest` 1 例；迁移用例还做了反向验证 —— 故意写错一列，用例立刻红）：`Room.inMemoryDatabaseBuilder` 和 `MigrationTestHelper` 都要 Android 环境，JVM 单测跑不了，目前只靠 `kapt` 在**编译期**校验 SQL 列名 + 我在模拟器上手工跑了一遍 v1→v2（见 T4.5 记录）。要补自动化测试就得加 **Robolectric**（新依赖，还要处理 `compileSdk 37` 对不上 Robolectric 预置 SDK 的问题，可能要钉 `@Config(sdk = [34])`） | 已加，见「新增依赖记录」 | T4.5 起 | ✅ 已解决 |
-| Q0-20 | **401 之后不会自动回登录页**：`AuthInterceptor` 已经清了登录态，但没有页面跳转（`MainActivity` 只在启动时按 token 决定起始页），用户会停在一个报错的页面上 | 计划和「退出登录 / 切换账号」一起做：在导航层监听 token 是否变空，空了就回登录页。另外退出登录时还要顺手清掉 `UserRepository.clearCurrentUser()`、`UnreadStore.clear()`、`LocalCache.clearMemory()` | T3.10、T6.x | ⏳ 待做 |
+| Q0-20 | **401 之后不会自动回登录页**：`AuthInterceptor` 已经清了登录态，但没有页面跳转（`MainActivity` 只在启动时按 token 决定起始页），用户会停在一个报错的页面上 | 计划和「退出登录 / 切换账号」一起做：在导航层监听 token 是否变空，空了就回登录页。另外退出登录时还要顺手清掉 `UserRepository.clearCurrentUser()`、`UnreadStore.clear()`、`LocalCache.clearMemory()` | T3.10、T6.x | ✅ 已解决（T6.4）：`ClNavHost` 盯 `tokenStore.accessTokenFlow()`，token 一空就清本地状态 + 回登录页（清整棵栈） |
 | Q0-19 | 「在线」怎么算？`docs` 没定义多久没活跃算离线（P01 要按在线优先排序、卡片上有在线绿点，P07 有「只看在线」） | 先用 **15 分钟**（`DiscoverRepository::ONLINE_MINUTES`）。这是业务上要调的阈值，客户定了以后要么改常量要么提到 `cl_config` | T3.5 | ⏳ 待确认 |
 | Q0-17 | 注册页要不要也放「我已阅读并同意协议」勾选？`docs/01` P00 只在**登录**那条里要求勾选，「注册」那条只列了字段 | 按文档来：**只在登录页勾选**，注册页不放。客户若要求注册也勾，加一个 `ClCheckboxAgreement` 即可 | T3.1 | ⏳ 待确认 |
 | Q0-23 | **`01` P27 的「在线接听」开关没有对应接口**：它要控制「自己是否出现在发现页『推荐』里」（`cl_user.show_in_recommend`），但 `05` 第 4.8 节的收益接口清单里没有这个开关 | **2026-10-14 已解决**：用**已有的** `POST /user/settings`（它本来就收 `show_in_recommend`，是 P15 那套设置接口）—— 不用新增接口，T6.5 做 P27 时直接接上了 | T6.5 | ✅ 已解决 |
 | Q0-24 | **「视频在线 / 语音在线」两个 Tab 取的是同一批人**：库里只有「在线接听」一个开关（`show_in_recommend`），没有「只接语音 / 只接视频」这个字段，`docs/04` 也没有。设计图 02/16 的两个 chip 看起来是两批人 | 两个 Tab 都按「**现在能接**」筛（开着接听 + 15 分钟内活跃过），**差别只在客户端显示哪一栏单价**。要做到真区分得先给 `cl_user` 加字段（比如 `call_voice_enabled` / `call_video_enabled`）+ 后台开关，再改 `applyTab` | T8.1 | ⏳ 待确认 |
+| Q0-25 | **`.env.example` 里的 `JWT_SECRET` 是「能用的真钥匙」** —— 它是 MineAdmin 上游自带的示例密钥，本机 `server/.env` 一直在用同一个值，而 `.env.example` 是进 git 的。等于仓库里躺着一把能签超级管理员 token 的钥匙 | **2026-10-15（T9.3）已修**：`.env.example` 里换成空值 + 生成命令，并注明「必须与 `CL_APP_JWT_SECRET` 不同」。**注意：旧值仍在 git 历史里** —— 这个仓库一旦要对外发布/部署，必须重新生成 `JWT_SECRET` 和两把 CL 密钥（本机开发库没受影响，所以没动 `.env`，免得把在跑的后台登录态踢掉） | T0.2、T9.3 | ✅ 已修（部署前需轮换） |
 
 ## 任务记录
 
@@ -1715,6 +1818,54 @@
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
+### T9.3 收尾 —— ✅ 完成（2026-10-15）
+
+`docs/08` 给 T9.3 列了四件事，逐条做完：
+
+**1. `.env.example` 完整**
+原来的文件只有一堆裸键值，没说哪些必填、值该长什么样。重写成**按「必填 / 可留空」分组**的版本：
+应用、MySQL、Redis、后台 JWT、畅撩交友追加（`CL_ID_CARD_KEY` / `CL_APP_JWT_SECRET` / `CL_WS_PORT`）、
+缓存、上传（COS/S3/ODBC 全注释掉并说明本项目用本地磁盘）、MineAdmin 市场令牌。
+每把密钥都写了**怎么生成**（`php -r "echo base64_encode(random_bytes(64))..."` 之类）。
+
+**顺手挖出一枚泄露的密钥（新记为 Q0-25）**：`JWT_SECRET` 那个值**本机 `.env` 一直在用，
+而它是进 git 的** —— 等于仓库里躺着一把能签超级管理员 token 的钥匙（MineAdmin 上游自带的示例值，
+从 T0.2 抄下来后就没人动过）。已把它从 `.env.example` 里换成空值 + 生成命令。
+**没动 `.env`**：本机开发环境用着它，改了会把正在跑的后台登录态踢掉；而且真正要防的是「对外发布」，
+所以记成「部署前必须轮换三把密钥」，写进最终总结的已知限制里。
+
+**2. README 更新**
+从「装环境说明书」补成「接手就能跑」的样子：加「交付状态」一节（31 个页面 / P8 只做页面 / 门禁结果）、
+把版本号改成实测值（PHP 8.3.6、Swoole 5.1.8、MySQL 8.0.44、Redis 7.0.15、Node 24、JDK 17）、
+补**模拟器连后端必须 `adb reverse`**（原来 README 里没有，新来的人直接连 `10.0.2.2` 会卡住）、
+补**演示数据与账号**一节、补三个端口（9501/9502/9503）。
+
+**3. 清掉一个从 P4 挂到现在的遗留**
+`network_security_config.xml`（debug 才允许明文 HTTP）原来放在 `src/main/`，等于**正式包也带着「允许明文」这条**。
+按 P4/P6 记的「到 T9 挪 `src/debug/`」做了：文件挪到 `app/src/debug/res/xml/`，
+新建 `app/src/debug/AndroidManifest.xml` 挂这个配置，`src/main/AndroidManifest.xml` 里那行删掉。
+**两边都验证过**：debug 的合并清单里有 `networkSecurityConfig`，release 的合并清单里**没有**
+（走平台默认，targetSdk 28+ 本来就禁明文）—— 用 `processReleaseMainManifest` + 直接 grep 合并产物确认的。
+
+**4. `PROGRESS.md` 最终总结**
+在文件顶部（「当前状态」下面）新增「最终总结」一节：完成情况（三端规模 + 业务闭环 + 质量门槛 + 走查方式）、
+已知限制（15 条，分「范围上就没做」「技术取舍」「环境/交付」三类）、**待确认问题汇总**
+（10 条未关闭项做成一张表：一句话 / 现状 / 客户要决定什么）。
+顺便修了三行**过期状态**（Q0-8 显示「待你装 Android Studio」、Q0-16 显示「待 T3.8 定」、
+Q0-20 显示「待做」——这三个其实早就完成了，只是表里没回填），并把末尾那张空的
+「页面与设计图对照表」改成指向 T9.2 记录（避免出现两份会各自过期的对照表）。
+
+- 门禁：`bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（rc=0）：
+  server **572 测试 / 3169 断言** + phpstan `[OK] No errors` + `check-money.sh` 通过；
+  后台 `pnpm lint` + `pnpm build` 通过；安卓 **440 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh` 通过。
+  改完清单文件之后又单独重跑了 `check-android.sh` → 通过。
+- **环境坑（T9.3 新踩的，换机器会再遇到）**：WSL 里以 root 跑 `composer test` 时 git 会报
+  `detected dubious ownership`（`/mnt/c` 下的仓库在 WSL 眼里属主是 Windows 用户，不是 root）。
+  **它是警告不是错误**（`composer test` 会继续跑），但看着像失败。
+  已加 `git config --global --add safe.directory /mnt/c/Workspace/android/vibe/changliao`（在 WSL 的 root 家目录里）。
+- 遗留：Q0-13~Q0-19、Q0-22、Q0-24、Q0-25 共 10 条待确认（都写进最终总结了）；
+  发布/部署前记得轮换三把密钥、换掉 release 的占位域名。
+
 ### T9.2 UI 一致性走查 —— ✅ 完成（2026-10-15）
 
 **做法**：把 31 张设计图和对应的实机截图**拼成对比图**（左设计图 / 右实机，用 PIL 拼的），
@@ -2651,8 +2802,8 @@ server **572 测试 / 3169 断言** + phpstan `[OK] No errors` + `check-money.sh
 
 ## 页面与设计图对照表（T9.2 填写）
 
-| 页面 | 设计图 | 是否一致 | 差异说明 |
-|---|---|---|
+**31 个页面的逐页对照表在「任务记录 → T9.2 UI 一致性走查」那一段**（结论：结构上全部一致，修 2 处、
+有意保留差异 2 处）。这里原来留了张空表，为了不出现两份会各自过期的对照表，改成指向那一处。
 
 ---
 
@@ -2679,4 +2830,5 @@ C0-2 是**架构级变更**，不是加个配置。它会影响：
 - `09` 测试（需新增本地库的 DAO 测试与同步逻辑测试）
 - 任务清单里 T2.6（网络层与本地存储）的工作量和验收标准
 
-**计费逻辑不受影响**：扣费、分成、余额仍在服务端计算（铁律第 6 条），本地库只存展示用的消息内容。---|
+**计费逻辑不受影响**：扣费、分成、余额仍在服务端计算（铁律第 6 条），本地库只存展示用的消息内容。
+
