@@ -311,6 +311,10 @@ class ChatViewModel @Inject constructor(
             is ApiResult.BizError -> {
                 if (result.code == ChatRepository.CODE_COIN_NOT_ENOUGH) {
                     coinNotEnough.value = parseCoinNotEnough(result.data)
+                    // 收费条也要跟着刷新：弹窗说「余额 2 金币，还差 3」，条上还写着「余额 145 金币」的话，
+                    // 同一件事在同一个屏幕上两个说法（T9.1 走查发现的）。
+                    // 余额和收费条文案都是服务端拼的（铁律 6），所以这里重问一次 `with/{userId}`。
+                    refreshFee()
                 } else {
                     toast.value = result.message
                 }

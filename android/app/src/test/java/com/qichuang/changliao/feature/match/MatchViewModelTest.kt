@@ -10,6 +10,7 @@ import com.qichuang.changliao.core.data.repository.AppConfigRepository
 import com.qichuang.changliao.core.data.repository.DiscoverRepository
 import com.qichuang.changliao.core.data.repository.UserRepository
 import com.qichuang.changliao.core.network.ApiResult
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -47,6 +48,8 @@ class MatchViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         every { userRepository.currentUser } returns currentUser
         every { appConfigRepository.config } returns appConfig
+        // 进页面会真拉一次 `/user/me`（T9.1-fix1：余额是钱，不能吃缓存）
+        coEvery { userRepository.me() } returns ApiResult.Success(maleProfile())
         appConfig.value = AppConfig(callEnabled = true, voicePriceMin = 60, videoPriceMin = 120)
     }
 
@@ -110,7 +113,9 @@ class MatchViewModelTest {
 
     @Test
     fun `女用户看语音大厅显示积分`() {
-        currentUser.value = UserProfile(id = 8, gender = Gender.FEMALE, nickname = "我", pointBalance = 1200)
+        val female = UserProfile(id = 8, gender = Gender.FEMALE, nickname = "我", pointBalance = 1200)
+        coEvery { userRepository.me() } returns ApiResult.Success(female)
+        currentUser.value = female
         stubPage("voice", ApiResult.Success(DiscoverPage()))
 
         val viewModel = viewModel()
@@ -118,6 +123,19 @@ class MatchViewModelTest {
 
         assertEquals("1200", viewModel.uiState.value.balanceAmount)
         assertEquals("积分", viewModel.uiState.value.balanceUnit)
+    }
+
+    /** **T9.1-fix1**：和 P01 一样，速配/语音大厅也要每次真拉一次「我」，不吃缓存。 */
+    @Test
+    fun `余额取服务端实时值而不是缓存`() {
+        currentUser.value = maleProfile().copy(coinBalance = 0)
+        coEvery { userRepository.me() } returns ApiResult.Success(maleProfile().copy(coinBalance = 100))
+        stubPage("video", ApiResult.Success(DiscoverPage()))
+
+        val viewModel = viewModel()
+        viewModel.enter(CallKind.VIDEO)
+
+        assertEquals("100", viewModel.uiState.value.balanceAmount)
     }
 
     @Test

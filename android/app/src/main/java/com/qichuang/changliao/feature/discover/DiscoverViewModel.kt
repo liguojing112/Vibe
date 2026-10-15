@@ -98,8 +98,15 @@ class DiscoverViewModel @Inject constructor(
         load(tab, force = true)
     }
 
+    /**
+     * 下拉刷新：**把「我」的资料也重拉一遍**，不然客服刚充完值、用户下拉一下还是旧数字
+     * （下拉原本只重拉列表，T9.1 走查时就是这么发现的）。
+     */
     fun onRefresh() {
-        load(_uiState.value.tab, force = true)
+        viewModelScope.launch {
+            ensureCurrentUser()
+            load(_uiState.value.tab, force = true)
+        }
     }
 
     fun onLoadMore() {
@@ -195,16 +202,15 @@ class DiscoverViewModel @Inject constructor(
 
     /**
      * 拿到「我」的资料：顶部要显示性别对应的余额，列表缓存键也要用它。
-     * 拿不到就没法正确工作（也不知道该按哪个用户存缓存），直接给整页错误。
+     *
+     * **每次进页面都真拉一次 `/user/me`**，不是「有缓存就用缓存」——
+     * 余额是钱（`WalletRepository` 的注释里也是这个口径）：客服在后台刚充完，
+     * 用户手上就是这一页，**不能等他切到别的页面才更新**。
+     * T9.1 走查就是这么发现的：充值成功后 App 一直显示 0，下拉刷新也不动。
+     *
+     * 拉失败**不整页报错**：有缓存就继续用缓存（页面照常可用），没有缓存才报错。
      */
     private suspend fun ensureCurrentUser(): UserProfile? {
-        val cached = userRepository.currentUser.value
-        if (cached != null) {
-            applyBalance(cached)
-
-            return cached
-        }
-
         return when (val result = userRepository.me()) {
             is ApiResult.Success -> {
                 applyBalance(result.data)
@@ -212,16 +218,23 @@ class DiscoverViewModel @Inject constructor(
                 result.data
             }
 
-            is ApiResult.BizError -> {
-                _uiState.update { it.copy(loading = false, error = result.message) }
-                null
-            }
+            is ApiResult.BizError -> cachedOrError(result.message)
 
-            is ApiResult.NetworkError -> {
-                _uiState.update { it.copy(loading = false, error = result.message) }
-                null
-            }
+            is ApiResult.NetworkError -> cachedOrError(result.message)
         }
+    }
+
+    private fun cachedOrError(message: String): UserProfile? {
+        val cached = userRepository.currentUser.value
+        if (cached != null) {
+            applyBalance(cached)
+
+            return cached
+        }
+
+        _uiState.update { it.copy(loading = false, error = message) }
+
+        return null
     }
 
     /** 男用户显示金币、女用户显示积分（docs/01 P01）。 */

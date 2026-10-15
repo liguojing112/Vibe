@@ -150,6 +150,49 @@ class ChatViewModelTest {
         assertEquals("输入内容要留着，充值回来能直接发", "这条发不出去", vm.uiState.value.input)
     }
 
+    /**
+     * **T9.1-fix2**：20001 之后收费条也要刷新。
+     *
+     * 走查时看到的现象：弹窗说「余额 2 金币，还差 3」，同一屏的收费条还写着「余额 145 金币」——
+     * 同一件事两个说法。余额和收费条文案都是服务端拼的，所以这里要重问一次。
+     */
+    @Test
+    fun `余额不足之后收费条也跟着刷新`() {
+        coEvery { chatRepository.enterChat(peerId) } returnsMany listOf(
+            ApiResult.Success(
+                ChatEntry(
+                    conversationId = 32,
+                    peer = ChatPeer(id = peerId, nickname = "小满", avatar = "peer.png"),
+                    unread = 0,
+                    fee = fee(nextPrice = 5, stripText = "私信 5 币/条 · 余额 145 币"),
+                ),
+            ),
+            ApiResult.Success(
+                ChatEntry(
+                    conversationId = 32,
+                    peer = ChatPeer(id = peerId, nickname = "小满", avatar = "peer.png"),
+                    unread = 0,
+                    fee = fee(nextPrice = 5, stripText = "私信 5 币/条 · 余额 2 币"),
+                ),
+            ),
+        )
+
+        val vm = viewModel()
+        assertEquals("私信 5 币/条 · 余额 145 币", vm.uiState.value.fee!!.stripText)
+
+        coEvery { chatRepository.send(any(), any(), any(), any()) } returns ApiResult.BizError(
+            code = ChatRepository.CODE_COIN_NOT_ENOUGH,
+            message = "金币余额不足",
+            data = clJson.parseToJsonElement("""{"balance":2,"needed":5}"""),
+        )
+        vm.onInputChange("发不出去")
+        vm.onSend()
+
+        assertEquals("私信 5 币/条 · 余额 2 币", vm.uiState.value.fee!!.stripText)
+        // 输入内容照样留着
+        assertEquals("发不出去", vm.uiState.value.input)
+    }
+
     @Test
     fun `关掉 P30 之后输入还在`() {
         val vm = viewModel()

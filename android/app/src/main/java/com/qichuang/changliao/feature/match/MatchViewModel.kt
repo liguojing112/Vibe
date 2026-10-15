@@ -86,11 +86,17 @@ class MatchViewModel @Inject constructor(
         }
     }
 
-    /** 男用户显示金币、女用户显示积分（和 P01 一个口径）。 */
+    /**
+     * 男用户显示金币、女用户显示积分（和 P01 一个口径）。
+     *
+     * 和 P01 一样**每次进页面真拉一次 `/user/me`**，不吃缓存 —— 余额是钱，
+     * 后台刚充完的值必须马上看到（T9.1 走查发现的同一个问题）。
+     * 拉失败就退回缓存，页面不报错。
+     */
     private suspend fun applyBalance() {
-        val profile = userRepository.currentUser.value ?: when (val result = userRepository.me()) {
+        val profile = when (val result = userRepository.me()) {
             is ApiResult.Success -> result.data
-            else -> null
+            else -> userRepository.currentUser.value
         } ?: return
 
         userId = profile.id

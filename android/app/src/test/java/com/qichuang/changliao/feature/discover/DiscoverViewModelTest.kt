@@ -204,6 +204,7 @@ class DiscoverViewModelTest {
 
     @Test
     fun `女用户显示积分`() {
+        coEvery { userRepository.me() } returns ApiResult.Success(femaleProfile())
         currentUser.value = femaleProfile()
         stubFirstPage(page(listOf(user(1))), userId = 8)
 
@@ -213,6 +214,62 @@ class DiscoverViewModelTest {
         val state = viewModel.uiState.value
         assertEquals("1200", state.balanceAmount)
         assertEquals("积分", state.balanceUnit)
+    }
+
+    /**
+     * **T9.1-fix1**：余额是钱，每次进页面都要真拉一次 `/user/me`。
+     *
+     * 原来的写法是「有缓存就用缓存」，于是客服在后台刚充完值、用户正停在 P01 上时，
+     * 顶部胶囊一直显示旧数字，**下拉刷新也不动**（那只重拉列表）。
+     * 走查时的表现：后台充了 100，P01 还是 0，切到「我的」再回来才变 100。
+     */
+    @Test
+    fun `每次进页面都真拉一次我的资料`() {
+        // 缓存里是旧余额（0），服务端已经是 100
+        currentUser.value = maleProfile().copy(coinBalance = 0)
+        coEvery { userRepository.me() } returns ApiResult.Success(maleProfile().copy(coinBalance = 100))
+        stubFirstPage(page(listOf(user(1))))
+
+        val viewModel = viewModel()
+        viewModel.enter()
+
+        assertEquals("100", viewModel.uiState.value.balanceAmount)
+        coVerify(exactly = 1) { userRepository.me() }
+    }
+
+    /** 拉「我」失败但有缓存时不整页报错（页面照常可用，只是余额是旧值）。 */
+    @Test
+    fun `我的资料拉失败但有缓存时页面照常可用`() {
+        currentUser.value = maleProfile()
+        coEvery { userRepository.me() } returns ApiResult.NetworkError(NETWORK_ERROR_MESSAGE)
+        stubFirstPage(page(listOf(user(1))))
+
+        val viewModel = viewModel()
+        viewModel.enter()
+
+        val state = viewModel.uiState.value
+        assertNull(state.error)
+        assertEquals("360", state.balanceAmount)
+    }
+
+    /** 下拉刷新也要把「我」重拉一遍（用户最自然的「刷新」手势得能刷出余额）。 */
+    @Test
+    fun `下拉刷新会重拉我的资料`() {
+        currentUser.value = maleProfile().copy(coinBalance = 0)
+        coEvery { userRepository.me() } returnsMany listOf(
+            ApiResult.Success(maleProfile().copy(coinBalance = 0)),
+            ApiResult.Success(maleProfile().copy(coinBalance = 100)),
+        )
+        stubFirstPage(page(listOf(user(1))))
+
+        val viewModel = viewModel()
+        viewModel.enter()
+        assertEquals("0", viewModel.uiState.value.balanceAmount)
+
+        viewModel.onRefresh()
+
+        assertEquals("100", viewModel.uiState.value.balanceAmount)
+        coVerify(exactly = 2) { userRepository.me() }
     }
 
     @Test
