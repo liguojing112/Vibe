@@ -7,7 +7,46 @@ date_default_timezone_set('Asia/Shanghai');
 
 // 本地演示数据：造几个用户/关系，方便在模拟器上走查各页面（不是生产种子）。
 // 直接写库造几个用户，让 App 上能看到发现列表、访客、喜欢我的人。
-$pdo = new PDO('mysql:host=127.0.0.1;port=3306;dbname=changliao;charset=utf8mb4', 'root', 'root123');
+// 口令不写死在仓库里：先取环境变量，再回退读不提交的 server/.env。
+function env_value(string $key, string $default = ''): string
+{
+    $value = getenv($key);
+    if ($value !== false && $value !== '') {
+        return $value;
+    }
+
+    static $file = null;
+    if ($file === null) {
+        $file = [];
+        $path = __DIR__ . '/../server/.env';
+        if (is_readable($path)) {
+            foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+                if (preg_match('/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/', $line, $m)) {
+                    $file[$m[1]] = trim($m[2], "\"'");
+                }
+            }
+        }
+    }
+
+    return $file[$key] ?? $default;
+}
+
+$password = env_value('DB_PASSWORD');
+if ($password === '') {
+    fwrite(STDERR, "缺少数据库口令：在 server/.env 里设 DB_PASSWORD，或 DB_PASSWORD=xxx php scripts/seed-demo.php\n");
+    exit(1);
+}
+
+$pdo = new PDO(
+    sprintf(
+        'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
+        env_value('DB_HOST', '127.0.0.1'),
+        env_value('DB_PORT', '3306'),
+        env_value('DB_DATABASE', 'changliao')
+    ),
+    env_value('DB_USERNAME', 'root'),
+    $password
+);
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 const PASSWORD = 'abc12345';

@@ -29,7 +29,7 @@
 
 | 端 | 依赖 |
 |---|---|
-| 后端 | **WSL2 Ubuntu 24.04**：PHP 8.3.6 + Swoole 5.1.8 + Redis 7 + Composer；MySQL 8 装在 **Windows 宿主**（服务 `MySQL80`，账号 `root` / 密码 `root123`） |
+| 后端 | **WSL2 Ubuntu 24.04**：PHP 8.3.6 + Swoole 5.1.8 + Redis 7 + Composer；MySQL 8 装在 **Windows 宿主**（服务 `MySQL80`）；账号密码见 [server/.env.example](server/.env.example)（真实值填在 `server/.env`，不提交） |
 | 管理后台 | Node 24 + pnpm 10 |
 | 安卓 | **JDK 17** + Android SDK（`C:\Users\34252\AppData\Local\Android\Sdk`，平台 android-37） |
 
