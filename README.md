@@ -97,18 +97,32 @@ export JAVA_HOME="C:/Program Files/Eclipse Adoptium/jdk-17.0.19.10-hotspot"   # 
 ```bash
 adb reverse tcp:9501 tcp:9501
 adb reverse tcp:9502 tcp:9502
-cd android && ./gradlew assembleDebug -PapiBaseUrl=http://127.0.0.1:9501 -PwsBaseUrl=ws://127.0.0.1:9502/ws
 ```
 
-`apiBaseUrl` / `wsBaseUrl` 是 `app/build.gradle.kts` 里给 debug 包加的可覆盖项，**不传就还是 `docs/02` 写的 `10.0.2.2`**，所以正常构建不受影响。
+**debug 包的默认地址已经就是 `127.0.0.1:9501` / `ws://127.0.0.1:9502/ws`**（`app/build.gradle.kts`），
+所以 `./gradlew assembleDebug` **不带任何参数**也能连上 —— Android Studio 点 ▶ 直接能跑。
+真机也一样，插上线跑一次 `adb reverse` 即可。
+
+（历史包袱：`10.0.2.2` 是 `docs/02` 里写的地址，但后端在 WSL2 里时**这条路从来就没通过** ——
+模拟器 `SocketTimeoutException`，同一时刻 Windows 侧 `curl 127.0.0.1:9501` 是 200。T9.5 把默认值改掉了。
+真要换地址仍可覆盖：`./gradlew assembleDebug -PapiBaseUrl=http://xxx`。）
+
+> ⚠️ **发现页显示「网络不太好，请稍后重试」就是这条**：那是 App 自己 P01 的错误态，**不是 Android Studio 报的**。
+> 按顺序查：① `adb reverse --list` 看 9501/9502 在不在（拔线、重启模拟器、冷启 adb 都会掉）；
+> ② 后端在不在（WSL 里 `ss -ltn | grep 9501`）；③ APK 是不是带参数/新版构建的（老的写死 `10.0.2.2`）。
 
 **在 Android Studio 里跑**：打开 `android/` 这个目录（不是仓库根，根目录没有 `settings.gradle.kts`，Gradle 不认 Gradle 脚本），等右下角 Sync 完，选 `Medium Phone API 37`，点 ▶。
 
 **IDE 两个已知毛病**（都不是工程问题，别去改代码）：
-1. **「网络不太好，请稍后再试」** —— 这是内置 AI（Gemini/Agent）连不上，因为本机有 Clash 代理。
-   关掉即可：`File → Settings → Tools → AI Assistant` 关掉开关。构建、同步、跑模拟器都不受影响。
-2. **偶发崩溃**（`NullPointerException: peer` 在 `WInputMethod.openCandidateWindow`）—— 输入法和 Swing 的老 bug，
+1. **偶发崩溃**（`NullPointerException: peer` 在 `WInputMethod.openCandidateWindow`）—— 输入法和 Swing 的老 bug，
    换微软拼音或在 `Settings → Editor` 里关掉自定义字体可规避。
+2. 内置 AI（Gemini）在本机连不上（Clash 把 Studio 的内建服务也代理了，日志里
+   `BuiltInServer - Channel will be closed due to error` 连出 4 次）—— 用不到就关掉：
+   `File → Settings → Tools → AI Assistant`。它不影响构建、同步和跑模拟器。
+
+> ⚠️ **注意别把这两件事混起来**：App 里显示「网络不太好」是 **P01 的错误态**（真连不上后端），
+> Studio 的 AI 连不上是**弹窗**，两者字面都带「网络」但完全是两码事。
+> App 报这个的排查顺序见上面第三节。
 
 ---
 

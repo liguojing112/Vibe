@@ -1818,17 +1818,49 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
+### T9.5 演示版连不上后端：默认地址从 10.0.2.2 改成 127.0.0.1 —— ✅ 完成（2026-10-16）
+
+**现象**：客户演示时装上 App，P01 发现页显示「网络不太好，请稍后重试 + 重新加载」。
+
+**我上一轮判断错了，这次才查对**：那句话**是 App 自己的错误态**（`ClErrorState` 那一套），
+不是 Android Studio 的 AI 功能报的 —— 我把两件事混成一件了。上一轮去读 `idea.log` 找 AI 的错，
+方向就偏了；这次先 `adb shell uiautomator dump` 看屏幕上到底是什么，再查链路，才定位到。
+
+**根因（三条证据）**：
+1. 装的 APK `lastUpdateTime=2026-10-16 02:08:27`，是 **Android Studio 自己构建安装的**，
+   而我命令行装的那个被覆盖了；
+2. Studio 构建时**没传 `-PapiBaseUrl`**，所以它的 `BuildConfig.API_BASE_URL` 是默认值
+   **`http://10.0.2.2:9501`** —— 这条路后端在 WSL 里时**从来就没通过**（PROGRESS 里 T3.10 就记过：
+   模拟器 `SocketTimeoutException: failed to connect to /10.0.2.2`，同一时刻 Windows 侧 `curl 127.0.0.1:9501` 是 200）；
+3. `adb reverse --list` 显示 9501/9502 **在**，后端 `ss -ltn` 也在听 —— 所以不是链路断了，是地址错。
+
+**一句话**：`10.0.2.2` 这个默认值让「Android Studio 点 ▶ 跑起来」这条路一直是坏的，
+我在命令行带参数跑没事，就以为没问题。
+
+**修复（客户拍板：改默认值）**：`android/app/build.gradle.kts` 的 debug 默认值
+`10.0.2.2` → **`127.0.0.1`**（HTTP 和 WS 两处）。这样 AS 不带参数构建也是对的，
+`-PapiBaseUrl` 仍然能覆盖。**已不带参数重新构建 + 装机验证**：BuildConfig 是 `127.0.0.1:9501`，
+App 重启后发现页正常（余额 476、三个演示女号、单价按等级 10/8/5 币）。
+
+**顺带修的文档**：README 原来教人「每次构建带 `-PapiBaseUrl`」，现在说明默认值已改；
+并加了**一段排查顺序**（反代在不在 → 后端在不在 → APK 是不是老地址），
+因为这个错**长得像 Studio 的错**，下次还会有人（或我）往 IDE 方向查。
+
+- 门禁：只改了一行默认值 + 文档，未重跑全量 `check-all.sh`（本次编译已过 `assembleDebug`）。
+- 教训（记这儿免得再犯）：**「UI 上的一句话」要先确认是哪个组件说的**，别拿日志里的另一条错往上靠。
+  App 的错误态有自己的文案，Studio 的 AI 报错是弹窗，两者字面都是「网络不太好」—— 我凭字面像就下了结论。
+
 ### T9.4 客户演示版准备 —— ✅ 完成（2026-10-15）
 
 `docs/08` 没有这个任务，是客户要「先出一个可演示可端到端测试版本」临时加的。
 
-**1. 查清 Android Studio 的「网络不太好，请稍后再试」**
-读了 `%LOCALAPPDATA%/Google/AndroidStudio2026.2.1/log/idea.log`，**不是工程问题、也不是网络问题**，
-三个证据：① `BuiltInServer - Channel will be closed due to error` 连出 4 次（Clash 把 Studio 的内建服务也代理了，
-握手失败）；② `gemini-backend.log` 从建好就是 0 字节（内置 AI 从没通）；③ 22:13 那堆 `SEVERE` 是
-`NullPointerException: peer` 在 `sun.awt.windows.WInputMethod.openCandidateWindow` —— 输入法和 Swing 的老 bug，
-跟点哪里无关。**Gradle 同步是正常的，模拟器也起来了。**
-→ 关掉内置 AI 即可（`Settings → Tools → AI Assistant`）。已写进 README。
+**1. Android Studio 的「网络不太好」（T9.4 查的，T9.5 才查对）**
+T9.4 时读到 `idea.log` 里有 `BuiltInServer - Channel will be closed due to error`、
+`gemini-backend.log` 从建好就是 0 字节、22:13 那堆 `SEVERE` 是
+`NullPointerException: peer`（`WInputMethod.openCandidateWindow`，输入法和 Swing 的老 bug），
+就判定「App 显示网络不佳 = AI 功能报错」。**这个结论错了** —— 详见 T9.5：那句话是 **App 自己 P01 的错误态**，
+根因是 Android Studio 构建的 APK 用了默认地址 `10.0.2.2`（这条路在 WSL 后端下从来没通过）。
+**教训**：UI 上的一句文案要先确认是哪个组件说的，别拿日志里字面像的另一条错往上靠。
 
 **2. 演示数据（不新增账号，写了个 `scripts/demo-prepare.php`）**
 在 5 个 seed 账号基础上掰正 4 处「客户看了会误会」的地方：

@@ -20,18 +20,19 @@ android {
 
     buildTypes {
         debug {
-            // 模拟器访问宿主机：10.0.2.2 = 宿主机的 127.0.0.1（见 docs/02 第 4.4 节）
+            // 后端跑在 WSL2 里时，模拟器的 10.0.2.2（宿主机）走不通 —— 实测
             //
-            // 但后端跑在 WSL 里时，模拟器的 10.0.2.2 走不通（连不上，超时）。这时可以改用
-            // `adb reverse tcp:9501 tcp:9501` + 构建时覆盖地址：
-            //   ./gradlew assembleDebug -PapiBaseUrl=http://127.0.0.1:9501
-            // 真机调试也走这条路（真机同样连不到 10.0.2.2）。
+            // SocketTimeoutException: failed to connect to /10.0.2.2 (port 9501)，而同一时刻
+            // Windows 侧 curl 127.0.0.1:9501 是 200。跟 WSL 的 mirrored 网络有关，没深究。
+            // 所以默认走 **adb reverse**，应用访问 127.0.0.1：
+            //   adb reverse tcp:9501 tcp:9501
+            // 真机调试同样走这条路（真机也连不到 10.0.2.2）。
             val apiBaseUrl = providers.gradleProperty("apiBaseUrl")
-                .getOrElse("http://10.0.2.2:9501")
-            // WebSocket 同理（8502 是后端 ws 服务的端口，见 docs/05 第 5 节）：
+                .getOrElse("http://127.0.0.1:9501")
+            // WebSocket 同理（后端 ws 服务在 9502）：
             //   ./gradlew assembleDebug -PwsBaseUrl=ws://127.0.0.1:9502/ws
             val wsUrl = providers.gradleProperty("wsBaseUrl")
-                .getOrElse("ws://10.0.2.2:9502/ws")
+                .getOrElse("ws://127.0.0.1:9502/ws")
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
             buildConfigField("String", "WS_URL", "\"$wsUrl\"")
         }
