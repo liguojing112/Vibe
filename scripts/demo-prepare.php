@@ -83,7 +83,16 @@ foreach ([
 }
 say('  5 个头像指向 picsum（固定 seed，刷新不变）');
 
-say('== 4. 阿宁保持会员（客户要「先看会员权益」）==');
+say('== 4. 刷新女号的活跃时间（「在线」= 15 分钟内活跃过，见 Q0-19）==');
+// seed 用 PHP 的 date() 写 last_active_at，CLI 时区可能是 UTC，写出来「不在线」，
+// 演示时发现页「推荐」Tab 就是空的（T9.6 踩到）。男号的不动 —— 阿宁登录后服务端会自己刷。
+$touch = $pdo->prepare('UPDATE cl_user SET last_active_at = NOW() WHERE phone = ? AND gender = 2');
+foreach (['13800000002', '13800000003', '13800000004'] as $phone) {
+    $touch->execute([$phone]);
+}
+say(sprintf('  小满/晚晴/星野 的 last_active_at 刷成现在（%s）', date('Y-m-d H:i:s')));
+
+say('== 5. 阿宁保持会员（客户要「先看会员权益」）==');
 $vip = $pdo->prepare('SELECT id, nickname, vip_expire_at FROM cl_user WHERE phone = ?');
 $vip->execute(['13800000001']);
 $row = $vip->fetch();
@@ -100,7 +109,7 @@ if ($row === false) {
     }
 }
 
-say('== 5. 待审资料 ==');
+say('== 6. 待审资料 ==');
 foreach ($pdo->query('SELECT COUNT(*) AS n FROM cl_profile_audit WHERE status = 0') as $r) {
     say(sprintf('  待审 %d 条。要演示「资料审核」就故意留着（P05 上对方显示审核中）；'
         . '要顺当走完跑 UPDATE cl_profile_audit SET status=1 WHERE status=0', (int) $r['n']));
