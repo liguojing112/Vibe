@@ -19,7 +19,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -186,6 +188,19 @@ private fun MessageList(
 ) {
     val listState = rememberLazyListState()
     val rows = state.displayRows
+
+    // 首次加载完成时**无条件贴底**：聊天页的惯例是「打开就看最新消息」。
+    //
+    // 为什么不能只靠下面那个「新消息才滚」：`rememberLazyListState()` 底层是 rememberSaveable，
+    // **进程被杀后回来会恢复上一次的滚动位置**（T9.9 实测：重启后进聊天页停在 15:27 的老消息上，
+    // 最新的失败消息在屏幕外看不见）。
+    var didInitialScroll by remember { mutableStateOf(false) }
+    LaunchedEffect(rows.isNotEmpty()) {
+        if (!didInitialScroll && rows.isNotEmpty()) {
+            didInitialScroll = true
+            listState.scrollToItem(0)
+        }
+    }
 
     // 新消息 / 刚发出去的消息要自动贴底。
     //

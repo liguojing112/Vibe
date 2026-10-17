@@ -14,6 +14,7 @@ import com.qichuang.changliao.core.network.buildTestRetrofit
 import com.qichuang.changliao.core.network.dto.UnreadDto
 import com.qichuang.changliao.core.network.ws.ChatFrame
 import com.qichuang.changliao.core.network.ws.ChatSocket
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +49,7 @@ class ChatRepositoryTest {
     private lateinit var messageDao: FakeMessageDao
     private lateinit var conversationDao: FakeConversationDao
     private lateinit var syncStateDao: FakeSyncStateDao
+    private lateinit var imageUploader: ImageUploader
     private lateinit var repository: ChatRepository
     private lateinit var unreadStore: UnreadStore
     private lateinit var frames: MutableSharedFlow<ChatFrame>
@@ -63,6 +65,7 @@ class ChatRepositoryTest {
         server = MockWebServer()
         server.start()
 
+        imageUploader = mockk<ImageUploader>(relaxed = true)
         messageDao = FakeMessageDao()
         conversationDao = FakeConversationDao()
         syncStateDao = FakeSyncStateDao()
@@ -84,7 +87,7 @@ class ChatRepositoryTest {
             conversationDao = conversationDao,
             syncStateDao = syncStateDao,
             socket = socket,
-            imageUploader = mockk<ImageUploader>(relaxed = true),
+            imageUploader = imageUploader,
             unreadStore = unreadStore,
             userRepository = userRepository,
         )
@@ -164,6 +167,42 @@ class ChatRepositoryTest {
             "重发的 client_msg_id 必须和第一次一样，实际：$body",
             body.contains("\"client_msg_id\":\"${failed.clientMsgId}\""),
         )
+    }
+
+    /**
+     * **T9.9 回归**：图片消息上传失败时 `content` 还是空的，
+     * 早期 `resend()` 直接把这个空串发出去 → 服务端校验拦掉 → 失败图片永远重发不了。
+     * 正确行为是**先拿本地那份重新上传**，再把地址发出去。
+     */
+    @Test
+    fun `重发失败的图片会先重新上传本地文件，再把地址发出去`() = runTest {
+        val localId = messageDao.insert(
+            MessageEntity(
+                ownerId = me,
+                clientMsgId = "img-failed-1",
+                peerId = peer,
+                senderId = me,
+                outgoing = true,
+                type = ChatMessage.TYPE_IMAGE,
+                content = "",
+                localMediaPath = "/data/user/0/com.qichuang.changliao/files/chat_images/x.jpg",
+                status = MessageStatus.FAILED.code,
+                createdAt = 1L,
+                updatedAt = 1L,
+            ),
+        )
+
+        coEvery { imageUploader.uploadChatImage(any(), any()) } returns
+            ApiResult.Success("https://cdn.example.com/x.jpg")
+        server.enqueue(ok(sendBody(serverId = 200, conversationId = 5, content = "https://cdn.example.com/x.jpg")))
+
+        val result = repository.resend(localId)
+
+        assertTrue(result is ApiResult.Success)
+        assertEquals(MessageStatus.SENT.code, messageDao.rows.single().status)
+        assertEquals(1, messageDao.rows.size)
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue("重发图片必须带上重新上传的地址，实际：$body", body.contains("https://cdn.example.com/x.jpg"))
     }
 
     @Test

@@ -262,7 +262,32 @@ class ChatRepository @Inject constructor(
         // 先回到「发送中」，界面立刻有反馈
         messageDao.updateStatus(localId, MessageStatus.SENDING.code, now)
 
-        return deliver(row.localId, row.peerId, row.type, row.content, row.clientMsgId, now)
+        // **图片消息可能卡在「上传失败」**：这时 content 还是空的，直接发会被服务端拦掉
+        // （T9.9 真机测出来的：失败的图片永远重发不了）。重发要先拿本地那份重新上传。
+        // 注意：**不重新生成 client_msg_id** —— 服务端靠它幂等，换了会重复扣费。
+        val content = if (row.type == ChatMessage.TYPE_IMAGE && row.content.isBlank()) {
+            val localPath = row.localMediaPath
+            if (localPath.isNullOrBlank()) {
+                messageDao.updateStatus(localId, MessageStatus.FAILED.code, System.currentTimeMillis())
+                return ApiResult.BizError(0, "图片已丢失，请重新选择")
+            }
+            when (val uploaded = imageUploader.uploadChatImage(localPath)) {
+                is ApiResult.Success -> uploaded.data
+                is ApiResult.BizError -> {
+                    messageDao.updateStatus(localId, MessageStatus.FAILED.code, System.currentTimeMillis())
+                    return uploaded
+                }
+
+                is ApiResult.NetworkError -> {
+                    messageDao.updateStatus(localId, MessageStatus.FAILED.code, System.currentTimeMillis())
+                    return uploaded
+                }
+            }
+        } else {
+            row.content
+        }
+
+        return deliver(row.localId, row.peerId, row.type, content, row.clientMsgId, now)
     }
 
     /**
