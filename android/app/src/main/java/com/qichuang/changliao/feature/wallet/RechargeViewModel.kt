@@ -32,6 +32,17 @@ class RechargeViewModel @Inject constructor(
         load()
     }
 
+    /**
+     * 从别的页面回来时静默拉一次。
+     *
+     * **这个产品没有线上支付**（`R1-2`）：用户看到「联系客服充值」→ 客服在后台加金币 →
+     * 用户还停在这一页。不加这个，页面上的余额永远是进页面那一刻的旧值，
+     * 用户会以为没充上（T9.7 查出来的）。
+     */
+    fun refresh() {
+        load()
+    }
+
     fun onSelectPack(pack: RechargePack) {
         _uiState.update { it.copy(selectedPack = pack) }
     }

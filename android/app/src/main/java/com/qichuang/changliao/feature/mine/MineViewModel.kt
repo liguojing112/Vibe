@@ -63,6 +63,17 @@ class MineViewModel @Inject constructor(
         refresh()
     }
 
+    /**
+     * 回到本页时静默刷新。
+     *
+     * `enter()` 有 `loaded` 标志（只在第一次进来时拉），所以从充值页 / 钱包页返回时
+     * 余额不会自己变 —— 而「后台加金币」是这个产品唯一的充值方式（`R1-2`）。
+     * 这里不带下拉刷新的转圈，避免页面闪一下（T9.7）。
+     */
+    fun onResume() {
+        refresh()
+    }
+
     /** 有资料就别报错（页面照常显示上一次的），什么都没拉到才让页面显示错误。 */
     private fun errorFor(state: MineUiState): String? = if (state.user == null) FAIL_MESSAGE else null
 

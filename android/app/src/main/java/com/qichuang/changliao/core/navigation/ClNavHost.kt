@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.compose.runtime.LaunchedEffect
@@ -86,8 +87,8 @@ fun ClNavHost(
         composable(Routes.LOGIN) {
             LoginRoute(
                 onGoMain = { navController.navigate(Routes.MAIN) { popUpTo(Routes.LOGIN) { inclusive = true } } },
-                onRegister = { navController.navigate(Routes.REGISTER) },
-                onOpenAgreement = { type -> navController.navigate(Routes.agreement(type)) },
+                onRegister = { navController.open(Routes.REGISTER) },
+                onOpenAgreement = { type -> navController.open(Routes.agreement(type)) },
             )
         }
 
@@ -99,7 +100,7 @@ fun ClNavHost(
         }
 
         composable(Routes.MAIN) {
-            MainScreen(onOpen = { route -> navController.navigate(route) })
+            MainScreen(onOpen = { route -> navController.open(route) })
         }
 
         composable(Routes.GALLERY) { DesignSystemGalleryScreen() }
@@ -115,8 +116,8 @@ fun ClNavHost(
             UserDetailRoute(
                 userId = entry.arguments?.getString("user_id")?.toLongOrNull() ?: 0L,
                 onBack = { navController.popBackStack() },
-                onChat = { navController.navigate(Routes.chat(it)) },
-                onOpenGift = { id, name -> navController.navigate(Routes.giftPanel(id, name)) },
+                onChat = { navController.open(Routes.chat(it)) },
+                onOpenGift = { id, name -> navController.open(Routes.giftPanel(id, name)) },
             )
         }
 
@@ -124,7 +125,7 @@ fun ClNavHost(
             ChatRoute(
                 userId = entry.arguments?.getString("user_id")?.toLongOrNull() ?: 0L,
                 onBack = { navController.popBackStack() },
-                onOpenRoute = { navController.navigate(it) },
+                onOpenRoute = { navController.open(it) },
             )
         }
         composable(Routes.FILTER) {
@@ -133,15 +134,15 @@ fun ClNavHost(
         composable(Routes.VISITORS) {
             VisitorsRoute(
                 onBack = { navController.popBackStack() },
-                onOpenUser = { navController.navigate(Routes.userDetail(it)) },
-                onOpenVip = { navController.navigate(Routes.VIP) },
+                onOpenUser = { navController.open(Routes.userDetail(it)) },
+                onOpenVip = { navController.open(Routes.VIP) },
             )
         }
         composable(Routes.LIKED_ME) {
             FansRoute(
                 onBack = { navController.popBackStack() },
-                onOpenUser = { navController.navigate(Routes.userDetail(it)) },
-                onOpenVip = { navController.navigate(Routes.VIP) },
+                onOpenUser = { navController.open(Routes.userDetail(it)) },
+                onOpenVip = { navController.open(Routes.VIP) },
             )
         }
         composable(Routes.NOTICES) {
@@ -156,7 +157,7 @@ fun ClNavHost(
         composable(Routes.DAILY_TASK) {
             DailyTaskRoute(
                 onBack = { navController.popBackStack() },
-                onOpenEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
+                onOpenEditProfile = { navController.open(Routes.EDIT_PROFILE) },
                 // 「去认识」要回到发现页找人说两句。发现是底部导航的一个 Tab，
                 // 它的选中状态在主界面的 ViewModel 里，从这儿改不了 ——
                 // 所以整个主界面重建一次（MainViewModel 默认就停在发现 Tab）。
@@ -171,14 +172,14 @@ fun ClNavHost(
         composable(Routes.VIP) {
             VipCenterRoute(
                 onBack = { navController.popBackStack() },
-                onOpenRoute = { navController.navigate(it) },
+                onOpenRoute = { navController.open(it) },
             )
         }
         composable(Routes.COIN_WALLET) {
             WalletRoute(
                 onBack = { navController.popBackStack() },
-                onOpenRecharge = { navController.navigate(Routes.RECHARGE) },
-                onOpenLogs = { navController.navigate(Routes.COIN_LOGS) },
+                onOpenRecharge = { navController.open(Routes.RECHARGE) },
+                onOpenLogs = { navController.open(Routes.COIN_LOGS) },
             )
         }
         composable(Routes.RECHARGE) {
@@ -193,7 +194,7 @@ fun ClNavHost(
         composable(Routes.SETTINGS) {
             SettingsRoute(
                 onBack = { navController.popBackStack() },
-                onOpenRoute = { navController.navigate(it) },
+                onOpenRoute = { navController.open(it) },
             )
         }
         composable(Routes.BLOCK_LIST) {
@@ -205,7 +206,7 @@ fun ClNavHost(
                 userId = entry.userId(),
                 kind = entry.callKind(),
                 onBack = { navController.popBackStack() },
-                onOpenRoute = { navController.navigate(it) },
+                onOpenRoute = { navController.open(it) },
             )
         }
         composable(Routes.CALL_WAITING) { entry ->
@@ -213,21 +214,21 @@ fun ClNavHost(
                 userId = entry.userId(),
                 kind = entry.callKind(),
                 onBack = { navController.popBackStack() },
-                onOpenRoute = { navController.navigate(it) },
+                onOpenRoute = { navController.open(it) },
             )
         }
         composable(Routes.VOICE_CALL) { entry ->
             CallInProgressRoute(
                 userId = entry.userId(),
                 kind = CallKind.VOICE,
-                onOpenRoute = { navController.navigate(it) },
+                onOpenRoute = { navController.open(it) },
             )
         }
         composable(Routes.VIDEO_CALL) { entry ->
             CallInProgressRoute(
                 userId = entry.userId(),
                 kind = CallKind.VIDEO,
-                onOpenRoute = { navController.navigate(it) },
+                onOpenRoute = { navController.open(it) },
             )
         }
         composable(Routes.CALL_BILL) { entry ->
@@ -236,7 +237,7 @@ fun ClNavHost(
                 kind = entry.callKind(),
                 seconds = entry.arguments?.getString("seconds")?.toIntOrNull() ?: 0,
                 onBack = { navController.popBackStack() },
-                onOpenRoute = { navController.navigate(it) },
+                onOpenRoute = { navController.open(it) },
             )
         }
         composable(Routes.CALL_RECORDS) {
@@ -255,32 +256,43 @@ fun ClNavHost(
                 userId = entry.arguments?.getString("user_id")?.toLongOrNull() ?: 0L,
                 peerName = entry.arguments?.getString("name").orEmpty(),
                 onBack = { navController.popBackStack() },
-                onOpenRoute = { navController.navigate(it) },
+                onOpenRoute = { navController.open(it) },
             )
         }
         composable(Routes.INCOME) {
             IncomeRoute(
                 onBack = { navController.popBackStack() },
-                onOpenWithdraw = { navController.navigate(Routes.WITHDRAW) },
-                onOpenLevel = { navController.navigate(Routes.LEVEL_SETTING) },
+                onOpenWithdraw = { navController.open(Routes.WITHDRAW) },
+                onOpenLevel = { navController.open(Routes.LEVEL_SETTING) },
             )
         }
         composable(Routes.LEVEL_SETTING) {
             IncomeLevelRoute(
                 onBack = { navController.popBackStack() },
-                onOpenRealName = { navController.navigate(Routes.REAL_NAME) },
+                onOpenRealName = { navController.open(Routes.REAL_NAME) },
             )
         }
         composable(Routes.WITHDRAW) {
             WithdrawRoute(
                 onBack = { navController.popBackStack() },
-                onOpenRealName = { navController.navigate(Routes.REAL_NAME) },
+                onOpenRealName = { navController.open(Routes.REAL_NAME) },
             )
         }
         composable(Routes.REAL_NAME) {
             RealNameRoute(onBack = { navController.popBackStack() })
         }
     }
+}
+
+/**
+ * 页面跳转统一走这里。
+ *
+ * `launchSingleTop = true`：**连点同一个入口不会把页面压两层**（T9.7 实测发现的 ——
+ * 快速点两下发现页的卡片，要按两次返回才退得出去）。
+ * 只对「同一个目的地已经在栈顶」生效，正常的前进/返回不受影响。
+ */
+private fun NavHostController.open(route: String) {
+    navigate(route) { launchSingleTop = true }
 }
 
 /** 路由参数里的 `user_id`（P17~P21 都要）。 */

@@ -7,18 +7,22 @@
 
 ## 当前状态
 
-- 当前阶段：**P9 最终验收 —— 全部完成**；T9.4 客户演示版已备好
-- 当前任务：T9.6 交互性走查已修（键盘弹起顶栏消失）；客户已答复 Q0-22/Q0-24/其他待确认项（R7 轮）
+- 当前阶段：**P9 最终验收 —— 全部完成**；客户演示版已备好，交互性已过两轮
+- 当前任务：T9.7 交互性第二轮已修（余额不刷新 + 连点压两层）；Q0-13 按客户要求关闭
 - 任务状态：全部完成 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：**T9.6 交互性走查修完**。经理点名的键盘问题**是真的**：manifest 从没设过
-  `windowSoftInputMode`（默认 `adjust=pan`），键盘一弹**整个顶栏被平移出屏**（聊天页「小满」+ 收费条全消失，
-  上方 400px 空白）。已修：manifest 加 `adjustResize` + `ClScaffold` 加 `.imePadding()`（放骨架里，
-  9 个有输入框的页面一起受益，无键盘时是 0 没影响）。真机验过 P06 和 P00，单测全过。
-  客户同时确认了三条：Q0-22「我的小队」**不做**、Q0-24 语音/视频 Tab **不区分**、其余**保持默认**（R7 轮）。
-  更早的：**T9.4 客户演示版准备好**（`scripts/demo-prepare.php` + README 演示路线）。
-  App 已装到 `emulator-5554`，登的是阿宁（476 金币），发现页只剩 3 个演示女号、余额与接口一致。
-  **收费链路用真后端对过账**：发到第 4 条扣 5 币，小满同步拿 15 积分（Lv1 分成 30%）。
-  给客户演示按 README「六、给客户演示的路线」9 步走。
+- 上次停在哪：**T9.7 交互性第二轮修完（2026-10-17）**，查出并修掉 2 个真 bug：
+  ① **从别的页面回来余额永不刷新**（充值页/钱包/我的/聊天收费条）—— 全 App 没有 `ON_RESUME` 监听，
+     而本产品唯一充值方式是后台加币，所以必现。已给 4 个页面加 `LifecycleResumeEffect`，真机验证
+     充值页 465→455、聊天条 475→465 自动更新；
+  ② **连点同一入口压两层**（连点发现页卡片，要按两次返回）—— `ClNavHost` 加
+     `NavHostController.open()` 统一带 `launchSingleTop`，25 处跳转改走它，真机验证一次返回即可。
+  另记一个小瑕疵未改：编辑资料「自我介绍」框底部被键盘压 36px（文字可见，不阻断）。
+  客户同时明确：**规则文档不必完全照做，合理即可** → Q0-13 关闭、不再追。
+  **T9.6 交互性第一轮**：经理点名的键盘问题是**真的** —— manifest 从没设 `windowSoftInputMode`
+  （默认 `adjust=pan`），键盘一弹整个顶栏被平移出屏（聊天页「小满」+ 收费条全消失）。已修：
+  `adjustResize` + `ClScaffold` 的 `.imePadding()`（9 个有输入框的页面一起受益）。
+  **T9.4 客户演示版**：`scripts/demo-prepare.php` + README 演示路线；收费链路真后端对过账
+  （发到第 4 条扣 5 币，小满同步拿 15 积分）。
   更早的 T9.3 收尾、T9.2 UI 走查见下面的任务记录。
 - 上次停在哪（T9.2）：**T9.2 UI 一致性走查做完**。31 个页面逐个和设计图对照（把「设计图 | 实机」拼成对比图看的），
   **结构上全部一致**，修掉 2 处真差异：
@@ -112,7 +116,7 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
 
 | 编号 | 一句话 | 现状 / 影响 | 客户要决定什么 |
 |---|---|---|---|
-| Q0-13 | `app.version` 是什么语义？ | 当成「启动配置版本号」用，默认 `1.0.0`，后台可改。**不影响功能** | 如果它有别的定义（比如客户端版本），改个配置项说明即可 |
+| ~~Q0-13~~ | ~~`app.version` 是什么语义~~ | **✅ 客户 2026-10-17 明确「不必完全照做，合理即可」**，维持现实现（启动配置版本号） | 已关闭 |
 | Q0-14 | `ClSoftButton` 三种底色对应哪三种操作 | 映射到了最接近的 token（语音/视频/私信）。T9.2 走查判为可接受 | 要精确配色就请给原型里那三个色值 |
 | Q0-15 | 低版本安卓打码不生效 | minSdk 26，Android 12+ 正常；11 及以下只糊文字 | 要不要为老机型改成遮罩方案 |
 | Q0-16 | 年龄滑块是单滑块还是双滑块 | 按 `docs/01` 做**双滑块**，外观是 Material3 的竖条 thumb。已定，不再改 | 无（除非要求外观完全复刻设计图） |
@@ -249,7 +253,7 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
 | Q0-8 | **本机无 Android SDK**（`ANDROID_HOME` 未设、无 `adb`），T0.4 建不了安卓工程 | 你装了 Android Studio，SDK 在 `C:\Users\34252\AppData\Local\Android\Sdk`。此后每个阶段都在 `emulator-5554` 上真机走查（走 `adb reverse`，见「模拟器连后端」段） | T0.4 | ✅ 已解决 |
 | Q0-9 | **`composer test` 有 7 个 MineAdmin 自带测试失败**（期望 422、实得 401）。根因：后台控制器 `AccessTokenMiddleware` 用 `#[Middleware(priority: 100)]`，优先级高于全局 `ValidationMiddleware`，先鉴权返回 401 | 你决定：**排除这 7 个用例**。已改 `server/composer.json` 的 test 脚本，用 phpunit 的 filter 反向排除 `Menu/Role/UserControllerTest::{testCreate,testSave,testUpdateInfo}`；原因写在 `server/phpunit.xml.dist` 注释里。**未改任何 MineAdmin 源码**；401 先返回本就是正确行为。排除后 44 测试全过 | T0.2、T0.4、T1.2 | ✅ 已解决（排除） |
 | Q0-12 | **`composer analyse`（phpstan）在 MineAdmin 自带代码上报 5 个错**（`IRepository` 泛型模板返回值 3 处、`RoleService` 调 `Model::menus()` 1 处、`User::getPolicy()` 1 处） | 已用 PHPStan 官方 **baseline** 机制精确豁免这 5 条（`server/phpstan-baseline.neon` + `phpstan.neon.dist` 里 includes），以后新增的问题仍会让 analyse 失败。未改 MineAdmin 源码 | T0.4 | ✅ 已解决 |
-| Q0-13 | `docs/05` 第 4.1 节的 `GET /app/config` 要返回 `version`，但 06 的 key 清单与其它文档都没定义它是什么（客户端版本？配置版本？） | 按铁律 7「可调项从配置读」新增配置项 **`app.version`**（默认 `1.0.0`，group=feature，后台可改），当「启动配置版本号」用。若客户另有定义再改 | T1.4、T7.7 | ⏳ 待确认语义 |
+| Q0-13 | **⭐ 客户 2026-10-17 明确：不必按文档逐字来，合理即可** —— 规则文档只是经理的初步规划。维持现实现：新增配置项 `app.version`（默认 `1.0.0`，后台可改），当「启动配置版本号」用 | 已按此实现，不再追语义 | T1.4、T7.7 | ✅ 已关闭（不追） |
 | Q0-14 | `ClSoftButton` 的三种底色（docs/03 第 5.2 节只说 Yellow/Peach/Gray，对应语音/视频/私信）在原型 CSS 里找不到确切的三组值（原型有几十种相近暖色底） | 先映射到最接近的颜色 token：Yellow = primarySoft/primaryText、Peach = tagGoldBg/tagGoldText、Gray = bgInput/inkSecondary。等做 P01 卡片时对着设计图定哪种按钮用哪种 | T2.3、T3.7 | ⏳ 待对着设计图确认 |
 | Q0-10 | MineAdmin 自带测试默认连 `.env` 里的开发库，会 `truncate` 种子表 | 已解决：`composer test` 脚本前置 `DB_DATABASE=cl_test REDIS_DB=15`（Hyperf dotenv 是 immutable，shell 变量优先；phpunit 的 `<env>` 因测试引导先建容器而无效） | T0.2 | ✅ 已解决 |
 | Q0-11 | **MineAdmin-Vue 3.2.1 自带代码有大量 lint 错误**（eslint 13 error：未使用变量/`prefer-promise-reject-errors`；stylelint 328 error：单行声明数、重复选择器、空 style 块等），导致 `pnpm lint` 直接失败 | 你已决定：**在配置里给上游目录放宽**。已改 `admin-web/eslint.config.js`（`src/**` 放宽两条规则，`src/modules/cl/**` 重新收紧）与 `admin-web/stylelint.config.js`（对 `src/{components,layouts,plugins,assets,modules/base}/**` 用 overrides 关掉相关规则；`@apply` 加白名单；`.md` 加入 ignores）。**未改任何 MineAdmin 源码** | T0.3、T7.x | ✅ 已解决 |
@@ -1825,6 +1829,65 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
+### T9.7 交互性走查第二轮：余额不刷新 + 连点压两层 —— ✅ 已修（2026-10-17）
+
+> 客户转达经理：「重点查一下交互性……毕竟是一款要上线的软件」。同时明确：
+> **规则文档只是经理写的初步规划，不必完全照做，合理就行** —— 所以 Q0-13（`app.version` 语义）不再追。
+
+第二轮按「用户会真的遇到吗」排优先级，查出并修掉 **2 个真 bug**，另有 1 个小瑕疵记录在案。
+
+#### 1. 🔴 从别的页面回来，余额永远不刷新（4 个页面）
+
+**现象**：客服在后台给用户加完金币，用户正盯着充值页 —— **页面上的余额一直不变**。
+这个产品**唯一的充值方式就是后台加币**（`R1-2`），所以这是必现的，不是边缘情况。
+
+**根因**：全 App **没有任何 `ON_RESUME` 监听**：
+- `RechargeViewModel` / `WalletViewModel`：只在 `init` 里 `load()` 一次；
+- `MineViewModel`：`enter()` 有 `loaded` 标志，进过一次就再也不拉；
+- `ChatViewModel.enter()`：`peerId` 没变就早退，收费条上的余额不会更新。
+
+**修法**：4 个页面各加一个 `LifecycleResumeEffect`，回到前台/返回时**静默**拉一次
+（不带下拉刷新的转圈，避免闪屏）。ViewModel 各加一个 `refresh()` / `onResume()`。
+
+**真机验证**（用接口送礼物制造余额变化，再切后台回前台）：
+- P06 聊天收费条：`余额 475` → **`465`** ✅
+- P04 我的钱包卡：`465 金币` ✅
+- P22 充值页：`当前余额 465` → **`455`** ✅（第二次送礼）
+
+#### 2. 🔴 快速连点同一个入口，会把页面压两层
+
+**现象**：在发现页**连点两下同一张卡片**，会压进两个「个人资料」页 —— 按一次返回还在原页，
+要按两次才退得出去。实测确认（连点后按一次返回，仍停在个人资料页）。
+
+**根因**：`navController.navigate(route)` 没有 `launchSingleTop`，Compose 的点击本身也不去抖。
+
+**修法**：`ClNavHost` 里加一个 `NavHostController.open(route)` 扩展，统一带
+`launchSingleTop = true`，**25 处跳转全部改走它**。带 `popUpTo` 的 5 处（登录→主页、任务→发现等）保持原样。
+
+**真机验证**：连点卡片 → 按**一次**返回即回到发现页 ✅。
+
+#### 3. ⚠️ 编辑资料页最后一个字段被键盘压住约 36px（小瑕疵，未改）
+
+「自我介绍」在键盘弹起后自动上滚到 `y=1428-1554`，键盘顶约 `y=1518` —— **框底部被压 36px**，
+但输入的文字本身看得见。属观感问题，不阻断操作。要彻底修得给滚动容器加 `ime` 的
+`contentPadding` 或用 `BringIntoViewRequester`，**留到下一轮**（改动面比收益大）。
+
+#### 查过、确认没问题的
+
+| 场景 | 结论 |
+|---|---|
+| 底部弹窗 + 键盘（改密码 3 个密码框） | ✅ 弹窗整体上移 909px，输入框和「确定修改」都在键盘上方 |
+| 长表单 + 键盘（编辑资料） | ✅ 自动上滚，当前字段可见（只是底部压 36px） |
+| 发送按钮连点 | ✅ `canSend = 非空 && !sending`，ViewModel 里还有 `if (sending) return` 二次拦截 |
+| 聊天页打开位置 | ✅ 倒序列表，最后一条紧贴工具栏；键盘弹起后仍然贴着 |
+| 消息列表（P03）打开位置 | ✅ 从顶部开始，符合预期 |
+| 键盘弹起后顶栏 | ✅ T9.6 修好后一直正常 |
+
+- 门禁：`bash scripts/check-android.sh` → **`✅ android 检查通过`**（rc=0）：
+  单测 + `lintDebug` + `assembleDebug` + `check-ui.sh` 全过。
+- 说明：`LifecycleResumeEffect` 在**首次进入**也会触发一次，等于每个页面多一个 `GET`。
+  都是轻量接口（`/user/me`、`/chat/with/{}`、`/wallet/coin`），换来「余额永远是对的」，值得。
+
 ### T9.6 交互性走查（经理点名）：键盘弹起把顶栏顶出屏 —— ✅ 已修（2026-10-16）
 
 > 经理原话：「重点查一下交互性。比如呼出键盘 聊天记录不会在底部 停留在哪里！肯定不行。
@@ -2954,4 +3017,3 @@ C0-2 是**架构级变更**，不是加个配置。它会影响：
 - 任务清单里 T2.6（网络层与本地存储）的工作量和验收标准
 
 **计费逻辑不受影响**：扣费、分成、余额仍在服务端计算（铁律第 6 条），本地库只存展示用的消息内容。
-

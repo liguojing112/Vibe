@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.qichuang.changliao.core.navigation.Routes
 import com.qichuang.changliao.feature.gift.GiftPanelViewModel
@@ -33,6 +34,13 @@ fun ChatRoute(
     var giftVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(userId) { viewModel.enter(userId) }
+
+    // 从充值页（P30「去充值」）或礼物面板回来后，收费条上的余额要跟着变。
+    // `enter()` 有「同一个 peer 就早退」的保护，光靠它不会刷新（T9.7）。
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshFee()
+        onPauseOrDispose { }
+    }
 
     LaunchedEffect(giftVisible) {
         if (giftVisible) {

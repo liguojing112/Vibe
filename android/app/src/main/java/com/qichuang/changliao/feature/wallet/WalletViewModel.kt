@@ -31,6 +31,11 @@ class WalletViewModel @Inject constructor(
         load()
     }
 
+    /** 回到本页时静默刷新（后台充值 / 送礼 / 发消息之后余额会变，见 T9.7）。 */
+    fun refresh() {
+        load()
+    }
+
     private fun load() {
         viewModelScope.launch {
             when (val result = walletRepository.coin()) {
