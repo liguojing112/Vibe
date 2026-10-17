@@ -97,6 +97,23 @@ class TimeFormatTest {
     }
 
     @Test
+    fun `解析服务端时间默认按东八区算，不受设备时区影响`() {
+        // 服务端返回的是不带时区的裸字符串（APP_TIMEZONE=Asia/Shanghai）。
+        // 如果按设备时区解析，用户手机不在东八区时消息时间会整体偏移（T9.8 在 GMT 模拟器上实测到的）。
+        val original = java.util.TimeZone.getDefault()
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("GMT"))
+            val expected = java.time.LocalDateTime
+                .parse("2026-10-17 23:38:04", java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                .atZone(java.time.ZoneId.of("Asia/Shanghai"))
+                .toEpochSecond()
+            assertEquals(expected, TimeFormat.parse("2026-10-17 23:38:04"))
+        } finally {
+            java.util.TimeZone.setDefault(original)
+        }
+    }
+
+    @Test
     fun `解析不了的时间返回 null`() {
         assertNull(TimeFormat.parse("", zone))
         assertNull(TimeFormat.parse("2026/10/12 15:30:00", zone))

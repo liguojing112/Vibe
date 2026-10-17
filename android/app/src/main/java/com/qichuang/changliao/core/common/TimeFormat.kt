@@ -17,6 +17,16 @@ object TimeFormat {
     /** 服务端返回的时间格式（`created_at` 之类）。 */
     const val SERVER_PATTERN = "yyyy-MM-dd HH:mm:ss"
 
+    /**
+     * 服务端用的时区，**必须和 `server/.env` 的 `APP_TIMEZONE` 一致**。
+     *
+     * 服务端返回的是**不带时区**的裸字符串（`2026-10-17 23:38:04`），
+     * 解析时必须按「它所在的时区」解释，不能用设备的时区 ——
+     * 否则用户手机不在东八区时，消息时间会整体偏移（T9.8 在时区为 GMT 的模拟器上实测：
+     * 成功消息的时间戳比失败消息晚 8 小时，失败气泡被排到列表最上面）。
+     */
+    val SERVER_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
+
     private val serverFormatter = DateTimeFormatter.ofPattern(SERVER_PATTERN)
     private val hourMinute = DateTimeFormatter.ofPattern("HH:mm")
     private val monthDayTime = DateTimeFormatter.ofPattern("MM-dd HH:mm")
@@ -90,7 +100,7 @@ object TimeFormat {
     /** 把服务端的 `yyyy-MM-dd HH:mm:ss` 转成秒级时间戳；解析不了返回 null。 */
     fun parse(
         text: String,
-        zone: ZoneId = ZoneId.systemDefault(),
+        zone: ZoneId = SERVER_ZONE,
     ): Long? = runCatching {
         LocalDateTime.parse(text.trim(), serverFormatter).atZone(zone).toEpochSecond()
     }.getOrNull()

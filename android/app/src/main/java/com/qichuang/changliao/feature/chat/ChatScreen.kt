@@ -187,6 +187,31 @@ private fun MessageList(
     val listState = rememberLazyListState()
     val rows = state.displayRows
 
+    // 新消息 / 刚发出去的消息要自动贴底。
+    //
+    // 倒序列表**不会自动**跟着新项走：只有当列表正好停在 index 0 时才贴底，
+    // 一旦被键盘收起之类的原因顶偏一条（或者用户正在往上翻历史），新消息就留在屏幕外，
+    // 用户以为没发出去（T9.8 真机踩到：消息已在库里、服务端也收到了，就是看不见）。
+    //
+    // 只在用户本来就贴着底部时滚 —— 正在翻历史的时候不该被拽下去。
+    //
+    // 用 `requestScrollToItem` 而不是 `scrollToItem`：后者是**立刻**按当前已布局的项滚，
+    // 这时候新消息还没参与布局、列表还以为自己在 index 0，于是什么都不做（T9.8 第一版就栽在这）。
+    // `requestScrollToItem` 会把「滚到第 0 项」排到下一次布局，等新项进来了再执行。
+    //
+    // **自己发的一定贴底**：发送时键盘收起/弹起会把列表顶偏一条，光看 firstVisibleItemIndex
+    // 会误判成「用户在翻历史」而不滚（T9.8 第二次真机踩到：断网时发的失败气泡看不见，得手动上滑）。
+    LaunchedEffect(rows.firstOrNull()?.key()) {
+        val first = rows.firstOrNull()
+        if (first == null) {
+            return@LaunchedEffect
+        }
+        val mine = first is ChatRow.Message && first.message.outgoing
+        if (mine || listState.firstVisibleItemIndex <= 1) {
+            listState.requestScrollToItem(0)
+        }
+    }
+
     // 滚到最上面（倒序列表的末尾）就加载更早的消息
     LaunchedEffect(listState, rows.size, state.hasMore) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
