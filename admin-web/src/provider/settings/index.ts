@@ -53,7 +53,7 @@ const defaultGlobalConfigSettings: RecursiveRequired<SystemSettings.all> = {
     dates: useDayjs().format('YYYY'),
     company: 'MineAdmin Team',
     website: 'https://www.mineadmin.com',
-    putOnRecord: '豫ICP备00000000号-1',
+    putOnRecord: '',
   },
 }
 
