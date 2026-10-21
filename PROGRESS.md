@@ -7,20 +7,18 @@
 
 ## 当前状态
 
-- 当前阶段：**P9 最终验收 —— 全部完成**；正在做**部署准备**（经理要买服务器和域名）
-- 当前任务：T9.10 MySQL 5.7 兼容性已适配；环境要求清单已给出
+- 当前阶段：**已上线**（阿里云香港 + 宝塔，`clapi.cyjiaoyou.lol` / `admin.cyjiaoyou.lol`）
+- 当前任务：生产部署完成，等上线前收尾（改默认密码 / 开数据库备份 / 关公网端口）
 - 任务状态：全部完成 <!-- 未开始 / 进行中 / 已完成 -->
-- 上次停在哪：**T9.10（2026-10-21）**。经理的服务器是 MySQL 5.7，排查结论：
-  **业务代码一行不用改，但迁移里 4 条 `ADD CONSTRAINT <名字> CHECK` 是 8.0 专属语法，
-  在 5.7 上会报语法错误、把迁移链断在建钱包表那一步**（数据库只建一半，部署当场失败）。
-  已改成按 `SELECT VERSION()` 判断，只有 ≥8.0.16 才执行；**在全新库上跑过全量迁移验证**：
-  50 张表 + 4 条 CHECK 都在（8.0 这条路没被误跳过）。
-  其余项（排序规则 / 窗口函数 / JSON 函数 / 索引长度 / GROUP BY / ALTER）对 5.7 全部兼容。
-  **建议经理争取用 MySQL 8**：5.7 已于 2023-10-31 EOL，且「8.x 吃内存」是误解
-  （只多约 200MB，大头是 Swoole worker）。
-  **T9.9**：401（自动刷新 / 回登录页）、超时 30s、图片上传失败 → 修 2 个真 bug。
-  **T9.8**：消息不自动滚底、时区解析。**T9.7**：余额不刷新、连点压两层。
-  **T9.6**：键盘顶掉顶栏。更早见下面任务记录。
+- 上次停在哪：**T9.11~T9.13 生产部署完成（2026-10-21）**。后端 50 张表建成、接口
+  `https://clapi.cyjiaoyou.lol/api/v1/app/config` 返回 200；管理后台能登录；部署脚本跑通
+  （本地 push → 服务器 `bash /www/wwwroot/cljy/update.sh`）。
+  部署中修掉 5 个问题：锁文件没进仓库、`migrate` 命令依赖 dev 包、`/uploads` 404、
+  后台域名挂在 API 站点下、进程守护启动用户选错。
+  **最关键的发现**：首屏加载 1 分钟是宝塔默认开了 **HTTP/3（QUIC）**，国内移动网络封 UDP，
+  浏览器等超时才回落 TCP。删掉 `listen 443 quic` / `http3 on` / **`Alt-Svc`** 后立刻变快。
+  还没做的：改后台默认密码、开数据库自动备份、关 9501/9502/9503 公网、SSL 到期前续期。
+  更早的任务见下面记录。
 - 上次停在哪（T9.2）：**T9.2 UI 一致性走查做完**。31 个页面逐个和设计图对照（把「设计图 | 实机」拼成对比图看的），
   **结构上全部一致**，修掉 2 处真差异：
   ① **P15 设置**少了设计图底部那段「安全提醒」→ 补上（付费交友产品该有的一句：不提供担保、防转账诈骗）；
@@ -1825,6 +1823,75 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
   服务端新增 1 条。
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
+
+### T9.11~T9.13 生产部署（阿里云香港 + 宝塔）—— ✅ 已上线（2026-10-21）
+
+**服务器**：阿里云国际·香港 `47.239.178.18`，宝塔面板，**免 ICP 备案**。
+**域名**：`clapi.cyjiaoyou.lol`（App 接口）、`admin.cyjiaoyou.lol`（管理后台）。
+
+#### 环境（交接文件给的，已核对）
+
+PHP **8.3.35** + Swoole **6.2.3** + MySQL **5.7.44** + Redis 7.4.11 + Nginx 1.30.6。
+
+**两个原本担心、结果没事的点**：
+- **Swoole 6.2.3 兼容** —— 我们只在 5.1.8 上测过，实测 6.2.3 启动、接口、WebSocket 全部正常；
+- **MySQL 5.7 迁移** —— T9.10 的版本判断生效，27 个迁移全部跑过，50 张表建成。
+
+#### 部署中踩到、已修的问题
+
+1. **`composer.lock` / `pnpm-lock.yaml` 被 `.gitignore` 排除了** → 服务器 `composer install` 走了
+   「No lock file present」分支，装的是当时最新版而不是测过的版本。**已提交两个锁文件**（T9.11）。
+2. **`migrate` 命令不存在** → `migrate`/`db:seed` 由 `hyperf/devtool`（**dev 依赖**）注册，
+   用 `--no-dev` 安装就没有这些命令。部署脚本改为**带 dev 依赖安装**。
+3. **上传的图片全 404** → Hyperf 自己不托管 `/uploads`（`enable_static_handler` 找的是不存在的 `public/`）。
+   Nginx 加 `location ^~ /uploads/ { alias .../server/storage/uploads/; }`。
+   **`^~` 不能少**，否则被宝塔默认的 `.*\.(jpg|png)$` 正则抢走。
+4. **`admin.cyjiaoyou.lol` 挂在 clapi 站点下** → 一个站点只有一个根目录，后台必须**单独建站**。
+5. **进程守护 BACKOFF** → 启动用户选了 `root` 且运行目录不对；改成 `www` + `/www/wwwroot/cljy/server` 后正常。
+
+#### 🔴 首屏加载 1 分钟 —— 元凶是 HTTP/3（经理的判断对了）
+
+宝塔默认配置开了 `listen 443 quic; http3 on;` 并返回 `Alt-Svc: quic=...`，
+浏览器会**先尝试 QUIC（UDP 443）**，国内移动网络经常封 UDP / 严重限速，
+于是浏览器**等超时才回落到 TCP**，正好几十秒。
+
+**修法**：删掉 `listen 443 quic`、`http3 on`、`quic_retry`、`quic_gso`、`ssl_early_data` 和
+**`add_header Alt-Svc`**（这行最关键 —— 不删浏览器还会继续试 h3）。
+只保留 `http2 on;`，TLS 提到 1.2/1.3。
+
+**实测**：改完 `curl -I` 里 `Alt-Svc` 消失、`HTTP/2 200`，用户端「确实快了不少」。
+
+#### 部署架构（和上一个项目一致）
+
+```
+本地 git push → GitHub → 服务器 bash /www/wwwroot/cljy/update.sh
+                                    ├─ git pull
+                                    ├─ composer install（带 dev）
+                                    ├─ php bin/hyperf.php migrate --force
+                                    ├─ pnpm install && pnpm build
+                                    ├─ rsync dist → /www/wwwroot/admin.cyjiaoyou.lol
+                                    └─ 重启进程守护 + 冒烟
+```
+
+**脚本里两个刻意的处理**：
+- `composer install` 不加 `--no-dev`（否则没 migrate 命令）；
+- `composer.json` 的 `post-autoload-dump` 会 `rm -rf runtime/container`，
+  冷启动第一次注解路由为空 → 脚本里 curl 不通就**再重启一次**。
+
+#### 静态资源
+
+- 文件名带内容 hash（`index-YIEqRIUo.js`），改内容必改名，配合 `expires 30d, immutable`；
+- `index.html` 设 `no-cache`，发版立刻生效；
+- 构建时生成 `.gz`/`.br`，Nginx 开 `gzip_static on` 直接发压缩版
+  （14MB → **1.3MB gzip / 1.1MB br**）。
+
+#### 上线前还没做的（交给运维/后续）
+
+1. 改四个后台账号的默认密码（`admin`/`kefu`/`caiwu`/`shenhe` 全是 `123456`）；
+2. 开数据库自动备份（宝塔计划任务，交接文件里明确是**未开启**）；
+3. 阿里云安全组关掉 **9501 / 9502 / 9503** 的公网访问（9503 是 Swagger，暴露=API 全公开）；
+4. SSL 证书 **2027-01-19 到期，当前无自动续期**；
+5. MySQL 5.7 已 EOL，建议后续升 8.0。
 
 ### T9.10 MySQL 5.7 兼容性排查（部署前）—— ✅ 已适配（2026-10-21）
 
