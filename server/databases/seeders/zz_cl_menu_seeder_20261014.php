@@ -34,6 +34,15 @@ class ZzClMenuSeeder20261014 extends Seeder
         'remark' => '',
     ];
 
+    /** 交付时隐藏的 MineAdmin 默认模块（按名字前缀，含子菜单）。 */
+    public const HIDDEN_MENU_PATTERNS = [
+        'permission:menu%',
+        'permission:department%',
+        'permission:position%',
+        'permission:leader%',
+        'dataCenter%',
+    ];
+
     /** 三个业务角色的账号密码（和 admin 一样，方便本地走查）。 */
     public const PASSWORD = '123456';
 
@@ -87,6 +96,23 @@ class ZzClMenuSeeder20261014 extends Seeder
     {
         $this->create($this->data());
         $this->createRoles();
+        $this->hideUnusedMenus();
+    }
+
+    /**
+     * 隐藏后台用不上的 MineAdmin 默认模块（交付时只给客户业务功能）。
+     *
+     * `PermissionController::menus()` 对超级管理员按 `status = 1` 过滤，置 0 即从侧边栏消失；
+     * **不删数据**，以后要恢复改回 1 即可。和迁移 `2026_10_21_000018_hide_unused_admin_menus`
+     * 是同一套规则的两份实现：迁移管「已经建好菜单的库」，这里管「全新安装」。
+     *
+     * @see \Hyperf\Database\Migrations\... 对应的迁移文件
+     */
+    private function hideUnusedMenus(): void
+    {
+        foreach (self::HIDDEN_MENU_PATTERNS as $pattern) {
+            Menu::query()->where('name', 'like', $pattern)->update(['status' => 0]);
+        }
     }
 
     public function data(): array

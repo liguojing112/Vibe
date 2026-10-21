@@ -1824,6 +1824,49 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
+### T9.15 后台：隐藏未用模块 + 品牌替换准备 —— ✅ 部分完成（2026-10-21）
+
+> 经理要求：① 把后台没用的功能隐藏掉，防止客户自己加功能；② MineAdmin 换客户自己的品牌和 logo
+> （SVG 明天给）。
+
+#### ① 隐藏未用的 MineAdmin 默认模块
+
+超级管理员的菜单由 `PermissionController::menus()` 按 `menu.status = 1` 过滤，
+所以**置 0 即从侧边栏消失，数据不删**（以后要恢复改回 1 即可）。
+
+| 模块 | 处理 | 原因 |
+|---|---|---|
+| 菜单管理 | **隐藏** | 不给客户自己加菜单/页面的口子 |
+| 部门管理（含岗位、部门领导） | 隐藏 | 本项目不用部门 |
+| 数据中心 / 附件管理 | 隐藏 | 后台用自己的上传流程，这页没用 |
+| 权限管理 → 用户管理、角色管理 | **保留** | 要管 4 个后台账号 |
+| 日志管理 | **保留** | 登录/操作日志，运营排查要用 |
+| 畅撩交友（全部业务菜单） | **保留** | 交付主体 |
+
+**两处实现，覆盖两种场景**：
+- `databases/migrations/2026_10_21_000018_hide_unused_admin_menus.php` —— 已经建好菜单的库
+  （生产环境跑 `update.sh` 会自动应用）；
+- `zz_cl_menu_seeder_20261014.php` 里新增 `hideUnusedMenus()` —— 全新安装时 `migrate` 早于
+  `db:seed`，那时 menu 表还是空的，得靠种子在最后一步隐藏。
+
+**验证**：本地跑迁移后查库，`permission:menu*` / `permission:department*` /
+`permission:position*` / `permission:leader*` / `dataCenter*` 全部 status=0，
+`permission:user*`、`permission:role*`、`log*`、`cl*` 保持 1。
+
+#### ② 品牌替换（等 SVG）
+
+**登录页和侧边栏用的是同一个文件**：`admin-web/src/assets/images/logo.svg`。
+明天拿到 SVG 后：
+1. 用它覆盖 `admin-web/src/assets/images/logo.svg`（登录页 + 侧边栏一起换）；
+2. 同时覆盖 `admin-web/public/logo.svg`（打包后放在根目录）；
+3. `public/favicon.ico` 还是 MineAdmin 的图标 —— 需要客户给 **ico 或 512×512 PNG** 才能换，
+   SVG 不能直接当 ico（部分浏览器可以，但不通用）。
+
+**已改的文案**：登录页右上角那个「开箱即用」小标签（MineAdmin 的宣传语）已删除；
+标题已经是「畅撩交友」；假备案号已清空。
+
+- 门禁：见文末。
+
 ### T9.14 登录页手机适配 —— ✅ 已修（2026-10-21）
 
 > 经理反馈：「手机客户端的登录页，没做手机适配」。
