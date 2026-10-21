@@ -74,10 +74,16 @@ return new class extends Migration
             $table->datetimes();
         });
 
-        // MySQL 8 支持 CHECK，按 docs/04 第 4 节给余额加非负约束
-        Db::statement('ALTER TABLE `cl_coin_wallet` ADD CONSTRAINT `chk_cl_coin_wallet_balance` CHECK (`balance` >= 0)');
-        Db::statement('ALTER TABLE `cl_point_wallet` ADD CONSTRAINT `chk_cl_point_wallet_balance` CHECK (`balance` >= 0)');
-        Db::statement('ALTER TABLE `cl_point_wallet` ADD CONSTRAINT `chk_cl_point_wallet_frozen` CHECK (`frozen` >= 0)');
+        // 余额非负约束（docs/04 第 4 节）。**只在 MySQL 8.0.16+ 上执行** ——
+        // 5.7 的 ALTER TABLE 语法里没有 `ADD CONSTRAINT <名字> CHECK (...)`，直接跑会报语法错误、
+        // 把整条迁移链断在这儿；5.7 的 CHECK 本身也只解析不生效。应用层已经有校验
+        // （`CoinWalletService`/`PointWalletService` 在事务里判断，`check-money.sh` 守着调用方式），
+        // 这里只是 DB 层的兜底，5.7 上跳过不损失功能。
+        if ($this->supportsCheckConstraint()) {
+            Db::statement('ALTER TABLE `cl_coin_wallet` ADD CONSTRAINT `chk_cl_coin_wallet_balance` CHECK (`balance` >= 0)');
+            Db::statement('ALTER TABLE `cl_point_wallet` ADD CONSTRAINT `chk_cl_point_wallet_balance` CHECK (`balance` >= 0)');
+            Db::statement('ALTER TABLE `cl_point_wallet` ADD CONSTRAINT `chk_cl_point_wallet_frozen` CHECK (`frozen` >= 0)');
+        }
     }
 
     /**
@@ -88,5 +94,26 @@ return new class extends Migration
         Schema::dropIfExists('cl_point_wallet');
         Schema::dropIfExists('cl_coin_wallet');
         Schema::dropIfExists('cl_user');
+    }
+    /**
+     * 这个数据库支不支持 `ALTER TABLE ... ADD CONSTRAINT <名字> CHECK (...)`。
+     *
+     * 只有 MySQL **8.0.16+** 才真正支持这一写法并强制执行；5.7 的 ALTER TABLE 语法里
+     * 只有不带约束名的 `ADD CHECK (...)`，带 CONSTRAINT 会报语法错误。
+     * 用 `SELECT VERSION()` 判断，认不出就当不支持（宁可少一条兜底，也不让迁移跑不过）。
+     */
+    private function supportsCheckConstraint(): bool
+    {
+        try {
+            $row = Db::select('SELECT VERSION() AS v')[0] ?? null;
+        } catch (Throwable) {
+            return false;
+        }
+
+        $version = is_object($row) ? ($row->v ?? '') : (is_array($row) ? ($row['v'] ?? '') : '');
+
+        // 版本串形如 "8.0.44-0ubuntu0.24.04.1" / "5.7.44-log"，只取前三段数字
+        return preg_match('/^(\d+\.\d+\.\d+)/', (string) $version, $m) === 1
+            && version_compare($m[1], '8.0.16', '>=');
     }
 };

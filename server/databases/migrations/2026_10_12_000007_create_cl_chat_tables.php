@@ -36,7 +36,11 @@ return new class extends Migration
 
         // 「按 user_low_id < user_high_id 存」这条约定只靠唯一索引是挡不住的：
         // (3,7) 和 (7,3) 是两行，反着写就会同一对人出现两条会话、未读数分家。用 CHECK 兜住。
-        Db::statement('ALTER TABLE `cl_conversation` ADD CONSTRAINT `chk_cl_conversation_pair` CHECK (`user_low_id` < `user_high_id`)');
+        // **只在 MySQL 8.0.16+ 上执行**：5.7 的 ALTER TABLE 不支持 `ADD CONSTRAINT <名字> CHECK`，
+        // 会报语法错误、把迁移链断在这儿（详见 2026_10_11_000002 里同名字方法的注释）。
+        if ($this->supportsCheckConstraint()) {
+            Db::statement('ALTER TABLE `cl_conversation` ADD CONSTRAINT `chk_cl_conversation_pair` CHECK (`user_low_id` < `user_high_id`)');
+        }
 
         Schema::create('cl_message', function (Blueprint $table) {
             $table->comment('消息（docs/04 第 3 节）：服务端只做转发、计费与监管留存，App 展示以本地库为准');
@@ -77,5 +81,26 @@ return new class extends Migration
         Schema::dropIfExists('cl_sensitive_word');
         Schema::dropIfExists('cl_message');
         Schema::dropIfExists('cl_conversation');
+    }
+
+    /**
+     * 这个数据库支不支持 `ALTER TABLE ... ADD CONSTRAINT <名字> CHECK (...)`。
+     *
+     * 只有 MySQL **8.0.16+** 才真正支持并强制执行；5.7 的 ALTER TABLE 语法里
+     * 只有不带约束名的 `ADD CHECK (...)`，带 CONSTRAINT 会报语法错误。
+     * 认不出就返回 false —— 宁可少一条兜底，也不能让迁移跑不过。
+     */
+    private function supportsCheckConstraint(): bool
+    {
+        try {
+            $row = Db::select('SELECT VERSION() AS v')[0] ?? null;
+        } catch (Throwable) {
+            return false;
+        }
+
+        $version = is_object($row) ? ($row->v ?? '') : (is_array($row) ? ($row['v'] ?? '') : '');
+
+        return preg_match('/^(\d+\.\d+\.\d+)/', (string) $version, $m) === 1
+            && version_compare($m[1], '8.0.16', '>=');
     }
 };
