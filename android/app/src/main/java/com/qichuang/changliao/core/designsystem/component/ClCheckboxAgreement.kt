@@ -3,6 +3,8 @@ package com.qichuang.changliao.core.designsystem.component
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,6 +23,7 @@ import com.qichuang.changliao.core.designsystem.theme.ClTheme
  * 协议勾选（docs/03 第 5.5 节，对应 P00 登录页）：
  * 不勾选不能登录；《用户协议》《隐私政策》可点。
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ClCheckboxAgreement(
     checked: Boolean,
@@ -37,22 +40,33 @@ fun ClCheckboxAgreement(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.xs),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                colors = CheckboxDefaults.colors(
-                    checkedColor = ClTheme.colors.primary,
-                    checkmarkColor = ClTheme.colors.onPrimary,
-                    uncheckedColor = ClTheme.colors.muted,
-                ),
-            )
+        // 用 FlowRow 而不是 Row：大字体 / 窄屏时 Row 会把最后一个 Text 挤到极窄，
+        // 于是「《隐私政策》」被从中间断成「《隐私」+「政策》」（T9.14 实测）。
+        // FlowRow 让每一项作为整体换行。
+        FlowRow(
+            verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.xxs),
+            horizontalArrangement = Arrangement.spacedBy(ClTheme.spacing.xxs),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 勾选框和「我已阅读并同意」作为一个整体（垂直居中对齐），
+            // 否则 FlowRow 默认顶部对齐，框会比文字低一截。
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = checked,
+                    onCheckedChange = onCheckedChange,
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = ClTheme.colors.primary,
+                        checkmarkColor = ClTheme.colors.onPrimary,
+                        uncheckedColor = ClTheme.colors.muted,
+                    ),
+                )
 
-            Text(
-                text = prefix,
-                style = ClTheme.typography.caption,
-                color = ClTheme.colors.inkSecondary,
-            )
+                Text(
+                    text = prefix,
+                    style = ClTheme.typography.caption,
+                    color = ClTheme.colors.inkSecondary,
+                )
+            }
             AgreementLink(text = userAgreementText, onClick = onUserAgreement)
             Text(
                 text = "和",
