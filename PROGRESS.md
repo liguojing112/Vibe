@@ -1824,6 +1824,33 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
+### T9.28 安卓客户端下载页 —— ✅ 已完成（2026-10-22）
+
+客户要一个**固定的下载链接**。新增 `deploy/download/index.html`（纯静态，无依赖）：
+
+- 品牌 logo（内联 SVG）+ 「畅撩交友」+ 副标题
+- 版本 v1.0.0 / 23.5 MB / Android 8.0+
+- 黄色胶囊下载按钮 → 同目录的 `changliao.apk`
+- 安装说明（未知来源允许安装、注册登录）
+- 移动端优先，卡片最大 420px
+
+**部署**（不用改 Nginx，后台站点本来就是纯静态）：
+
+```bash
+mkdir -p /www/wwwroot/admin.cyjiaoyou.lol/download
+```
+
+把仓库里的 `deploy/download/index.html` 传上去，再把新打的 APK 传成
+`changliao.apk`（同目录），访问：
+
+```
+https://admin.cyjiaoyou.lol/download/
+```
+
+> 验证方式：本地用 headless Chrome 渲染截图确认布局（卡片居中、按钮、说明都在）。
+> 注意 Chrome headless 的 `--window-size` 有最小宽度限制（约 500px），
+> 用 390 宽截图会被裁掉右边 —— 那是工具行为，不是页面问题。
+
 ### T9.25 图片 403 根治 + 守护进程起不来 —— ✅ 已解决（2026-10-22）
 
 客户反复遇到「换头像 → 后台预览裂图 → 通过后 App 头像消失」，两次 chmod 都只治标。
