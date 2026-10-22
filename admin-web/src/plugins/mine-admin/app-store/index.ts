@@ -11,7 +11,7 @@ import type { Plugin } from '#/global'
 
 const pluginConfig: Plugin.PluginConfig = {
   install() {
-    console.log('MineAdmin应用市场已启动')
+    console.log('畅撩交友管理后台启动')
   },
   config: {
     enable: import.meta.env.DEV,

@@ -27,7 +27,7 @@ const pluginConfig: Plugin.PluginConfig = {
       name: 'mine-admin/basic-ui',
       version: '1.0.0',
       author: 'X.Mo',
-      description: 'MineAdmin基础UI',
+      description: '畅撩交友基础UI',
       order: 99999,
     },
   },

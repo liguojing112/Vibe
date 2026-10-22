@@ -9,7 +9,7 @@
 -->
 <i18n lang="yaml">
 zh_CN:
-  alert: 这里是 MineAdmin 官方应用市场，您可以在此页面放心下载喜欢的应用。注意：只有开发环境才能使用应用市场
+  alert: 这里是 畅撩交友 官方应用市场，您可以在此页面放心下载喜欢的应用。注意：只有开发环境才能使用应用市场
   refresh: 刷新
   localUpload: 本地上传
   localUploadLoading: 应用上传中，请稍后...
@@ -33,7 +33,7 @@ zh_CN:
     integral: 积分应用
     paid: 付费应用
 zh_TW:
-  alert: 這裡是 MineAdmin 官方應用市場，您可以在此頁面安心下載喜歡的應用。注意：只有開發環境才能使用應用市場
+  alert: 這裡是 畅撩交友 官方應用市場，您可以在此頁面安心下載喜歡的應用。注意：只有開發環境才能使用應用市場
   refresh: 刷新
   localUpload: 本地上傳
   localUploadLoading: 應用程式上傳中，請稍後...
@@ -57,7 +57,7 @@ zh_TW:
     integral: 積分應用
     paid: 付費應用
 en:
-  alert: This is the MineAdmin official app marketplace. You can safely download your favorite apps on this page. Note:The app marketplace is only available in the development environment.
+  alert: This is the 畅撩交友 official app marketplace. You can safely download your favorite apps on this page. Note:The app marketplace is only available in the development environment.
   refresh: Refresh
   localUpload: Upload Locally
   localUploadLoading: Uploading application, please wait...

@@ -13,7 +13,7 @@ zh_CN:
   stepTip: 请按照以下步骤设置：
   oneStep:
     one: 进入
-    two: MineAdmin官网
+    two: 畅撩交友官网
     three: 设置页面，获取
   twoStep:
     one: 打开后端
@@ -28,7 +28,7 @@ zh_TW:
   stepTip: 請按照以下步驟設置：
   oneStep:
     one: 進入
-    two: MineAdmin官網
+    two: 畅撩交友官網
     three: 在設置頁面，獲取
   twoStep:
     one: 打開後端
@@ -43,7 +43,7 @@ en:
   stepTip: Please follow these steps to set it up：
   oneStep:
     one: Enter
-    two: MineAdmin official website
+    two: 畅撩交友 official website
     three: On the settings page, obtain
   twoStep:
     one: Open the backend

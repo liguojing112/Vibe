@@ -1824,6 +1824,32 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
+### T9.18 后台彻底去 MineAdmin 品牌 —— ✅ 已完成（2026-10-22）
+
+> 经理要求：「不能有 MineAdmin，全部换成客户自己品牌自己的 logo」。
+
+先用 `grep -rl MineAdmin dist/` 扫生产包，找出**用户能看到**的残留，逐个替换：
+
+| 位置 | 原来 | 现在 |
+|---|---|---|
+| **登录后的首页** `welcome/index.vue` | 整页是 MineAdmin 演示工作台：假项目列表、假成员动态（「向 MineAdmin 提交了一个bug」）、MineAdmin 官网外链 | **整页重写**：客户 logo + 五个业务入口卡片（数据看板 / 用户管理 / 审核中心 / 资金管理 / 运营配置），点卡片直接跳转 |
+| `index.html` 的 keywords / description | MineAdmin 开源系统介绍 | 「畅撩交友 · 管理后台」 |
+| `index.html` 加载页文案 | `content: 'MineAdmin'` | `content: '%VITE_APP_TITLE%'`（跟着环境变量，构建后是「畅撩交友」） |
+| `favicon.ico` | MineAdmin 图标 | **用客户 SVG 重新生成**（512×512 PNG → 多尺寸 ICO） |
+| 应用市场插件文案（3 语言） | 「MineAdmin 官方应用市场」 | 「畅撩交友 官方应用市场」 |
+| `provider/settings` 的 company | `MineAdmin Team` | `畅撩交友` |
+| `main.ts` / `router` / `useRouteStore` 的日志前缀 | `MineAdmin-UI` | `畅撩交友管理后台` |
+
+**验证**：重新构建后 `grep -rl MineAdmin dist` → **0 个文件**；
+`<title>` 是「畅撩交友」、加载页文案是「畅撩交友」、favicon 换成客户 logo。
+
+**favicon 怎么来的**：环境里没有 SVG→PNG 的工具链，用内置浏览器把 `logo.svg` 画到
+512×512 canvas 导出 PNG，再用 PIL 转成 16/32/48/64/128/256 多尺寸 ICO。
+产出的 `public/logo-512.png` 一并留在仓库里，以后做 App 图标可以直接用。
+
+**保留未动的**：源码文件头部的 MineAdmin 许可证注释（Apache-2.0 要求保留版权声明，
+且打包后会被压缩掉，用户看不到）。
+
 ### T9.15 后台：隐藏未用模块 + 品牌替换准备 —— ✅ 部分完成（2026-10-21）
 
 > 经理要求：① 把后台没用的功能隐藏掉，防止客户自己加功能；② MineAdmin 换客户自己的品牌和 logo

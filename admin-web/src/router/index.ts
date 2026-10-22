@@ -76,7 +76,7 @@ router.afterEach(async (to) => {
       keepAliveStore.add(componentName)
     }
     else {
-      console.warn(`MineAdmin-UI：[${to.meta.title}] 组件页面未设置组件名，将不会被缓存`)
+      console.warn(`畅撩交友管理后台：[${to.meta.title}] 组件页面未设置组件名，将不会被缓存`)
     }
   }
 

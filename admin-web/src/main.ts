@@ -15,5 +15,5 @@ const app = createApp(App)
 MineBootstrap(app).then(() => {
   app.mount('#app')
 }).catch((err) => {
-  console.error('MineAdmin-UI start fail', err)
+  console.error('畅撩交友管理后台 start fail', err)
 })
