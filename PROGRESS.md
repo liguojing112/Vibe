@@ -1824,6 +1824,65 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
+### T9.19 客户测试反馈的三个问题 —— ✅ 两个已修（2026-10-22）
+
+客户拿到包开始测，反馈三条。
+
+#### ① App 图标是默认的 —— ✅ 已修
+
+查了 `res/`，**根本没有任何 mipmap 目录**，manifest 里也没写 `android:icon` ——
+从建工程起就一直是系统默认的安卓机器人。
+
+用客户 logo 生成了一整套：
+- 五种密度的 `ic_launcher.png` / `ic_launcher_round.png`（48/72/96/144/192）
+- **自适应图标**（`mipmap-anydpi-v26/`，背景色取 logo 的黄 `#FFDD4F`，foreground 按 66/108 安全区缩放）
+- manifest 补上 `android:icon` 和 `android:roundIcon`
+
+实机验证：桌面图标已是黄底心形。
+
+#### ② 退出登录按钮不显眼 —— ✅ 已修
+
+原来是页面底部一行小字（`ClTextButton` + caption 字号）。现在：
+- 设计系统给 `ClPrimaryButton` 加了 `danger` / `large` 两个参数（新增 `onDanger` 颜色、
+  `buttonHeightLarge = 54.dp`）；
+- 设置页改成**满宽、红底白字、大号、居中**，放在页面最底部。
+
+实机截图确认。
+
+#### ③ 「男号发中文，女号收到的是英文」/「15:02 发的，女号显示 15:14」—— 不是 bug，是我的测试数据
+
+查库：
+
+| id | created_at | 内容 | 来源 |
+|---|---|---|---|
+| 1 | 14:55:08 | hello from production | **开发自测**（接口验证） |
+| 2 | **15:02:06** | 测试发私信 | 客户男号 |
+| 3 | **15:14:36** | 你好，这是一条中文测试消息 | **开发自测**（接口验证） |
+
+客户 15:02 发的那条，服务端记的就是 15:02 —— **时间是对的**；女号看到的 15:14 是
+另一条（我们发的测试消息）。同理「英文」也是那条 `hello from production`。
+
+服务器时钟也验证过：发一条消息，`created_at` 与真实时间只差 1 秒（在正常网络延迟内）。
+
+**清理**（客户在服务器上执行）：
+```sql
+DELETE FROM cl_message WHERE client_msg_id IN ('prod-test-0001','prod-cn-0001','clock-check-2');
+-- 再把会话的 last_message 指回剩下最新的一条
+UPDATE cl_conversation c
+JOIN (SELECT conversation_id, MAX(id) AS mid FROM cl_message GROUP BY conversation_id) m
+  ON m.conversation_id = c.id
+JOIN cl_message mm ON mm.id = m.mid
+SET c.last_message_id = mm.id, c.last_message_at = mm.created_at;
+```
+
+**教训**：以后不在客户测试账号上发任何验证消息，要测就用临时注册的号。
+
+#### ④ 遗留：上传的图片 403（待客户改服务器权限）
+
+`ls -ld` 显示 `storage/uploads/cl/202610` 是 **root:root**（之前手动以 root 启动过 Hyperf），
+Nginx 以 `www` 运行读不到。修法是 `chown -R www:www server/storage`。
+（代码侧没问题：上传接口返回了正确的 URL，`/uploads/` 的 Nginx 配置也验证过。）
+
 ### T9.18 后台彻底去 MineAdmin 品牌 —— ✅ 已完成（2026-10-22）
 
 > 经理要求：「不能有 MineAdmin，全部换成客户自己品牌自己的 logo」。

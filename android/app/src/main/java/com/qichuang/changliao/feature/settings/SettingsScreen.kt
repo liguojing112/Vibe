@@ -178,10 +178,13 @@ fun SettingsScreen(
                     modifier = Modifier.padding(horizontal = ClTheme.spacing.xs),
                 )
 
-                ClTextButton(
+                // 退出登录：客户反馈原来那个文字按钮太不显眼。改成大号红底按钮，
+                // 满宽、居中，放在页面最底部。
+                ClPrimaryButton(
                     text = "退出登录",
-                    modifier = Modifier.fillMaxWidth(),
-                    color = ClTheme.colors.danger,
+                    large = true,
+                    danger = true,
+                    modifier = Modifier.padding(top = ClTheme.spacing.l),
                     onClick = onLogout,
                 )
             }

@@ -36,15 +36,25 @@ fun ClPrimaryButton(
     loading: Boolean = false,
     fillMaxWidth: Boolean = true,
     onLongClick: (() -> Unit)? = null,
+    /** 危险操作（退出登录、注销）用红底白字。 */
+    danger: Boolean = false,
+    /** 大号按钮：更高，适合放在页面底部当主操作。 */
+    large: Boolean = false,
     onClick: () -> Unit,
 ) {
     val clickable = enabled && !loading
     Row(
         modifier = modifier
             .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier)
-            .height(ClTheme.size.buttonHeight)
+            .height(if (large) ClTheme.size.buttonHeightLarge else ClTheme.size.buttonHeight)
             .clip(ClTheme.shapes.pill)
-            .background(if (clickable) ClTheme.colors.primary else ClTheme.colors.line)
+            .background(
+                when {
+                    !clickable -> ClTheme.colors.line
+                    danger -> ClTheme.colors.danger
+                    else -> ClTheme.colors.primary
+                },
+            )
             .then(
                 if (onLongClick == null) {
                     Modifier.clickable(enabled = clickable, onClick = onClick)
@@ -72,7 +82,11 @@ fun ClPrimaryButton(
         Text(
             text = text,
             style = ClTheme.typography.button,
-            color = if (clickable) ClTheme.colors.onPrimary else ClTheme.colors.muted,
+            color = when {
+                !clickable -> ClTheme.colors.muted
+                danger -> ClTheme.colors.onDanger
+                else -> ClTheme.colors.onPrimary
+            },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

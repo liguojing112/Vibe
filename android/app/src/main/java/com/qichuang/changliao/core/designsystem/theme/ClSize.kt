@@ -12,6 +12,9 @@ data class ClSize(
     val topBarHeight: Dp,
     val bottomBarHeight: Dp,
     val buttonHeight: Dp,
+
+    /** 大号按钮（比如设置页的「退出登录」），比普通按钮高一档、更容易点到。 */
+    val buttonHeightLarge: Dp,
     val buttonHeightSmall: Dp,
     val inputHeight: Dp,
     val menuRowHeight: Dp,
@@ -38,6 +41,7 @@ val ClSizes = ClSize(
     topBarHeight = 56.dp,
     bottomBarHeight = 68.dp,
     buttonHeight = 46.dp,
+    buttonHeightLarge = 54.dp,
     buttonHeightSmall = 32.dp,
     inputHeight = 44.dp,
     menuRowHeight = 55.dp,
