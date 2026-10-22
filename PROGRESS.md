@@ -1824,6 +1824,39 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
+### T9.24 「系统消息红点进去不退」+ 男号头像仍 403 —— ✅ 已修/待部署（2026-10-22）
+
+#### ① 「数字 1 / 数字 2」= 未读红点，进系统消息后不消失 —— ✅ 已修
+
+客户说的「数字」不是消息内容，是**系统消息入口的未读数**（男号 1、女号 2 正好对上）。
+
+**根因**：`/notice/list` 会让服务端把该分类标已读，但客户端拉完列表**没有重新问一次未读数**，
+`UnreadStore.notice` 还停在旧值，退回 P03 红点当然还在。
+
+**修法**：`NoticeViewModel` 注入 `ChatRepository`，列表拉成功后调
+`chatRepository.refreshNoticeUnread()`（内部会 `/chat/unread` 并校准 `UnreadStore`）。
+补了一条单测钉住这个调用。
+
+#### ② 男号新头像仍是 403 —— 服务器还没部署 chmod 修复
+
+实测男号两条审核记录：
+- `id=2`（早的）→ **200**
+- `id=5`（刚传的，在手动 chmod 之后）→ **403**
+
+说明 `LocalStorage` 的 `chmod` 代码**还没部署**（T9.21 提交了，但要跑 `update.sh` 才生效）。
+
+**客户侧操作**：
+```bash
+bash /www/wwwroot/cljy/update.sh
+find /www/wwwroot/cljy/server/storage/uploads -type d -exec chmod 755 {} \;
+find /www/wwwroot/cljy/server/storage/uploads -type f -exec chmod 644 {} \;
+curl -s -o /dev/null -w "%{http_code}
+" https://clapi.cyjiaoyou.lol/uploads/cl/202610/18a9c22fe2a991e192b01b5d1bf11863.jpg
+```
+最后一条返回 200 就全好了（后台审核预览、App 头像、男号资料都会恢复）。
+
+- 门禁：`check-android.sh` → ✅（441 单测，新增 1 条）。
+
 ### T9.23 生日选择器改滚轮样式 + 关掉返回预览动画 —— ✅ 已完成（2026-10-22）
 
 #### ① 生日选择器：日历弹窗 → 三列滚轮

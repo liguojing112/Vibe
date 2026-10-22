@@ -3,6 +3,7 @@ package com.qichuang.changliao.feature.notice
 import com.qichuang.changliao.core.data.model.Notice
 import com.qichuang.changliao.core.data.model.NoticeCategory
 import com.qichuang.changliao.core.data.model.NoticePage
+import com.qichuang.changliao.core.data.repository.ChatRepository
 import com.qichuang.changliao.core.data.repository.NoticeRepository
 import com.qichuang.changliao.core.network.ApiResult
 import com.qichuang.changliao.core.network.NETWORK_ERROR_MESSAGE
@@ -31,6 +32,7 @@ import org.junit.Test
 class NoticeViewModelTest {
 
     private val repository = mockk<NoticeRepository>()
+    private val chatRepository = mockk<ChatRepository>(relaxed = true)
 
     @Before
     fun setUp() {
@@ -43,7 +45,7 @@ class NoticeViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = NoticeViewModel(repository).also { it.enter() }
+    private fun viewModel() = NoticeViewModel(repository, chatRepository).also { it.enter() }
 
     @Test
     fun `进页面拉的是系统通知`() {
@@ -57,7 +59,7 @@ class NoticeViewModelTest {
 
     @Test
     fun `从互动通知进来时直接拉互动分类`() {
-        val vm = NoticeViewModel(repository)
+        val vm = NoticeViewModel(repository, chatRepository)
 
         vm.enter(NoticeCategory.INTERACT)
 
@@ -142,5 +144,13 @@ class NoticeViewModelTest {
             read = false,
             createdAt = 1_791_888_877_000,
         )
+    }
+
+    /** T9.24：拉列表会让服务端把该分类标已读，本地红点必须跟着校准，否则退回消息页红点还在。 */
+    @Test
+    fun `拉到通知后校准红点`() {
+        viewModel()
+
+        coVerify(exactly = 1) { chatRepository.refreshNoticeUnread() }
     }
 }

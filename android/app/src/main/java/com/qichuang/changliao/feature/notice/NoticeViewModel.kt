@@ -3,6 +3,7 @@ package com.qichuang.changliao.feature.notice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.qichuang.changliao.core.data.model.NoticeCategory
+import com.qichuang.changliao.core.data.repository.ChatRepository
 import com.qichuang.changliao.core.data.repository.NoticeRepository
 import com.qichuang.changliao.core.network.ApiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,6 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class NoticeViewModel @Inject constructor(
     private val noticeRepository: NoticeRepository,
+    private val chatRepository: ChatRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NoticeUiState())
@@ -86,16 +88,21 @@ class NoticeViewModel @Inject constructor(
     private fun load(category: NoticeCategory, keepList: Boolean = false) {
         viewModelScope.launch {
             when (val result = noticeRepository.list(category, 1)) {
-                is ApiResult.Success -> _uiState.update {
-                    it.copy(
-                        loading = false,
-                        refreshing = false,
-                        error = null,
-                        notices = result.data.list,
-                        hasMore = result.data.list.size >= NoticeUiState.PAGE_SIZE,
-                        page = 1,
-                        unread = result.data.unread,
-                    )
+                is ApiResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            loading = false,
+                            refreshing = false,
+                            error = null,
+                            notices = result.data.list,
+                            hasMore = result.data.list.size >= NoticeUiState.PAGE_SIZE,
+                            page = 1,
+                            unread = result.data.unread,
+                        )
+                    }
+                    // 拉列表本身就会让服务端把该分类标已读，但本地红点还停在旧值 ——
+                    // 重新问一次 /chat/unread 校准，不然「进系统消息再退出来，红点还在」（客户 T9.24 反馈）
+                    chatRepository.refreshNoticeUnread()
                 }
 
                 is ApiResult.BizError -> _uiState.update {
