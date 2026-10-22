@@ -8,8 +8,9 @@ declare(strict_types=1);
  * 直接在服务器上跑（PHP + PDO，不依赖框架）：
  *
  *   cd /www/wwwroot/cljy/server
- *   php ../scripts/seed-fake-users.php            # 默认 300 个（男 180 / 女 120）
- *   php ../scripts/seed-fake-users.php 500        # 自定义数量
+ *   php ../scripts/seed-fake-users.php                    # 默认 300 个（男 180 / 女 120）
+ *   php ../scripts/seed-fake-users.php 500                # 自定义数量
+ *   php ../scripts/seed-fake-users.php 500 Bot123456     # 指定统一密码（会导出 CSV）
  *
  * 它做四件事：
  *   1. 把仓库里的头像（`scripts/assets/fake-avatars/`）复制到 `storage/uploads/cl/fake/`；
@@ -20,7 +21,7 @@ declare(strict_types=1);
  *
  * ⚠️ 这些是**演示数据**，不是真实用户：
  *   - 账号统一以 `bot` 开头，方便以后一条 SQL 清掉；
- *   - 密码是随机串，**谁也不知道**，登不进去；
+ *   - 密码默认是随机串（谁也不知道）；传了第二个参数就用那个口令，并把账号导出成 CSV；
  *   - 相册（`cl_user_photo`）不造，避免审核中心一堆待审。
  */
 
@@ -113,6 +114,10 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 $count = (int) ($argv[1] ?? 300);
 $count = max(10, min(2000, $count));
+
+// 第二个参数：统一口令。不传就随机（谁也登不进去）；传了就导出 CSV 给运营用
+$plainPassword = (string) ($argv[2] ?? '');
+$exportRows = [];
 // 「男用户多一点」：60% 男 / 40% 女
 $maleCount = (int) round($count * 0.6);
 $femaleCount = $count - $maleCount;
@@ -223,17 +228,21 @@ for ($i = 0; $i < $count; ++$i) {
 
     // 20~35 岁
     $ageDays = random_int(20 * 365, 35 * 365);
-    $birthday = date('Y-m-d', $now - $ageDays);
+    // ⚠️ 必须 ×86400：time() 是秒，$ageDays 是天，直接减等于「几小时前」→ 所有人都是今天生日、0 岁
+    $birthday = date('Y-m-d', $now - $ageDays * 86400);
+
+    $account = BOT_PREFIX . str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT);
+    $passwordToUse = $plainPassword !== '' ? $plainPassword : bin2hex(random_bytes(16));
 
     $insertUser->execute([
-        BOT_PREFIX . str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT),
-        password_hash(bin2hex(random_bytes(16)), PASSWORD_BCRYPT), // 随机密码，谁也登不上
+        $account,
+        password_hash($passwordToUse, PASSWORD_BCRYPT),
         $gender,
         $nickname,
         $avatar,
         $male ? MALE_BIOS[array_rand(MALE_BIOS)] : FEMALE_BIOS[array_rand(FEMALE_BIOS)],
         $birthday,
-        CITIES[array_rand(CITIES)],
+        $city = CITIES[array_rand(CITIES)],
         $male ? random_int(170, 188) : random_int(155, 172),
         $male ? MALE_JOBS[array_rand(MALE_JOBS)] : FEMALE_JOBS[array_rand(FEMALE_JOBS)],
         ['大专', '本科', '本科', '硕士'][array_rand(['大专', '本科', '本科', '硕士'])],
@@ -252,6 +261,10 @@ for ($i = 0; $i < $count; ++$i) {
     $insertCoin->execute([$id]);
     $insertPoint->execute([$id]);
 
+    if ($plainPassword !== '') {
+        $exportRows[] = [$account, $nickname, $male ? '男' : '女', $city ?? '', $plainPassword];
+    }
+
     if (($i + 1) % 50 === 0) {
         echo "    ...{$i} 个\n";
     }
@@ -262,4 +275,30 @@ for ($i = 0; $i < $count; ++$i) {
 @chmod($avatarDir, 0755);
 
 echo "\n✅ 完成：{$maleCount} 男 / {$femaleCount} 女，账号前缀 " . BOT_PREFIX . "\n";
+
+// 指定了口令就导出 CSV（运营拿去登录 App 用）
+if ($plainPassword !== '' && $exportRows !== []) {
+    $exportDir = __DIR__ . '/../server/storage/exports';
+    if (! is_dir($exportDir)) {
+        mkdir($exportDir, 0755, true);
+    }
+    $csvPath = sprintf('%s/bot-accounts-%s.csv', $exportDir, date('Ymd-His'));
+
+    $fp = fopen($csvPath, 'w');
+    fwrite($fp, "ï»¿"); // BOM，Excel 打开中文不乱码
+    fputcsv($fp, ['账号', '昵称', '性别', '城市', '密码'], ',', '"', '');
+    foreach ($exportRows as $row) {
+        fputcsv($fp, $row, ',', '"', '');
+    }
+    fclose($fp);
+    @chmod($csvPath, 0644);
+
+    echo "   账号密码已导出：{$csvPath}
+";
+    echo "   宝塔文件管理器里下载，或者 scp 拉走。
+";
+    echo "   ⚠️ 这批号能用同一个口令登录 App；演示结束后重跑一次不带口令的版本即可重新随机化。
+";
+}
+
 echo "   清理命令：DELETE FROM cl_user WHERE account LIKE '" . BOT_PREFIX . "%';\n";
