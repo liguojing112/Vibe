@@ -3,6 +3,8 @@ package com.qichuang.changliao.feature.main
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -140,5 +142,12 @@ fun MainScreen(onOpen: (String) -> Unit) {
                 }
             },
         )
+
+        // 放在 NavHost **之后**：OnBackPressedDispatcher 后注册的先回调，写在前面会被
+        // NavHost 自己的返回处理抢先（Tab 栈里 pop 回上一个 Tab）。
+        val activity = LocalActivity.current
+        BackHandler(enabled = currentRoute != null && currentRoute != Routes.TAB_DISCOVER) {
+            activity?.moveTaskToBack(true)
+        }
     }
 }
