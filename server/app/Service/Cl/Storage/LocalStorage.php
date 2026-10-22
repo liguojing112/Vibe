@@ -54,6 +54,12 @@ class LocalStorage implements StorageInterface
         }
         $file->moveTo($target);
 
+        // **显式设权限**：Swoole 进程的 umask 不一定是 022（宝塔的进程守护可能给 077），
+        // 那样新文件会是 600，Nginx（www）读不到 → 图片 403。
+        // 目录同理，确保 755 可遍历。T9.21 生产上就踩到了：头像上传成功但打不开。
+        @chmod($dir, 0755);
+        @chmod($target, 0644);
+
         return $relative;
     }
 

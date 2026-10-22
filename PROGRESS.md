@@ -1824,6 +1824,31 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
+### T9.21 上传的新图片 403（头像「消失」、后台预览「无法渲染」）—— ✅ 已修（2026-10-22）
+
+**现象**：女号换头像 → 后台审核列表的「新值」显示裂图（无法渲染）→ 批量通过后
+App 里头像变空白（系统消息里还出现了一个「2」，待客户截图确认具体位置）。
+
+**根因**：`LocalStorage::save()` 用 `$file->moveTo($target)` 落盘，**没有设权限**。
+文件权限取决于进程 umask —— 宝塔的进程守护给的 umask 是 077，于是新文件是 `600`，
+Nginx（www）读不到 → **403**。
+
+> 为什么之前那张是 200：那次我们手动 `chown -R www:www storage` 把老文件修好了，
+> 但**新上传的文件是 600**，修哪里都白搭。查证：老图 `fe0a...png` 200，
+> 客户新传的 `c851...jpg` 403。
+
+**修法**：落盘后显式 `@chmod($dir, 0755); @chmod($target, 0644);` —— 和 umask 无关，
+换任何进程用户/守护配置都不会再出这个问题。
+
+**线上已有的坏文件**（不需要重新上传）：
+```bash
+find /www/wwwroot/cljy/server/storage/uploads -type d -exec chmod 755 {} \;
+find /www/wwwroot/cljy/server/storage/uploads -type f -exec chmod 644 {} \;
+```
+
+**后台审核页**用的是 `<ClImagePreview src={new_value} />`，图片 403 时就是裂图；
+权限修好后预览和 App 头像会同时恢复。
+
 ### T9.20 客户第二轮反馈：返回键「两个页面」+ 系统消息 —— ✅ 已修/已澄清（2026-10-22）
 
 #### ① 从「消息」右滑返回时出现两个页面叠在一起 —— ✅ 已修
