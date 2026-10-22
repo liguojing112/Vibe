@@ -1853,14 +1853,25 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
 `permission:position*` / `permission:leader*` / `dataCenter*` 全部 status=0，
 `permission:user*`、`permission:role*`、`log*`、`cl*` 保持 1。
 
-#### ② 品牌替换（等 SVG）
+#### ② 品牌替换 —— ✅ 已完成（2026-10-22）
 
-**登录页和侧边栏用的是同一个文件**：`admin-web/src/assets/images/logo.svg`。
-明天拿到 SVG 后：
-1. 用它覆盖 `admin-web/src/assets/images/logo.svg`（登录页 + 侧边栏一起换）；
-2. 同时覆盖 `admin-web/public/logo.svg`（打包后放在根目录）；
-3. `public/favicon.ico` 还是 MineAdmin 的图标 —— 需要客户给 **ico 或 512×512 PNG** 才能换，
-   SVG 不能直接当 ico（部分浏览器可以，但不通用）。
+客户给了 `畅撩交友-线条心形Logo.svg`（黄底圆角方块 + 白色/珊瑚色心形线条，108×108）。
+
+**登录页和侧边栏共用同一个文件**，所以只换两处：
+- `admin-web/src/assets/images/logo.svg`（登录页 + 侧边栏）
+- `admin-web/public/logo.svg`（打包后放根目录）
+
+**顺带改了一处样式**：`.login-logo` 原来有 `bg-white rounded-full p-1`（给 MineAdmin 的
+透明 logo 垫白底、裁圆形）。客户 logo **自带圆角黄底**，这套样式会多出一圈白边，
+改成 `p-0` 直接显示原图。
+
+**验证**：本地起生产包截图确认 —— 黄底心形 logo + 标题「畅撩交友」+
+底部「2026 畅撩交友」，没有「开箱即用」标签、没有假备案号，验证码正常加载。
+
+**还没换的**：`public/favicon.ico` 仍是 MineAdmin 图标 —— **SVG 不能直接当 ico**，
+需要客户给 ico 或 512×512 PNG。
+**另外 App 的桌面图标还是 Android 默认机器人**（不是 MineAdmin，是建工程时的模板图标），
+要换成这个心形 logo 需要另外做一套 mipmap/adaptive icon。
 
 **已改的文案**：登录页右上角那个「开箱即用」小标签（MineAdmin 的宣传语）已删除；
 标题已经是「畅撩交友」；假备案号已清空。

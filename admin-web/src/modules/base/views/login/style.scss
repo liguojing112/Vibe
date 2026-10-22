@@ -11,9 +11,8 @@
 }
 
 .login-logo {
-  @apply h-[70px] w-[70px] lg:bg-none bg-white lg:rounded-none rounded-full
-    lg:p-0 p-1 lg:mb-0 mb-3 transition-all
-  ;
+  // 客户 logo 自带圆角黄底，不要再套白底 + 圆形裁切（会多出一圈白边）
+  @apply h-[70px] w-[70px] p-0 mb-0 transition-all;
 }
 
 .pure-tag {
