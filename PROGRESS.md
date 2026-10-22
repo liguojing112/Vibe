@@ -1824,6 +1824,52 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
+### T9.25 图片 403 根治 + 守护进程起不来 —— ✅ 已解决（2026-10-22）
+
+客户反复遇到「换头像 → 后台预览裂图 → 通过后 App 头像消失」，两次 chmod 都只治标。
+这次把三层一起补齐，并记录了两个部署期的坑。
+
+#### ① 三层保障（新文件天然可读）
+
+| 层 | 做法 | 状态 |
+|---|---|---|
+| 代码 | `LocalStorage::save()` 落盘后 `@chmod(0755/0644)` | 已提交（T9.21） |
+| 系统 | `storage/uploads` 设**默认 ACL** `d:u:www:r-x`，新文件自动继承 | ✅ 已配 |
+| 进程 | 守护以 `www` 运行，新文件属主就是 www | ✅ |
+
+**为什么要 ACL**：进程 umask 是 077 时新文件是 600，只靠代码 chmod 要部署才生效；
+ACL 在系统层兜底，**换代码、换进程用户都不影响**。
+
+#### ② 踩坑：`pkill -f hyperf.php` 杀不掉
+
+Hyperf 的进程名是 **`MineAdmin.Master` / `MineAdmin.Worker.N`**，
+`pkill -f "hyperf.php"` 匹配不到 → 老进程继续占着 9501/9502 →
+重新启动必然 `Address already in use[98]`。
+
+**正确写法**：`pkill -9 -f "MineAdmin"`。
+
+#### ③ 踩坑：`update.sh` 自己起进程会和宝塔守护抢端口
+
+原来是「pkill 之后自己 `setsid nohup php ... start`」，但守护会在 2 秒内把进程拉起来，
+于是两个进程抢同一个端口。而且脚本以 root 跑，写的 `runtime/` 是 root 属主，
+守护（www）之后写不进去 → 启动失败。
+
+**改法**：pkill 之后**只等守护自己拉起**，等不到再用 `su -s /bin/sh www -c "... umask 022 ..."`
+兜底启动。
+
+#### ④ 宝塔「进程守护」的两个操作细节
+
+- **启动命令不能带引号**：填 `php bin/hyperf.php start`。截图里命令显示成 `"um...`
+  说明被写成了带引号的整串，守护找不到可执行文件 → FATAL。
+- **FATAL 状态改配置也不重置**：必须删掉守护进程、重新添加。
+
+#### ⑤ 本次收尾
+
+`scripts/server-update.sh` 加进仓库（服务器上的 `/www/wwwroot/cljy/update.sh` 同内容），
+把上面三个坑写成注释，以后重装/换机器直接照抄。
+
+**验证**：接口 200、头像 200、相册 200。
+
 ### T9.24 「系统消息红点进去不退」+ 男号头像仍 403 —— ✅ 已修/待部署（2026-10-22）
 
 #### ① 「数字 1 / 数字 2」= 未读红点，进系统消息后不消失 —— ✅ 已修
