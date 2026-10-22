@@ -1824,6 +1824,33 @@ T9.2 把 31 张设计图和实机截图**拼成对比图逐张看**。测试和 
   `bash scripts/check-all.sh` → **`✅✅✅ 全部检查通过`**（server **437 测试 / 2597 断言** + phpstan + money；
   admin lint+build；android **414 单测** + `lintDebug` + `assembleDebug` + `check-ui.sh`）。
 
+### T9.22 生日弹窗按钮美化 + 资料自动保存 —— ✅ 已完成（2026-10-22）
+
+客户反馈：生日选择弹窗里的「取消 / 确定」是纯文字按钮太简陋；资料应该是自动保存。
+
+#### ① 弹窗按钮统一成设计系统的胶囊样式
+
+原来 `ClDatePickerDialog` 的 `confirmButton` / `dismissButton` 用的是 `ClTextButton`（纯文字）。
+现在：
+- **确定** → `ClPrimaryButton`（黄底胶囊）
+- **取消** → `ClSoftButton(kind = Gray)`（灰底胶囊）
+
+和登录页、设置页的按钮风格一致。
+
+#### ② 个人资料改成自动保存
+
+- `EditProfileViewModel` 加 `scheduleAutoSave()`：任何字段改动后**防抖 900ms** 再调 `save(silent = true)`；
+- `save()` 本来就有 diff（`buildUpdate(state, current)` 只提交和 `original` 不一样的字段），
+  所以连续修改不会重复提交，也不会给审核表刷垃圾记录；
+- **自动保存时不弹 toast**（每改一个字弹一次太吵），改成顶栏右侧显示状态：
+  `保存中…` / `已保存`；
+- 删掉了顶栏的「保存」按钮和页面底部的「保存资料」按钮。
+
+**验证**：点一个兴趣标签 → 4 秒后查接口，`tags` 从 `[2,6]` 变成 `[1,2,6]`（没有点任何保存按钮）；
+顶栏显示「已保存」。
+
+- 门禁：`check-android.sh` → ✅（440 单测 + lint + 打包 + UI 扫描）。
+
 ### T9.21 上传的新图片 403（头像「消失」、后台预览「无法渲染」）—— ✅ 已修（2026-10-22）
 
 **现象**：女号换头像 → 后台审核列表的「新值」显示裂图（无法渲染）→ 批量通过后

@@ -35,13 +35,11 @@ import com.qichuang.changliao.core.designsystem.component.ClErrorRetry
 import com.qichuang.changliao.core.designsystem.component.ClLoading
 import com.qichuang.changliao.core.designsystem.component.ClNoticeCard
 import com.qichuang.changliao.core.designsystem.component.ClPhotoGrid
-import com.qichuang.changliao.core.designsystem.component.ClPrimaryButton
 import com.qichuang.changliao.core.designsystem.component.ClScaffold
 import com.qichuang.changliao.core.designsystem.component.ClSelectField
 import com.qichuang.changliao.core.designsystem.component.ClSelectOption
 import com.qichuang.changliao.core.designsystem.component.ClTag
 import com.qichuang.changliao.core.designsystem.component.ClTagKind
-import com.qichuang.changliao.core.designsystem.component.ClTextButton
 import com.qichuang.changliao.core.designsystem.component.ClTextField
 import com.qichuang.changliao.core.designsystem.component.ClTopBar
 import com.qichuang.changliao.core.designsystem.component.rememberClToast
@@ -99,10 +97,15 @@ fun EditProfileScreen(
                 title = "编辑资料",
                 onBack = onBack,
                 action = {
-                    ClTextButton(
-                        text = "保存",
-                        enabled = state.canSave,
-                        onClick = actions.onSave,
+                    // 改成自动保存后，顶栏只显示状态，不再有「保存」按钮
+                    Text(
+                        text = when {
+                            state.submitting -> "保存中…"
+                            state.saved -> "已保存"
+                            else -> ""
+                        },
+                        style = ClTheme.typography.caption,
+                        color = ClTheme.colors.muted,
                     )
                 },
             )
@@ -321,13 +324,6 @@ private fun EditProfileForm(
         }
 
         Spacer(modifier = Modifier.height(ClTheme.spacing.s))
-
-        ClPrimaryButton(
-            text = "保存资料",
-            loading = state.submitting,
-            enabled = state.canSave,
-            onClick = actions.onSave,
-        )
 
         Spacer(modifier = Modifier.height(ClTheme.spacing.xxxl))
     }

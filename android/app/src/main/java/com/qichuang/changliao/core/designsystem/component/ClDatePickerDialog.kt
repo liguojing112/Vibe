@@ -38,14 +38,22 @@ fun ClDatePickerDialog(
     DatePickerDialog(
         onDismissRequest = onDismiss,
         modifier = modifier,
+        // 按钮用设计系统的胶囊按钮（原来两个纯文字按钮客户觉得太简陋）：
+        // 取消 = 灰底柔和按钮，确定 = 黄底主按钮，和其它页面的按钮风格一致。
         confirmButton = {
-            ClTextButton(
+            ClPrimaryButton(
                 text = "确定",
+                fillMaxWidth = false,
+                modifier = Modifier.padding(end = ClTheme.spacing.s),
                 onClick = { state.selectedDateMillis?.let { onConfirm(it) } },
             )
         },
         dismissButton = {
-            ClTextButton(text = "取消", onClick = onDismiss)
+            ClSoftButton(
+                text = "取消",
+                kind = ClSoftButtonKind.Gray,
+                onClick = onDismiss,
+            )
         },
         colors = DatePickerDefaults.colors(
             containerColor = ClTheme.colors.surface,

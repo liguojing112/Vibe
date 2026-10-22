@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -67,36 +69,54 @@ class EditProfileViewModel @Inject constructor(
         }
     }
 
+    /** 自动保存：改完字段停 [AUTO_SAVE_DELAY_MS] 毫秒就提交，避免每敲一个字都发请求。 */
+    private var autoSaveJob: Job? = null
+
+    private fun scheduleAutoSave() {
+        autoSaveJob?.cancel()
+        autoSaveJob = viewModelScope.launch {
+            delay(AUTO_SAVE_DELAY_MS)
+            save(silent = true)
+        }
+    }
+
     // ---------- 表单字段 ----------
 
     fun onNicknameChange(value: String) {
         _uiState.update { it.copy(nickname = value, nicknameError = null, saved = false) }
+        scheduleAutoSave()
     }
 
     fun onCityChange(value: String) {
         _uiState.update { it.copy(city = value, saved = false) }
+        scheduleAutoSave()
     }
 
     fun onHeightChange(value: String) {
         // 只收数字，最多 3 位
         val digits = value.filter { it.isDigit() }.take(3)
         _uiState.update { it.copy(height = digits, heightError = null, saved = false) }
+        scheduleAutoSave()
     }
 
     fun onJobChange(value: String) {
         _uiState.update { it.copy(job = value, saved = false) }
+        scheduleAutoSave()
     }
 
     fun onEducationChange(value: String) {
         _uiState.update { it.copy(education = value, saved = false) }
+        scheduleAutoSave()
     }
 
     fun onDatingPurposeChange(value: String) {
         _uiState.update { it.copy(datingPurpose = value, saved = false) }
+        scheduleAutoSave()
     }
 
     fun onBioChange(value: String) {
         _uiState.update { it.copy(bio = value, bioError = null, saved = false) }
+        scheduleAutoSave()
     }
 
     /** 兴趣标签（`ClChipGroup` 多选，回来的是名字集合，这里换回后台的标签 id）。 */
@@ -109,18 +129,21 @@ class EditProfileViewModel @Inject constructor(
                 saved = false,
             )
         }
+        scheduleAutoSave()
     }
 
     /** 生日选择器选的日期（UTC 零点毫秒）。 */
     fun onBirthdaySelected(utcMillis: Long) {
         val date = TimeFormat.utcMillisToDate(utcMillis)
         _uiState.update { it.copy(birthday = date, birthdayError = null, saved = false) }
+        scheduleAutoSave()
     }
 
     // ---------- 头像与相册 ----------
 
     fun onAvatarPicked(uri: Uri) = upload(uri, UploadScene.AVATAR) { url ->
         _uiState.update { it.copy(avatarUrl = url, saved = false) }
+        scheduleAutoSave()
     }
 
     fun onPhotoPicked(uri: Uri) = upload(uri, UploadScene.PHOTO) { url ->
@@ -131,6 +154,7 @@ class EditProfileViewModel @Inject constructor(
                 state.copy(photos = state.photos + url, saved = false)
             }
         }
+        scheduleAutoSave()
     }
 
     fun onPhotoRemoved(index: Int) {
@@ -141,6 +165,7 @@ class EditProfileViewModel @Inject constructor(
                 state.copy(photos = state.photos.filterIndexed { i, _ -> i != index }, saved = false)
             }
         }
+        scheduleAutoSave()
     }
 
     /** 长按拖动排序（`ClPhotoGrid` 的 `onMove`）。 */
@@ -154,6 +179,7 @@ class EditProfileViewModel @Inject constructor(
                 state.copy(photos = moved, saved = false)
             }
         }
+        scheduleAutoSave()
     }
 
     // ---------- 保存 ----------
@@ -162,7 +188,7 @@ class EditProfileViewModel @Inject constructor(
         _uiState.update { it.copy(toast = null) }
     }
 
-    fun save() {
+    fun save(silent: Boolean = false) {
         val state = _uiState.value
         val current = original ?: return
         if (state.submitting || state.uploading) {
@@ -199,7 +225,8 @@ class EditProfileViewModel @Inject constructor(
                         it.copy(
                             submitting = false,
                             saved = true,
-                            toast = "已保存" + if (result.data.auditing.isEmpty()) "" else "，其中部分内容在审核中",
+                            // 自动保存时不弹 toast（每改一个字段都弹会很吵），只更新顶栏状态
+                            toast = if (silent) null else "已保存" + if (result.data.auditing.isEmpty()) "" else "，其中部分内容在审核中",
                         )
                     }
                 }
@@ -329,5 +356,8 @@ class EditProfileViewModel @Inject constructor(
         private const val MAX_JOB_LENGTH = 32
         private const val MIN_HEIGHT = 120
         private const val MAX_HEIGHT = 250
+
+        /** 自动保存的防抖间隔：输入停下来再存，避免每个字一次请求。 */
+        const val AUTO_SAVE_DELAY_MS = 900L
     }
 }
