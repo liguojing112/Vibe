@@ -1,6 +1,7 @@
 package com.qichuang.changliao.feature.message
 
 import com.qichuang.changliao.core.data.model.ChatConversation
+import com.qichuang.changliao.core.data.model.DiscoverUser
 
 /**
  * 消息页（P03）状态。
@@ -19,6 +20,9 @@ data class MessageUiState(
     val loading: Boolean = true,
     val refreshing: Boolean = false,
     val error: String? = null,
+    /** 搜索框里的关键词命中的**用户**（走 `/discover/search`，含还没聊过的人）。 */
+    val userResults: List<DiscoverUser> = emptyList(),
+    val searchingUsers: Boolean = false,
     /** 「看看谁喜欢我」的说明文案，来自 `/user/me` 的统计。 */
     val fanCount: Int = 0,
     val visitorCount: Int = 0,
@@ -40,7 +44,8 @@ data class MessageUiState(
     /** 正在筛选（搜索词非空或只看未读）——筛选时把头部的横条和功能入口收起来。 */
     val filtering: Boolean = query.isNotBlank() || unreadOnly
 
-    val isEmpty: Boolean = !loading && error == null && visible.isEmpty()
+    /** 会话和用户都没命中才算空 —— 只搜到人（还没聊过）时要能点进去开聊。 */
+    val isEmpty: Boolean = !loading && error == null && visible.isEmpty() && userResults.isEmpty()
 
     /** 筛选筛空了和「压根没聊过」是两种说法，文案不能混。 */
     val emptyTitle: String = if (filtering) "没有符合条件的会话" else "还没有聊天"

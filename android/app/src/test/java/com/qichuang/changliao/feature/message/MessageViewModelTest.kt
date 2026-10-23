@@ -3,10 +3,12 @@ package com.qichuang.changliao.feature.message
 import com.qichuang.changliao.core.data.local.UnreadStore
 import com.qichuang.changliao.core.data.model.AppConfig
 import com.qichuang.changliao.core.data.model.ChatConversation
+import com.qichuang.changliao.core.data.model.DiscoverUser
 import com.qichuang.changliao.core.data.model.ProfileStats
 import com.qichuang.changliao.core.data.model.UserProfile
 import com.qichuang.changliao.core.data.repository.AppConfigRepository
 import com.qichuang.changliao.core.data.repository.ChatRepository
+import com.qichuang.changliao.core.data.repository.DiscoverRepository
 import com.qichuang.changliao.core.data.repository.UserRepository
 import com.qichuang.changliao.core.network.ApiResult
 import com.qichuang.changliao.core.network.NETWORK_ERROR_MESSAGE
@@ -39,10 +41,13 @@ class MessageViewModelTest {
 
     private val chatRepository = mockk<ChatRepository>()
     private val userRepository = mockk<UserRepository>()
+    private val discoverRepository = mockk<DiscoverRepository>()
     private val appConfigRepository = mockk<AppConfigRepository>()
     private val unreadStore = UnreadStore()
 
     private val conversations = MutableStateFlow<List<ChatConversation>>(emptyList())
+
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     private val currentUser = MutableStateFlow<UserProfile?>(
         UserProfile(id = 7, nickname = "我"),
@@ -52,13 +57,14 @@ class MessageViewModelTest {
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
+        Dispatchers.setMain(testDispatcher)
         every { chatRepository.conversations() } returns conversations
         every { userRepository.currentUser } returns currentUser
         every { appConfigRepository.config } returns config
         coEvery { chatRepository.refreshConversations() } returns ApiResult.Success(Unit)
         coEvery { chatRepository.refreshNoticeUnread() } returns Unit
         coEvery { userRepository.me() } returns ApiResult.Success(currentUser.value!!)
+        coEvery { discoverRepository.search(any()) } returns emptyList()
     }
 
     @After
@@ -66,7 +72,28 @@ class MessageViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = MessageViewModel(chatRepository, userRepository, appConfigRepository, unreadStore)
+    private fun viewModel() = MessageViewModel(
+        chatRepository,
+        userRepository,
+        discoverRepository,
+        appConfigRepository,
+        unreadStore,
+    )
+
+    /** 消息页搜索不只过滤会话，也要能搜到还没聊过的人（走 `/discover/search`）。 */
+    @Test
+    fun `搜索能命中还没有会话的用户`() {
+        coEvery { discoverRepository.search("宽宽") } returns listOf(
+            DiscoverUser(id = 1304, nickname = "宽宽", city = "杭州", age = 26),
+        )
+        val vm = viewModel()
+
+        vm.onQueryChange("宽宽")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf("宽宽"), vm.uiState.value.userResults.map { it.nickname })
+        assertFalse(vm.uiState.value.isEmpty)
+    }
 
     /** 「系统消息」入口的红点跟着未读通知走（docs/01 P03）。 */
     @Test

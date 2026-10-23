@@ -17,6 +17,7 @@ import com.qichuang.changliao.core.data.model.ChatSendResult
 import com.qichuang.changliao.core.data.model.ChatUnread
 import com.qichuang.changliao.core.data.model.MessageStatus
 import com.qichuang.changliao.core.network.ApiResult
+import com.qichuang.changliao.core.network.NETWORK_ERROR_MESSAGE
 import com.qichuang.changliao.core.network.ChatApi
 import com.qichuang.changliao.core.network.dto.ChatEntryDto
 import com.qichuang.changliao.core.network.dto.ChatFeeDto
@@ -44,11 +45,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -438,7 +442,11 @@ class ChatRepository @Inject constructor(
 
     /** 拉一遍会话列表（分页拉到底，最多 [MAX_CONVERSATION_PAGES] 页）。 */
     suspend fun refreshConversations(): ApiResult<Unit> {
-        val owner = ownerId()
+        // 当前用户还没加载好就写库，会话会记到 ownerId=0 名下，之后按真实 owner 查永远是空的。
+        // 消息页 `init` 里就调这里，而 `/user/me` 可能还没回来，所以必须等一下。
+        val owner = withTimeoutOrNull(OWNER_WAIT_MILLIS) {
+            userRepository.currentUser.filterNotNull().first().id
+        } ?: return ApiResult.NetworkError(NETWORK_ERROR_MESSAGE)
         var page = 1
 
         while (page <= MAX_CONVERSATION_PAGES) {
@@ -659,6 +667,9 @@ class ChatRepository @Inject constructor(
         private const val MAX_SYNC_ROUNDS = 10
 
         private const val MAX_CONVERSATION_PAGES = 5
+
+        /** 等 `/user/me` 回来再写会话，最多等这么久。 */
+        private const val OWNER_WAIT_MILLIS = 8_000L
 
         /**
          * 本地生成的 `client_msg_id`：**32 位十六进制**，和服务端 id 一个形状

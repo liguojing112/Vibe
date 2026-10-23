@@ -4,11 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.qichuang.changliao.core.data.local.UnreadStore
 import com.qichuang.changliao.core.data.model.ProfileStats
+import com.qichuang.changliao.core.data.model.DiscoverUser
 import com.qichuang.changliao.core.data.repository.AppConfigRepository
 import com.qichuang.changliao.core.data.repository.ChatRepository
+import com.qichuang.changliao.core.data.repository.DiscoverRepository
 import com.qichuang.changliao.core.data.repository.UserRepository
 import com.qichuang.changliao.core.network.ApiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,11 +33,19 @@ import javax.inject.Inject
 class MessageViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val userRepository: UserRepository,
+    private val discoverRepository: DiscoverRepository,
     appConfigRepository: AppConfigRepository,
     unreadStore: UnreadStore,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
+
+    /** 关键词命中的用户（含没聊过的人），走 `/discover/search`。 */
+    private val userResults = MutableStateFlow<List<DiscoverUser>>(emptyList())
+
+    private val searchingUsers = MutableStateFlow(false)
+
+    private var searchJob: Job? = null
 
     private val unreadOnly = MutableStateFlow(false)
 
@@ -81,8 +93,17 @@ class MessageViewModel @Inject constructor(
         )
     }
 
+    private val userSearch = combine(userResults, searchingUsers) { users, searching ->
+        UserSearch(users, searching)
+    }
+
     val uiState: StateFlow<MessageUiState> =
-        combine(chatRepository.conversations(), controls, extras) { conversations, ctrl, extra ->
+        combine(
+            chatRepository.conversations(),
+            controls,
+            extras,
+            userSearch,
+        ) { conversations, ctrl, extra, search ->
             MessageUiState(
                 conversations = conversations,
                 query = ctrl.query,
@@ -91,6 +112,8 @@ class MessageViewModel @Inject constructor(
                 loading = ctrl.loading,
                 refreshing = ctrl.refreshing,
                 error = ctrl.error,
+                userResults = search.results,
+                searchingUsers = search.searching,
                 fanCount = extra.stats.fans,
                 visitorCount = extra.stats.visitors,
                 unreadVisitors = extra.stats.unreadVisitors,
@@ -112,6 +135,28 @@ class MessageViewModel @Inject constructor(
 
     fun onQueryChange(value: String) {
         query.value = value
+        searchUsers(value)
+    }
+
+    /**
+     * 关键词变了才去搜人（防抖）。会话那边是本地过滤，立刻生效；
+     * 用户搜索要走接口，每敲一个字都发一次请求太浪费。
+     */
+    private fun searchUsers(raw: String) {
+        searchJob?.cancel()
+        val keyword = raw.trim()
+        if (keyword.isEmpty()) {
+            userResults.value = emptyList()
+            searchingUsers.value = false
+            return
+        }
+
+        searchJob = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MILLIS)
+            searchingUsers.value = true
+            userResults.value = discoverRepository.search(keyword)
+            searchingUsers.value = false
+        }
     }
 
     /** 点顶部搜索图标：展开/收起搜索框，收起时把关键词也清掉。 */
@@ -119,6 +164,7 @@ class MessageViewModel @Inject constructor(
         searching.update { it.not() }
         if (!searching.value) {
             query.value = ""
+            searchUsers("")
         }
     }
 
@@ -208,4 +254,13 @@ class MessageViewModel @Inject constructor(
         val stats: ProfileStats,
         val unreadNotices: Int,
     )
+
+    private data class UserSearch(
+        val results: List<DiscoverUser>,
+        val searching: Boolean,
+    )
+
+    private companion object {
+        const val SEARCH_DEBOUNCE_MILLIS = 350L
+    }
 }

@@ -11,12 +11,14 @@ import com.qichuang.changliao.core.navigation.Routes
  *
  * @param onOpenChat 进聊天页（P06）
  * @param onOpenRoute 打开非 Tab 页面（关注我的人 P09、访客 P08、系统消息 P10…）
+ * @param onOpenDiscover 切到发现页（Tab 级页面，必须走 Tab 导航树）
  * @param onOpenDiscoverCity 「附近的人」：切到发现页并落到「同城」Tab
  */
 @Composable
 fun MessageRoute(
     onOpenChat: (Long) -> Unit,
     onOpenRoute: (String) -> Unit,
+    onOpenDiscover: () -> Unit,
     onOpenDiscoverCity: () -> Unit,
     viewModel: MessageViewModel = hiltViewModel(),
 ) {
@@ -26,6 +28,7 @@ fun MessageRoute(
         state = state,
         onOpenChat = onOpenChat,
         onOpenRoute = onOpenRoute,
+        onOpenDiscover = onOpenDiscover,
         onOpenDiscoverCity = onOpenDiscoverCity,
         onToggleSearch = viewModel::onToggleSearch,
         onQueryChange = viewModel::onQueryChange,
@@ -38,7 +41,6 @@ fun MessageRoute(
 
 /** 页面里用到的路由（都用 [Routes] 的常量，不写裸字符串）。 */
 internal object MessageRoutes {
-    val discover: String = Routes.TAB_DISCOVER
     val likedMe: String = Routes.LIKED_ME
     val visitors: String = Routes.VISITORS
     val notices: String = Routes.NOTICES

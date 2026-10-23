@@ -119,6 +119,7 @@ fun MainScreen(onOpen: (String) -> Unit) {
                 MessageRoute(
                     onOpenChat = { onOpen(Routes.chat(it)) },
                     onOpenRoute = onOpen,
+                    onOpenDiscover = { goTab(Routes.TAB_DISCOVER) },
                     onOpenDiscoverCity = { viewModel.onDiscoverTabRequested(DiscoverTab.CITY.apiValue) },
                 )
             }

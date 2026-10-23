@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.qichuang.changliao.core.common.TimeFormat
 import com.qichuang.changliao.core.data.model.ChatConversation
+import com.qichuang.changliao.core.data.model.DiscoverUser
 import com.qichuang.changliao.core.designsystem.component.ClAvatar
 import com.qichuang.changliao.core.designsystem.component.ClBottomSheet
 import com.qichuang.changliao.core.designsystem.component.ClChipGroup
@@ -55,6 +56,7 @@ fun MessageScreen(
     state: MessageUiState,
     onOpenChat: (Long) -> Unit,
     onOpenRoute: (String) -> Unit,
+    onOpenDiscover: () -> Unit,
     onOpenDiscoverCity: () -> Unit,
     onToggleSearch: () -> Unit,
     onQueryChange: (String) -> Unit,
@@ -114,17 +116,23 @@ fun MessageScreen(
                         title = state.emptyTitle,
                         desc = state.emptyDesc,
                         actionText = if (state.filtering) "全部会话" else "去发现页",
-                        onAction = { if (state.filtering) onToggleUnreadOnly() else onOpenRoute(MessageRoutes.discover) },
+                        onAction = { if (state.filtering) onToggleUnreadOnly() else onOpenDiscover() },
                     )
 
-                    else -> ConversationList(
-                        state = state,
-                        onOpenChat = onOpenChat,
-                        onOpenRoute = onOpenRoute,
-                        onOpenDiscoverCity = onOpenDiscoverCity,
-                        onDelete = onDelete,
-                        onRefresh = onRefresh,
-                    )
+                    else -> Column {
+                        if (state.userResults.isNotEmpty()) {
+                            UserResults(users = state.userResults, onOpenChat = onOpenChat)
+                        }
+                        ConversationList(
+                            state = state,
+                            onOpenChat = onOpenChat,
+                            onOpenRoute = onOpenRoute,
+                            onOpenDiscoverCity = onOpenDiscoverCity,
+                            onDelete = onDelete,
+                            onRefresh = onRefresh,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         }
@@ -157,8 +165,10 @@ private fun ConversationList(
     onOpenDiscoverCity: () -> Unit,
     onDelete: (Long) -> Unit,
     onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     ClPullRefreshList(
+        modifier = modifier,
         items = state.visible,
         refreshing = state.refreshing,
         onRefresh = onRefresh,
@@ -171,6 +181,8 @@ private fun ConversationList(
                     onOpenRoute = onOpenRoute,
                     onOpenDiscoverCity = onOpenDiscoverCity,
                 )
+            } else if (state.userResults.isNotEmpty()) {
+                SectionLabel("会话")
             }
         },
     ) { conversation ->
@@ -181,6 +193,46 @@ private fun ConversationList(
             )
         }
     }
+}
+
+/** 搜索命中的用户：还没聊过的人也能点进来直接开聊。 */
+@Composable
+private fun UserResults(
+    users: List<DiscoverUser>,
+    onOpenChat: (Long) -> Unit,
+) {
+    Column {
+        SectionLabel("用户")
+        users.take(MAX_USER_RESULTS).forEach { user ->
+            ClConversationRow(
+                conversation = ClConversationItem(
+                    id = user.id,
+                    name = user.nickname,
+                    avatarUrl = user.avatar,
+                    lastMessage = listOfNotNull(
+                        user.city.ifBlank { null },
+                        user.age?.let { "$it 岁" },
+                    ).joinToString(" · "),
+                    online = user.online,
+                ),
+                onClick = { onOpenChat(user.id) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text,
+        style = ClTheme.typography.tiny,
+        color = ClTheme.colors.inkSecondary,
+        modifier = Modifier.padding(
+            start = ClTheme.spacing.l,
+            top = ClTheme.spacing.s,
+            bottom = ClTheme.spacing.xs,
+        ),
+    )
 }
 
 /** 顶部横条：最近联系的几个人，点进聊天页（设计图 03）。 */
@@ -333,3 +385,6 @@ private fun ChatConversation.toItem() = ClConversationItem(
 private const val FILTER_ALL = "全部"
 
 private const val FILTER_UNREAD = "未读"
+
+/** 搜索结果里的人最多展示几个：再多就盖住会话列表了。 */
+private const val MAX_USER_RESULTS = 5
