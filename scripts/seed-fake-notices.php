@@ -8,12 +8,12 @@ declare(strict_types=1);
  * 在服务器上跑（PHP + PDO，不依赖框架）：
  *
  *   cd /www/wwwroot/cljy/server
- *   php ../scripts/seed-fake-notices.php              # 每个真实用户 100 条
+ *   php ../scripts/seed-fake-notices.php              # 100 条全员公告
  *   php ../scripts/seed-fake-notices.php 60           # 自定义条数
- *   php ../scripts/seed-fake-notices.php 100 1304     # 只给指定用户（多个用逗号分隔）
  *
  * 说明：
- *   - 只给**非 bot** 的真实账号插，`bot%` 演示账号不碰（不然一次几万行）；
+ *   - 插的是**全员公告**（`user_id = 0`）：所有用户都能看到，包括脚本跑完之后才注册的新账号；
+ *   - 已读状态按用户存在 `cl_notice_read`，脚本会给现有用户补记录（最后两条留未读）；
  *   - `biz_type` 统一 `ANNOUNCE`，和后台群发公告一致；
  *   - 时间从 2018-01 均匀铺到现在并加随机抖动，看起来像真实运营历史；
  *   - 最后 2 条故意不置已读，进页面能看到未读角标，点进去就消失；
@@ -115,68 +115,54 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 $count = max(10, min(500, (int) ($argv[1] ?? DEFAULT_COUNT)));
 
-// 第二参数：只给这些用户插（逗号分隔）；不传就所有非 bot 用户
-$userIds = [];
-if (isset($argv[2]) && trim($argv[2]) !== '') {
-    $userIds = array_values(array_filter(array_map('intval', explode(',', $argv[2]))));
-}
-
-if ($userIds === []) {
-    $userIds = array_map(
-        static fn (array $row): int => (int) $row['id'],
-        $pdo->query("SELECT id FROM cl_user WHERE account NOT LIKE 'bot%'")->fetchAll(PDO::FETCH_ASSOC),
-    );
-}
-
-if ($userIds === []) {
-    fwrite(STDERR, "没有找到可插入的用户\n");
-    exit(1);
-}
-
-// 可重复执行：先清掉上次造的公告类通知（真实业务通知不碰）
-$stale = $pdo->prepare('DELETE FROM cl_notice WHERE biz_type = ? AND user_id = ?');
+// 全员公告：只插一份（user_id = 0），所有用户 —— 包括以后新注册的 —— 都能看到。
+// 公告的已读状态按用户存在 cl_notice_read，所以通知行上不写 read_at。
 $insert = $pdo->prepare(
     'INSERT INTO cl_notice (user_id, category, title, content, biz_type, biz_id, read_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)',
+     VALUES (0, 1, ?, ?, ?, NULL, NULL, ?, ?)',
+);
+$insertRead = $pdo->prepare(
+    'INSERT IGNORE INTO cl_notice_read (notice_id, user_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
 );
 
 $start = strtotime('2018-01-05 10:00:00');
 $end = time() - 3600;
 $step = (int) round(($end - $start) / max(1, $count - 1));
 
-$inserted = 0;
 $pdo->beginTransaction();
 try {
+    // 可重复执行：清掉上次造的公告（连同已读记录），真实业务通知不碰
+    $pdo->exec("DELETE FROM cl_notice_read WHERE notice_id IN (SELECT id FROM cl_notice WHERE biz_type = 'ANNOUNCE')");
+    $pdo->exec("DELETE FROM cl_notice WHERE biz_type = 'ANNOUNCE'");
+
+    $noticeIds = [];
+    for ($i = 0; $i < $count; ++$i) {
+        // 按进度分三档：早期 / 中期 / 近期，内容跟年代对得上
+        $ratio = $count > 1 ? $i / ($count - 1) : 1.0;
+        $pool = $ratio < 0.3 ? EARLY_TEMPLATES : ($ratio < 0.7 ? MID_TEMPLATES : LATE_TEMPLATES);
+        [$title, $content] = $pool[random_int(0, count($pool) - 1)];
+
+        $createdAt = $start + $i * $step + random_int(-3, 3) * 86400;
+        $createdAt = min($end, max($start, $createdAt));
+        $stamp = date('Y-m-d H:i:s', $createdAt);
+
+        $insert->execute([$title, $content, 'ANNOUNCE', $stamp, $stamp]);
+        $noticeIds[] = (int) $pdo->lastInsertId();
+    }
+
+    // 现有用户：除最后两条外都补一条已读记录，否则一进 App 红点就是 100
+    $userIds = array_map(
+        static fn (array $row): int => (int) $row['id'],
+        $pdo->query("SELECT id FROM cl_user WHERE account NOT LIKE 'bot%'")->fetchAll(PDO::FETCH_ASSOC),
+    );
+    $readIds = array_slice($noticeIds, 0, max(0, count($noticeIds) - UNREAD_TAIL));
+    $now = date('Y-m-d H:i:s');
     foreach ($userIds as $userId) {
-        $stale->execute(['ANNOUNCE', $userId]);
-
-        for ($i = 0; $i < $count; $i++) {
-            // 按进度分三档：早期 / 中期 / 近期，内容跟年代对得上
-            $ratio = $count > 1 ? $i / ($count - 1) : 1.0;
-            $pool = $ratio < 0.3 ? EARLY_TEMPLATES : ($ratio < 0.7 ? MID_TEMPLATES : LATE_TEMPLATES);
-            [$title, $content] = $pool[random_int(0, count($pool) - 1)];
-
-            $createdAt = $start + $i * $step + random_int(-3, 3) * 86400;
-            $createdAt = min($end, max($start, $createdAt));
-
-            // 最后两条留着未读，其余都已读
-            $readAt = $i >= $count - UNREAD_TAIL
-                ? null
-                : date('Y-m-d H:i:s', min($end, $createdAt + random_int(1, 48) * 3600));
-
-            $insert->execute([
-                $userId,
-                1,
-                $title,
-                $content,
-                'ANNOUNCE',
-                $readAt,
-                date('Y-m-d H:i:s', $createdAt),
-                date('Y-m-d H:i:s', $createdAt),
-            ]);
-            ++$inserted;
+        foreach ($readIds as $noticeId) {
+            $insertRead->execute([$noticeId, $userId, $now, $now]);
         }
     }
+
     $pdo->commit();
 } catch (Throwable $e) {
     $pdo->rollBack();
@@ -185,10 +171,9 @@ try {
 }
 
 printf(
-    "完成：%d 个用户 × %d 条 = %d 条系统消息（%s ~ %s）\n",
-    count($userIds),
-    $count,
-    $inserted,
+    "完成：%d 条全员公告（%s ~ %s），已为 %d 个现有用户补齐已读\n",
+    count($noticeIds),
     date('Y-m-d', $start),
     date('Y-m-d', $end),
+    count($userIds),
 );
