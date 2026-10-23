@@ -88,7 +88,7 @@ final class AdminMomentService
                 'user_id' => (int) $row->user_id,
                 'nickname' => $author instanceof User ? $author->nickname : '',
                 'content' => (string) $row->content,
-                'created_at' => $row->created_at?->format('Y-m-d H:i:s'),
+                'created_at' => $row->created_at->format('Y-m-d H:i:s'),
             ];
         }
 

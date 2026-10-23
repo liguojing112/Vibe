@@ -67,6 +67,15 @@ class ChatSocket @Inject constructor(
     /** 连续失败次数，决定下一次退避多久；连上就清零。 */
     private var attempt = 0
 
+    /**
+     * 上次收到任何帧（含 pong）的时间。
+     *
+     * 连接"假活"时 TCP 还在、onClosed/onFailure 都不触发，只能靠心跳判断：
+     * 两个心跳周期都没收到任何东西，就主动断掉让外层重连 —— 不然要等用户重进页面才发现没消息。
+     */
+    @Volatile
+    private var lastFrameAt = System.currentTimeMillis()
+
     /** 开始连接（幂等）。没登录（没 token）时不连，等下次调用。 */
     fun start() {
         if (loop?.isActive == true) {
@@ -126,11 +135,13 @@ class ChatSocket @Inject constructor(
         val socket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 attempt = 0
+                lastFrameAt = System.currentTimeMillis()
                 _connected.value = true
                 startHeartbeat()
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                lastFrameAt = System.currentTimeMillis()
                 ChatFrame.parse(text)?.let { _frames.tryEmit(it) }
             }
 
@@ -165,6 +176,11 @@ class ChatSocket @Inject constructor(
         heartbeat = scope.launch {
             while (isActive) {
                 delay(HEARTBEAT_SECONDS * 1000)
+                // 两个周期都没收到任何帧（包括 pong）→ 连接假活，主动关掉让外层重连
+                if (System.currentTimeMillis() - lastFrameAt > HEARTBEAT_TIMEOUT_MILLIS) {
+                    webSocket?.close(NORMAL_CLOSURE, "heartbeat timeout")
+                    break
+                }
                 webSocket?.send(PING_FRAME)
             }
         }
@@ -173,6 +189,9 @@ class ChatSocket @Inject constructor(
     companion object {
         /** 心跳间隔（docs/02 第 4.4 节）。 */
         const val HEARTBEAT_SECONDS = 30L
+
+        /** 多久收不到任何帧就认为连接假活：两个心跳周期 + 5 秒余量。 */
+        const val HEARTBEAT_TIMEOUT_MILLIS = HEARTBEAT_SECONDS * 1000 * 2 + 5_000
 
         /** 重连退避上限（docs/02 第 4.4 节）。 */
         const val MAX_BACKOFF_SECONDS = 30L
