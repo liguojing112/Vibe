@@ -112,12 +112,25 @@ fun MessageScreen(
 
                     state.error != null -> ClErrorRetry(message = state.error, onRetry = onRetry)
 
-                    state.isEmpty -> ClEmpty(
-                        title = state.emptyTitle,
-                        desc = state.emptyDesc,
-                        actionText = if (state.filtering) "全部会话" else "去发现页",
-                        onAction = { if (state.filtering) onToggleUnreadOnly() else onOpenDiscover() },
-                    )
+                    state.isEmpty -> Column {
+                        // 没有会话时也得能进「系统消息 / 最近访客 / 看看谁喜欢我」——
+                        // 这些入口不该因为「还没聊过天」而消失（新账号一进来就是这种情况）
+                        if (!state.filtering) {
+                            EntryRows(
+                                state = state,
+                                onOpenRoute = onOpenRoute,
+                                onOpenDiscoverCity = onOpenDiscoverCity,
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
+                            ClEmpty(
+                                title = state.emptyTitle,
+                                desc = state.emptyDesc,
+                                actionText = if (state.filtering) "全部会话" else "去发现页",
+                                onAction = { if (state.filtering) onToggleUnreadOnly() else onOpenDiscover() },
+                            )
+                        }
+                    }
 
                     else -> Column {
                         if (state.userResults.isNotEmpty()) {
