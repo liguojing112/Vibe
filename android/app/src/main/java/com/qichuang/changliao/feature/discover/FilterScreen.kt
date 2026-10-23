@@ -24,6 +24,7 @@ import com.qichuang.changliao.core.designsystem.component.ClSecondaryButton
 import com.qichuang.changliao.core.designsystem.component.ClSettingRow
 import com.qichuang.changliao.core.designsystem.component.ClSwitch
 import com.qichuang.changliao.core.designsystem.component.ClTopBar
+import com.qichuang.changliao.core.designsystem.component.ClTextButton
 import com.qichuang.changliao.core.designsystem.component.rememberClToast
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
 
@@ -31,6 +32,9 @@ import com.qichuang.changliao.core.designsystem.theme.ClTheme
  * 筛选条件页（docs/01 P07，设计图 07）。
  *
  * 底部「重置」「查看匹配的人」；筛选条件保存到本地，回到 P01 生效。
+ *
+ * @param onboarding 注册后的偏好引导：换标题、去掉返回箭头、右上角给「跳过」，
+ *                   底部主按钮改成「开始遇见」。
  */
 @Composable
 fun FilterScreen(
@@ -45,11 +49,23 @@ fun FilterScreen(
     onRetry: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onboarding: Boolean = false,
+    onSkip: (() -> Unit)? = null,
 ) {
     ClScaffold(
         modifier = modifier,
         containerColor = ClTheme.colors.bgPage,
-        topBar = { ClTopBar(title = "筛选条件", onBack = onBack) },
+        topBar = {
+            ClTopBar(
+                title = if (onboarding) "你的偏好" else "筛选条件",
+                onBack = if (onboarding) null else onBack,
+                action = if (onboarding && onSkip != null) {
+                    @Composable { ClTextButton(text = "跳过", onClick = onSkip) }
+                } else {
+                    null
+                },
+            )
+        },
         fixedBottom = {
             ClFixedBottomArea {
                 ClSecondaryButton(
@@ -59,7 +75,7 @@ fun FilterScreen(
                     onClick = onReset,
                 )
                 ClPrimaryButton(
-                    text = "查看匹配的人",
+                    text = if (onboarding) "开始遇见" else "查看匹配的人",
                     fillMaxWidth = false,
                     modifier = Modifier.weight(1f),
                     onClick = onApply,
@@ -86,6 +102,7 @@ fun FilterScreen(
                 onPurposesChange = onPurposesChange,
                 onVerificationsChange = onVerificationsChange,
                 onOnlineOnlyChange = onOnlineOnlyChange,
+                onboarding = onboarding,
             )
         }
     }
@@ -99,6 +116,7 @@ private fun FilterForm(
     onPurposesChange: (Set<String>) -> Unit,
     onVerificationsChange: (Set<String>) -> Unit,
     onOnlineOnlyChange: (Boolean) -> Unit,
+    onboarding: Boolean = false,
 ) {
     Column(
         modifier = Modifier
@@ -107,6 +125,14 @@ private fun FilterForm(
             .padding(horizontal = ClTheme.spacing.l),
         verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.l),
     ) {
+        if (onboarding) {
+            Text(
+                text = "选几个条件，我们会优先推荐符合的人。以后随时可以在筛选里改。",
+                style = ClTheme.typography.tiny,
+                color = ClTheme.colors.inkSecondary,
+            )
+        }
+
         FilterSection(title = "所在城市") {
             ClChipGroup(
                 options = state.cityOptions,

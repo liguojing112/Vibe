@@ -31,6 +31,9 @@ object Routes {
     const val REGISTER = "register"
     const val AGREEMENT = "agreement/{type}"
 
+    /** 注册后的偏好引导（复用筛选页的组件）。 */
+    const val PREFERENCE = "onboarding/preference"
+
     fun agreement(type: String): String = "agreement/$type"
 
     // ---------- P05 个人详情 / P06 私信聊天 / P07 筛选 ----------

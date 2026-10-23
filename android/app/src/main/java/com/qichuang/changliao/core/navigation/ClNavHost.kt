@@ -30,6 +30,7 @@ import com.qichuang.changliao.feature.call.CallWaitingRoute
 import com.qichuang.changliao.feature.chat.ChatRoute
 import com.qichuang.changliao.feature.gift.GiftPanelRoute
 import com.qichuang.changliao.feature.discover.FilterRoute
+import com.qichuang.changliao.feature.discover.PreferenceRoute
 import com.qichuang.changliao.feature.main.MainScreen
 import com.qichuang.changliao.feature.moment.MomentListRoute
 import com.qichuang.changliao.feature.moment.PublishMomentRoute
@@ -96,8 +97,23 @@ fun ClNavHost(
 
         composable(Routes.REGISTER) {
             RegisterRoute(
-                onGoMain = { navController.navigate(Routes.MAIN) { popUpTo(Routes.LOGIN) { inclusive = true } } },
+                // 注册完先让用户勾偏好，再进主界面
+                onGoMain = {
+                    navController.navigate(Routes.PREFERENCE) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                },
                 onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.PREFERENCE) {
+            PreferenceRoute(
+                onDone = {
+                    navController.navigate(Routes.MAIN) {
+                        popUpTo(Routes.PREFERENCE) { inclusive = true }
+                    }
+                },
             )
         }
 
