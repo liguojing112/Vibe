@@ -1,9 +1,11 @@
 package com.qichuang.changliao.feature.profile
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -56,6 +58,7 @@ data class UserDetailActions(
     val onReportContentChange: (String) -> Unit,
     val onSubmitReport: () -> Unit,
     val onPreview: (Int?) -> Unit,
+    val onOpenMoments: () -> Unit,
     val onRetry: () -> Unit,
 )
 
@@ -243,6 +246,38 @@ private fun UserDetailContent(
                         urls = state.photoUrls,
                         onClick = { index -> actions.onPreview(index) },
                     )
+                }
+            }
+
+            if (detail.momentCount > 0) {
+                Section(title = "朋友圈") {
+                    Column(verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.s)) {
+                        if (detail.momentPreviewUrls.isNotEmpty()) {
+                            ClPhotoGrid(
+                                urls = detail.momentPreviewUrls,
+                                onClick = { actions.onOpenMoments() },
+                            )
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = actions.onOpenMoments)
+                                .padding(vertical = ClTheme.spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "共 ${detail.momentCount} 条",
+                                style = ClTheme.typography.tiny,
+                                color = ClTheme.colors.inkSecondary,
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "查看全部 ›",
+                                style = ClTheme.typography.tiny,
+                                color = ClTheme.colors.primaryText,
+                            )
+                        }
+                    }
                 }
             }
 

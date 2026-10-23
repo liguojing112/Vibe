@@ -43,6 +43,14 @@ object Routes {
 
     fun chat(userId: Long): String = "chat/$userId"
 
+    // ---------- 朋友圈（P05 之后的扩展） ----------
+
+    const val MOMENT_LIST = "moment/user/{user_id}"
+    const val MOMENT_MINE = "moment/mine"
+    const val MOMENT_PUBLISH = "moment/publish"
+
+    fun momentList(userId: Long): String = "moment/user/$userId"
+
     // ---------- P08 / P09 关系 ----------
 
     const val VISITORS = "relation/visitors"

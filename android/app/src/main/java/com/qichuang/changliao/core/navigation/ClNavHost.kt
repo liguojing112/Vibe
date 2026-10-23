@@ -31,6 +31,8 @@ import com.qichuang.changliao.feature.chat.ChatRoute
 import com.qichuang.changliao.feature.gift.GiftPanelRoute
 import com.qichuang.changliao.feature.discover.FilterRoute
 import com.qichuang.changliao.feature.main.MainScreen
+import com.qichuang.changliao.feature.moment.MomentListRoute
+import com.qichuang.changliao.feature.moment.PublishMomentRoute
 import com.qichuang.changliao.feature.profile.EditProfileRoute
 import com.qichuang.changliao.feature.profile.UserDetailRoute
 import com.qichuang.changliao.feature.relation.FansRoute
@@ -118,7 +120,28 @@ fun ClNavHost(
                 onBack = { navController.popBackStack() },
                 onChat = { navController.open(Routes.chat(it)) },
                 onOpenGift = { id, name -> navController.open(Routes.giftPanel(id, name)) },
+                onOpenMoments = { navController.open(Routes.momentList(it)) },
             )
+        }
+
+        composable(Routes.MOMENT_LIST) { entry ->
+            MomentListRoute(
+                userId = entry.arguments?.getString("user_id")?.toLongOrNull() ?: 0L,
+                onBack = { navController.popBackStack() },
+                onPublish = { navController.open(Routes.MOMENT_PUBLISH) },
+            )
+        }
+
+        composable(Routes.MOMENT_MINE) {
+            MomentListRoute(
+                userId = 0L,
+                onBack = { navController.popBackStack() },
+                onPublish = { navController.open(Routes.MOMENT_PUBLISH) },
+            )
+        }
+
+        composable(Routes.MOMENT_PUBLISH) {
+            PublishMomentRoute(onBack = { navController.popBackStack() })
         }
 
         composable(Routes.CHAT) { entry ->

@@ -28,6 +28,8 @@ enum BizCode: int
     case BLOCKED_BY_TARGET = 30002;
     case SAME_GENDER_NOT_ALLOWED = 30003;
     case INVALID_MESSAGE_CONTENT = 30004;
+    case MOMENT_NOT_FOUND = 30005;
+    case MOMENT_FORBIDDEN = 30006;
 
     case STATUS_NOT_ALLOWED = 40001;
     case PROFILE_AUDITING = 40002;
@@ -56,6 +58,8 @@ enum BizCode: int
             self::BLOCKED_BY_TARGET => '对方已设置不接收你的消息',
             self::SAME_GENDER_NOT_ALLOWED => '不能给同性发送',
             self::INVALID_MESSAGE_CONTENT => '消息内容不合法',
+            self::MOMENT_NOT_FOUND => '动态不存在或已删除',
+            self::MOMENT_FORBIDDEN => '无权操作这条动态',
             self::STATUS_NOT_ALLOWED => '当前状态不允许此操作',
             self::PROFILE_AUDITING => '资料审核中，请勿重复提交',
             self::REAL_NAME_FORMAT_ERROR => '实名信息格式错误',

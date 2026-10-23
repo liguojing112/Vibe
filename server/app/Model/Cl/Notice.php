@@ -37,6 +37,10 @@ class Notice extends MineModel
 
     public const BIZ_ANNOUNCE = 'ANNOUNCE';
 
+    public const BIZ_MOMENT_LIKE = 'MOMENT_LIKE';
+
+    public const BIZ_MOMENT_COMMENT = 'MOMENT_COMMENT';
+
     protected ?string $table = 'cl_notice';
 
     protected array $attributes = [

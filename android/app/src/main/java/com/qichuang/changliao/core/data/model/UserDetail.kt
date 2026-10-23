@@ -31,10 +31,25 @@ data class UserDetail(
     @SerialName("is_mutual") val isMutual: Boolean = false,
     @SerialName("is_blocked") val isBlocked: Boolean = false,
     val price: UserDetailPrice? = null,
+    @SerialName("moment_count") val momentCount: Int = 0,
+    @SerialName("latest_moments") val latestMoments: List<MomentPreview> = emptyList(),
 ) {
     /** 封面用第一张相册，没有相册就退回头像（docs/01 P05）。 */
     val coverUrl: String get() = photos.firstOrNull()?.url ?: avatar
+
+    /** 朋友圈区块的缩略图：把最近几条的图片拉平，最多 3 张。 */
+    val momentPreviewUrls: List<String>
+        get() = latestMoments.flatMap { it.images }.take(3)
 }
+
+/** 个人主页上的朋友圈预览（只要展示，不需要点赞数这些）。 */
+@Serializable
+data class MomentPreview(
+    val id: Long = 0,
+    val images: List<String> = emptyList(),
+    val content: String = "",
+    @SerialName("created_at") val createdAt: String? = null,
+)
 
 /** 聊天价格（docs/01 P05）：开关关着时没有语音/视频两项。 */
 @Serializable

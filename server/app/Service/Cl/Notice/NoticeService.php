@@ -94,6 +94,32 @@ final class NoticeService
         );
     }
 
+    /** 有人赞了你的朋友圈（互动通知）。自己赞自己不通知。 */
+    public function momentLiked(User $author, User $liker, int $momentId): Notice
+    {
+        return $this->send(
+            $author->id,
+            Notice::CATEGORY_INTERACT,
+            '有人赞了你的动态',
+            sprintf('%s 赞了你的朋友圈', $liker->nickname),
+            Notice::BIZ_MOMENT_LIKE,
+            $momentId,
+        );
+    }
+
+    /** 有人评论了你的朋友圈。自己评自己不通知。 */
+    public function momentCommented(User $author, User $commenter, int $momentId, string $content): Notice
+    {
+        return $this->send(
+            $author->id,
+            Notice::CATEGORY_INTERACT,
+            '有人评论了你的动态',
+            sprintf('%s：%s', $commenter->nickname, $content),
+            Notice::BIZ_MOMENT_COMMENT,
+            $momentId,
+        );
+    }
+
     /** 资料审核结果（头像/昵称/简介/相册）。后台审核动作在 T7，届时调这个方法。 */
     public function profileReviewed(int $userId, bool $passed, string $fieldLabel, ?string $reason = null): Notice
     {

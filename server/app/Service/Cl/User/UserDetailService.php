@@ -13,6 +13,7 @@ use App\Repository\Cl\LevelConfigRepository;
 use App\Repository\Cl\UserPhotoRepository;
 use App\Repository\Cl\UserRepository;
 use App\Service\Cl\Config\AppConfigService;
+use App\Service\Cl\Moment\MomentService;
 use App\Service\Cl\Pricing\MessagePricingService;
 use App\Service\Cl\Relation\RelationService;
 use App\Model\Enums\Cl\BizCode;
@@ -33,6 +34,7 @@ final class UserDetailService
         private readonly MessagePricingService $pricingService,
         private readonly LevelConfigRepository $levelConfigRepository,
         private readonly AppConfigService $configService,
+        private readonly MomentService $momentService,
     ) {}
 
     /**
@@ -71,6 +73,13 @@ final class UserDetailService
             'is_mutual' => ! $isSelf && $this->relationService->isMutual($viewer->id, $target->id),
             'is_blocked' => $isBlocked,
         ];
+
+        // 朋友圈：只在没被拉黑时给（拉黑等于互相不可见），预览 3 条
+        if (! $isBlocked) {
+            $moments = $this->momentService->previewFor($target->id, $viewer->id);
+            $data['moment_count'] = $moments['count'];
+            $data['latest_moments'] = $moments['latest'];
+        }
 
         // 只有「男看女」才有价格（docs/05 第 4.2 节），被拉黑了也不显示
         if (! $isBlocked && $viewer->isMale() && $target->isFemale()) {

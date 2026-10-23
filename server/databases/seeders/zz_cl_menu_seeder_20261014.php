@@ -65,6 +65,7 @@ class ZzClMenuSeeder20261014 extends Seeder
                 'cl:finance:recharge', 'cl:finance:recharge-list',
                 'cl:finance:coin-log', 'cl:finance:point-log',
                 'cl:operation:notice',
+                'cl:content:moment:list', 'cl:content:moment:comment',
             ],
         ],
         'caiwu' => [
@@ -88,6 +89,7 @@ class ZzClMenuSeeder20261014 extends Seeder
                 'cl:audit:profile', 'cl:audit:realname',
                 'cl:chat:*',
                 'cl:report:*',
+                'cl:content:moment:*',
             ],
         ],
     ];
@@ -283,6 +285,24 @@ class ZzClMenuSeeder20261014 extends Seeder
                             $this->operation('cl:operation:agreement', 'agreement', '协议与声明', 'ri:file-text-line'),
                             $this->operation('cl:operation:tag-city', 'tagCity', '兴趣标签与城市', 'ri:map-pin-line'),
                             $this->operation('cl:operation:feature', 'feature', '功能开关', 'ri:toggle-line'),
+                        ],
+                    ],
+
+                    [
+                        'name' => 'cl:content',
+                        'path' => '/cl/content',
+                        'meta' => $this->group('内容管理', 'ri:image-2-line', 6),
+                        'children' => [
+                            [
+                                'name' => 'cl:content:moment',
+                                'path' => '/cl/content/moment',
+                                'component' => 'cl/views/content/moment/index',
+                                'meta' => $this->page('朋友圈', 'ri:article-line'),
+                            ],
+                            $this->button('cl:content:moment:list', '查看朋友圈'),
+                            $this->button('cl:content:moment:hide', '隐藏 / 恢复动态'),
+                            $this->button('cl:content:moment:delete', '删除动态'),
+                            $this->button('cl:content:moment:comment', '查看评论'),
                         ],
                     ],
                 ],

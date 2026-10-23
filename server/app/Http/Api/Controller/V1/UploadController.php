@@ -23,7 +23,7 @@ final class UploadController
     /**
      * scene 取值（docs/05 第 4.2 节）。
      */
-    private const SCENES = ['avatar', 'photo', 'chat', 'report', 'real_name'];
+    private const SCENES = ['avatar', 'photo', 'chat', 'report', 'real_name', 'moment'];
 
     public function __construct(
         private readonly StorageInterface $storage,

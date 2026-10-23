@@ -98,9 +98,11 @@ data class MineUiState(
             val task = MineMenu(ClIcons.calendar, "每日任务", route = Routes.DAILY_TASK)
             val profile = MineMenu(ClIcons.edit, "基本资料", route = Routes.EDIT_PROFILE)
             val settings = MineMenu(ClIcons.settings, "隐私与设置", route = Routes.SETTINGS)
+            val moments = MineMenu(ClIcons.image, "我的朋友圈", route = Routes.MOMENT_MINE)
 
             val mine = if (isMale) {
                 listOf(
+                    moments,
                     MineMenu(ClIcons.wallet, "金币收支明细", route = Routes.COIN_LOGS),
                     MineMenu(ClIcons.star, "畅撩交友会员", extra = if (isVip) "已是会员" else null, route = Routes.VIP),
                     task,
@@ -108,6 +110,7 @@ data class MineUiState(
                 )
             } else {
                 listOf(
+                    moments,
                     MineMenu(ClIcons.wallet, "我的收益", route = Routes.INCOME),
                     MineMenu(ClIcons.star, "我的等级与收费", route = Routes.LEVEL_SETTING),
                     MineMenu(ClIcons.shield, "实名认证", extra = realNameText, route = Routes.REAL_NAME),

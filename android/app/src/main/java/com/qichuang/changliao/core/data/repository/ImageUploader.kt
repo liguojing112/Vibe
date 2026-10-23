@@ -24,6 +24,7 @@ object UploadScene {
     const val CHAT = "chat"
     const val REPORT = "report"
     const val REAL_NAME = "real_name"
+    const val MOMENT = "moment"
 }
 
 /**
