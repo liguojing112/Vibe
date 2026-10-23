@@ -33,6 +33,22 @@ class DiscoverRequest extends FormRequest
         ];
     }
 
+    /**
+     * 客户端只用 @Query 传 List，Retrofit 展开规则是「一个元素给一个 key」：
+     * 勾两个 → `purpose=a&purpose=b`（PHP 得到数组）；只勾一个 → `purpose=a`（PHP 得到字符串）。
+     * 不归一化的话，恰好只选了一个交友期待的用户会整页 422。
+     */
+    protected function validationData(): array
+    {
+        $data = parent::validationData();
+
+        if (isset($data['purpose']) && is_string($data['purpose'])) {
+            $data['purpose'] = [$data['purpose']];
+        }
+
+        return $data;
+    }
+
     public function attributes(): array
     {
         return [

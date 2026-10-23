@@ -252,6 +252,16 @@ final class DiscoverControllerTest extends TestCase
         self::assertSame([$serious->id], $this->ids($this->discover(['purpose' => ['认真交友']])));
     }
 
+    public function testPurposeAcceptsSingleValue(): void
+    {
+        $this->loginAs(User::GENDER_MALE);
+        $serious = $this->makeUser(User::GENDER_FEMALE, ['dating_purpose' => '认真交友']);
+        $this->makeUser(User::GENDER_FEMALE, ['dating_purpose' => '兴趣搭子']);
+
+        // 只勾一个交友期待时客户端发的是单值 `?purpose=认真交友`，不能 422
+        self::assertSame([$serious->id], $this->ids($this->discover(['purpose' => '认真交友'])));
+    }
+
     public function testVerifiedFilterWorks(): void
     {
         $this->loginAs(User::GENDER_MALE);
