@@ -44,9 +44,11 @@ final class AiPersonaRepository extends IRepository
         return $rows;
     }
 
-    /** 记一次调用：条数 +1、累计 token。 */
+    /** 记一次调用：条数 +1、累计 token。跨天先把今日计数清零。 */
     public function recordUsage(int $personaId, int $promptTokens, int $completionTokens, string $today): void
     {
+        $this->resetDailyIfStale($personaId, $today);
+
         $this->model->newQuery()->whereKey($personaId)->update([
             'replied_today' => \Hyperf\DbConnection\Db::raw('replied_today + 1'),
             'replied_on' => $today,

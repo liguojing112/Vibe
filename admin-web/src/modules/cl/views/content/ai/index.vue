@@ -134,10 +134,10 @@ const schema = ref<MaProTableSchema>({
       cellRender: ({ row }) => `${row.active_start}:00 - ${row.active_end}:00`,
     },
     {
-      label: '今日 / 上限',
+      label: '今日回复',
       prop: 'replied_today',
-      width: '110px',
-      cellRender: ({ row }) => `${row.replied_today} / ${row.daily_limit}`,
+      width: '100px',
+      cellRender: ({ row }) => `${row.replied_today} 条`,
     },
     {
       label: '累计 token',
@@ -223,9 +223,9 @@ const schema = ref<MaProTableSchema>({
           <span class="ml-2 text-xs text-gray-400">相同表示全天</span>
         </el-form-item>
 
-        <el-form-item label="每日上限">
-          <el-input-number v-model="current.daily_limit" :min="1" :max="500" />
-          <span class="ml-2 text-xs text-gray-400">今日已回 {{ current.replied_today }} 条</span>
+        <el-form-item label="今日回复">
+          <span class="text-sm">{{ current.replied_today }} 条</span>
+          <span class="ml-2 text-xs text-gray-400">不限条数，只在活跃时段内自动回</span>
         </el-form-item>
 
         <el-form-item label="累计消耗">

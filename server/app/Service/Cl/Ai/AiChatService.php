@@ -136,7 +136,10 @@ final class AiChatService
     // ---------- 公共 ----------
 
     /**
-     * 现在能不能回：开关、状态、活跃时段、每日上限。
+     * 现在能不能回：开关、状态、活跃时段。
+     *
+     * **不限制每日条数**（客户要求）：`replied_today` 只用来在后台看今天回了多少，
+     * 不再作为拦截条件。
      */
     private function canReplyNow(AiPersona $persona): bool
     {
@@ -144,18 +147,7 @@ final class AiChatService
             return false;
         }
 
-        $today = date('Y-m-d');
-        $this->personaRepository->resetDailyIfStale($persona->id, $today);
-
-        if (! $this->inActiveWindow($persona)) {
-            return false;
-        }
-
-        // 计数刚被 reset 过，重新读一次
-        $fresh = $this->personaRepository->findByUser($persona->user_id);
-        $used = $fresh instanceof AiPersona ? $fresh->replied_today : $persona->replied_today;
-
-        return $used < $persona->daily_limit;
+        return $this->inActiveWindow($persona);
     }
 
     /** 活跃时段，支持跨零点（22 点到 2 点）。两个值相同表示全天。 */
