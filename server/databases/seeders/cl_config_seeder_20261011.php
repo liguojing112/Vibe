@@ -15,7 +15,6 @@ class ClConfigSeeder20261011 extends Seeder
         // ---- 2.1 汇率与基础 ----
         ['key' => 'coin.per_yuan', 'value' => '10', 'value_type' => 'int', 'group' => 'billing', 'label' => '金币汇率', 'remark' => '1 元 = N 金币，只用于充值展示和后台记录金额'],
         ['key' => 'point.per_yuan', 'value' => '100', 'value_type' => 'int', 'group' => 'billing', 'label' => '积分汇率', 'remark' => 'N 积分 = 1 元（提现换算）'],
-        ['key' => 'feature.call_enabled', 'value' => '0', 'value_type' => 'bool', 'group' => 'feature', 'label' => '语音/视频开关', 'remark' => '默认关闭；打开后只显示页面，点拨打提示「功能暂未开放」'],
         ['key' => 'chat.message_max_length', 'value' => '500', 'value_type' => 'int', 'group' => 'chat', 'label' => '单条文字最大长度', 'remark' => '私信文字长度上限'],
         ['key' => 'chat.image_max_mb', 'value' => '5', 'value_type' => 'int', 'group' => 'chat', 'label' => '图片最大 MB', 'remark' => '上传图片大小上限'],
         ['key' => 'chat.message_retention_months', 'value' => '6', 'value_type' => 'int', 'group' => 'chat', 'label' => '服务端消息保留月数', 'remark' => '超期普通消息由定时任务清理；敏感词命中与被举报的消息长期保留'],

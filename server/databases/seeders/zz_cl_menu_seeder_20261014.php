@@ -285,7 +285,6 @@ class ZzClMenuSeeder20261014 extends Seeder
                             $this->operation('cl:operation:notice', 'notice', '系统通知', 'ri:notification-3-line'),
                             $this->operation('cl:operation:agreement', 'agreement', '协议与声明', 'ri:file-text-line'),
                             $this->operation('cl:operation:tag-city', 'tagCity', '兴趣标签与城市', 'ri:map-pin-line'),
-                            $this->operation('cl:operation:feature', 'feature', '功能开关', 'ri:toggle-line'),
                         ],
                     ],
 
