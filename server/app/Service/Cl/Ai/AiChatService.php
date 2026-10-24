@@ -225,9 +225,19 @@ final class AiChatService
         $askedTimes = $this->countIdentityQuestions($history->all(), $female->id, $incoming);
         $admit = $askedTimes >= self::IDENTITY_ADMIT_AFTER;
 
+        // historyOf 是 orderByDesc(id)（最新的在前），喂给模型之前必须转回时间正序 ——
+        // 否则模型看到「最新的话在最前面」，会以为对方刚开口，于是每条都在回「在呢」并重编一遍当下的状态。
+        $rows = array_reverse($history->all());
+
+        // 兜底：刚收到的那条如果还没进 history（极端时序），补到最后
+        $last = $rows === [] ? null : $rows[count($rows) - 1];
+        if ($last === null || $last->id !== $incoming->id) {
+            $rows[] = $incoming;
+        }
+
         $messages = [['role' => 'system', 'content' => $this->systemPrompt($persona, $female, $admit)]];
 
-        foreach ($history->all() as $row) {
+        foreach ($rows as $row) {
             if ($row->type !== Message::TYPE_TEXT || trim((string) $row->content) === '') {
                 continue;
             }
@@ -282,6 +292,8 @@ final class AiChatService
 
         $lines[] = '要求：';
         $lines[] = '- 像用微信聊天，一次只说一两句，别长篇大论，标点随意';
+        $lines[] = '- 对方问什么就先回答什么，不要答非所问';
+        $lines[] = '- 不要每条都以「在呢」「在的」开头，也不要反复描述自己此刻在干嘛';
         $lines[] = '- 不要说「作为一个AI」「我是人工智能」这类话，也不要用客服腔';
         $lines[] = '- 不要每句都反问，也不要过分热情';
         $lines[] = $admitIdentity
