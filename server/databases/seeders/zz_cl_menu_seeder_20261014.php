@@ -90,6 +90,7 @@ class ZzClMenuSeeder20261014 extends Seeder
                 'cl:chat:*',
                 'cl:report:*',
                 'cl:content:moment:*',
+                'cl:content:ai:list', 'cl:content:ai:edit',
             ],
         ],
     ];
@@ -303,6 +304,14 @@ class ZzClMenuSeeder20261014 extends Seeder
                             $this->button('cl:content:moment:hide', '隐藏 / 恢复动态'),
                             $this->button('cl:content:moment:delete', '删除动态'),
                             $this->button('cl:content:moment:comment', '查看评论'),
+                            [
+                                'name' => 'cl:content:ai',
+                                'path' => '/cl/content/ai',
+                                'component' => 'cl/views/content/ai/index',
+                                'meta' => $this->page('AI 代聊', 'ri:robot-2-line'),
+                            ],
+                            $this->button('cl:content:ai:list', '查看 AI 代聊'),
+                            $this->button('cl:content:ai:edit', '配置人设与开关'),
                         ],
                     ],
                 ],
