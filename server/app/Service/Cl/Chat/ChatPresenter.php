@@ -7,6 +7,7 @@ namespace App\Service\Cl\Chat;
 use App\Model\Cl\Message;
 use App\Model\Cl\User;
 use App\Repository\Cl\DiscoverRepository;
+use App\Repository\Cl\GiftRepository;
 use App\Service\Cl\Pricing\MessagePricingService;
 use App\Service\Cl\Wallet\CoinWalletService;
 use Hyperf\Carbon\Carbon;
@@ -23,6 +24,7 @@ final class ChatPresenter
     public function __construct(
         private readonly MessagePricingService $pricingService,
         private readonly CoinWalletService $coinWalletService,
+        private readonly GiftRepository $giftRepository,
     ) {}
 
     /**
@@ -30,7 +32,7 @@ final class ChatPresenter
      */
     public function message(Message $message): array
     {
-        return [
+        $data = [
             'id' => (int) $message->id,
             'conversation_id' => (int) $message->conversation_id,
             'sender_id' => (int) $message->sender_id,
@@ -44,6 +46,13 @@ final class ChatPresenter
             'sensitive_hit' => (int) $message->sensitive_hit,
             'created_at' => $message->created_at?->format('Y-m-d H:i:s'),
         ];
+
+        // 礼物消息的 content 只有礼物名，气泡里要显示图标得单独补一次
+        if ((int) $message->type === Message::TYPE_GIFT) {
+            $data['gift_icon'] = $this->giftRepository->iconByName((string) $message->content);
+        }
+
+        return $data;
     }
 
     /**

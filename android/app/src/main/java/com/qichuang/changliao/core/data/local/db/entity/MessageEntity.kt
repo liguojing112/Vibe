@@ -36,6 +36,8 @@ data class MessageEntity(
     val outgoing: Boolean = false,
     val type: Int = 1,
     val content: String = "",
+    /** 礼物消息的图标（emoji 或图片地址），非礼物消息为空。 */
+    val giftIcon: String = "",
     /** 图片消息的本地文件路径（发出去之前先存本地，重发直接用）。 */
     val localMediaPath: String? = null,
     /** 见 `MessageStatus`：0 sending / 1 sent / 2 failed。 */

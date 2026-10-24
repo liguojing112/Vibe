@@ -27,7 +27,7 @@ import com.qichuang.changliao.core.data.local.db.entity.SyncStateEntity
         MessageEntity::class,
         ConversationEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class ClDatabase : RoomDatabase() {
@@ -41,6 +41,6 @@ abstract class ClDatabase : RoomDatabase() {
     companion object {
         const val NAME = "cl.db"
 
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
     }
 }

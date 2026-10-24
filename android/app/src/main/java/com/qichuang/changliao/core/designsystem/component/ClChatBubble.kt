@@ -116,7 +116,18 @@ fun ClChatBubble(
                 )
 
                 ClChatContent.Gift -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = message.giftIcon.orEmpty(), style = ClTheme.typography.amountMedium)
+                    // 图标两种存法都认：http 开头当图片，否则当 emoji 文本
+                    val giftIcon = message.giftIcon.orEmpty()
+                    if (giftIcon.startsWith("http")) {
+                        AsyncImage(
+                            model = giftIcon,
+                            contentDescription = message.text,
+                            modifier = Modifier.size(ClTheme.size.iconL),
+                            contentScale = ContentScale.Fit,
+                        )
+                    } else {
+                        Text(text = giftIcon, style = ClTheme.typography.amountMedium)
+                    }
                     Column(
                         modifier = Modifier.padding(start = ClTheme.spacing.s),
                         verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.xxs),

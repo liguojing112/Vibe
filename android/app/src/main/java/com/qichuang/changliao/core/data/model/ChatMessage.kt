@@ -40,6 +40,8 @@ data class ChatMessage(
     val outgoing: Boolean = false,
     val type: Int = TYPE_TEXT,
     val content: String = "",
+    /** 礼物消息的图标（emoji 或图片地址），非礼物消息为空。 */
+    val giftIcon: String = "",
     /** 图片消息的本地文件路径：发出去之前先存本地，重发时直接用（docs/10 第 2.5 节）。 */
     val localMediaPath: String? = null,
     val status: MessageStatus = MessageStatus.SENT,

@@ -37,6 +37,7 @@ internal fun MessageDto.toEntity(ownerId: Long): MessageEntity {
         outgoing = outgoing,
         type = type,
         content = content,
+        giftIcon = giftIcon,
         // 服务端来的消息已经发出去了，状态一定是 sent
         status = MessageStatus.SENT.code,
         priceCoins = priceCoins,
@@ -55,6 +56,7 @@ internal fun MessageEntity.toModel(): ChatMessage = ChatMessage(
     outgoing = outgoing,
     type = type,
     content = content,
+    giftIcon = giftIcon,
     localMediaPath = localMediaPath,
     status = MessageStatus.fromCode(status),
     priceCoins = priceCoins,
@@ -72,6 +74,7 @@ internal fun MessageDto.toModel(peerId: Long, outgoing: Boolean, fallbackMillis:
         outgoing = outgoing,
         type = type,
         content = content,
+        giftIcon = giftIcon,
         status = MessageStatus.SENT,
         priceCoins = priceCoins,
         createdAt = ChatRepository.serverMillis(createdAt, fallbackMillis),

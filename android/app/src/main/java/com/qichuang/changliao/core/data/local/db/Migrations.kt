@@ -73,3 +73,10 @@ val MIGRATION_1_2: Migration = object : Migration(1, 2) {
         db.execSQL("ALTER TABLE `sync_state_new` RENAME TO `sync_state`")
     }
 }
+
+/** v3：礼物消息带上图标（后台可配 emoji 或图片地址），聊天气泡里直接渲染。 */
+val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `message` ADD COLUMN `giftIcon` TEXT NOT NULL DEFAULT ''")
+    }
+}

@@ -34,6 +34,14 @@ final class GiftRepository extends IRepository
         return $rows;
     }
 
+    /**
+     * 按名字取图标 —— 礼物消息只存了礼物名，渲染聊天气泡时用它补图标。
+     */
+    public function iconByName(string $name): string
+    {
+        return (string) $this->model->newQuery()->where('name', $name)->value('icon');
+    }
+
     public function findEnabled(int $id): ?Gift
     {
         /** @var null|Gift $gift */

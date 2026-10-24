@@ -17,6 +17,8 @@ data class MessageDto(
     @SerialName("client_msg_id") val clientMsgId: String = "",
     val type: Int = 1,
     val content: String = "",
+    /** 礼物消息的图标（emoji 或图片地址），服务端按礼物名补上。 */
+    @SerialName("gift_icon") val giftIcon: String = "",
     @SerialName("price_coins") val priceCoins: Int = 0,
     @SerialName("free_reason") val freeReason: String? = null,
     @SerialName("receiver_points") val receiverPoints: Int = 0,

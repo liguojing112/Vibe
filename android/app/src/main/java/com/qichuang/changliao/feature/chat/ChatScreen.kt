@@ -327,6 +327,7 @@ private fun ChatMessage.toBubble(): ClChatMessage = ClChatMessage(
         else -> ClChatContent.Text
     },
     text = if (type == ChatMessage.TYPE_IMAGE) localMediaPath ?: content else content,
+    giftIcon = giftIcon.ifBlank { null },
     status = when (status) {
         MessageStatus.SENDING -> ClChatStatus.Sending
         MessageStatus.FAILED -> ClChatStatus.Failed
