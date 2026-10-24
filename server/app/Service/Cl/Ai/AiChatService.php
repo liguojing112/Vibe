@@ -87,7 +87,7 @@ final class AiChatService
             return false;
         }
 
-        $target = $this->pickProactiveTarget($female->id);
+        $target = $this->pickProactiveTarget($female->id, $persona);
         if (! $target instanceof User) {
             return false;
         }
@@ -332,16 +332,22 @@ final class AiChatService
     }
 
     /**
-     * 给主动搭话挑一个对象：最近活跃、还没被这个号打扰过的男用户。
+     * 给主动搭话挑一个对象：最近活跃的男用户，24 小时内被这个人设找过的不重复打扰。
      */
-    private function pickProactiveTarget(int $femaleId): ?User
+    private function pickProactiveTarget(int $femaleId, AiPersona $persona): ?User
     {
+        $recent = $this->logRepository->recentProactiveTargets(
+            $persona->id,
+            date('Y-m-d H:i:s', time() - 86400),
+        );
+
         return $this->userRepository->getQuery()
             ->where('gender', User::GENDER_MALE)
             ->where('status', User::STATUS_NORMAL)
             ->where('id', '!=', $femaleId)
             // 半小时内活跃过的，说明在线
             ->where('last_active_at', '>=', date('Y-m-d H:i:s', time() - 1800))
+            ->when($recent !== [], fn ($q) => $q->whereNotIn('id', $recent))
             ->inRandomOrder()
             ->first();
     }

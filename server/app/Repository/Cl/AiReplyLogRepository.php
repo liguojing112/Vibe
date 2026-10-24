@@ -32,4 +32,22 @@ final class AiReplyLogRepository extends IRepository
             ->where('created_at', '>=', $from)
             ->count();
     }
+
+    /**
+     * 这个人设最近主动找过谁（避免同一个号反复骚扰同一批人）。
+     *
+     * @return array<int,int>
+     */
+    public function recentProactiveTargets(int $personaId, string $since): array
+    {
+        return array_map(
+            static fn (mixed $id): int => (int) $id,
+            $this->model->newQuery()
+                ->where('persona_id', $personaId)
+                ->where('kind', \App\Model\Cl\AiReplyLog::KIND_PROACTIVE)
+                ->where('created_at', '>=', $since)
+                ->pluck('to_user_id')
+                ->all(),
+        );
+    }
 }
