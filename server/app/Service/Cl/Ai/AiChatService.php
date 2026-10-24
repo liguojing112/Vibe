@@ -103,6 +103,29 @@ final class AiChatService
         return $this->deliver($persona, $female, $target, $result, AiReplyLog::KIND_PROACTIVE);
     }
 
+    /**
+     * 收到礼物后让女号道个谢（异步）。
+     *
+     * 礼物不走私信发送流程，所以要单独挂一个触发点。
+     */
+    public function handleGiftReceivedById(int $messageId): void
+    {
+        if ($messageId <= 0) {
+            return;
+        }
+
+        Coroutine::create(function () use ($messageId): void {
+            try {
+                $message = $this->messageRepository->findById($messageId);
+                if ($message instanceof Message && (int) $message->type === Message::TYPE_GIFT) {
+                    $this->replyToGift($message);
+                }
+            } catch (Throwable $e) {
+                $this->logger->warning('AI 收礼回复失败：' . $e->getMessage());
+            }
+        });
+    }
+
     // ---------- 自动回复 ----------
 
     private function replyTo(Message $incoming): void
@@ -141,6 +164,54 @@ final class AiChatService
             }
 
             $this->deliver($persona, $female, $male, $result, AiReplyLog::KIND_REPLY, (int) $incoming->conversation_id);
+        } finally {
+            $this->redis->del($lockKey);
+        }
+    }
+
+    /**
+     * 收礼致谢：和普通回复共用同一把会话锁，避免和普通消息的回复抢着发。
+     */
+    private function replyToGift(Message $giftMessage): void
+    {
+        $female = $this->userRepository->findById($giftMessage->receiver_id);
+        if (! $female instanceof User || ! $female->isFemale()) {
+            return;
+        }
+
+        $persona = $this->personaRepository->findByUser($female->id);
+        if (! $persona instanceof AiPersona || $persona->enabled !== 1) {
+            return;
+        }
+        if (! $this->canReplyNow($persona)) {
+            return;
+        }
+
+        $male = $this->userRepository->findById($giftMessage->sender_id);
+        if (! $male instanceof User || ! $male->isMale()) {
+            return;
+        }
+
+        $lockKey = 'ai:reply:' . $giftMessage->conversation_id;
+        if (! $this->redis->set($lockKey, '1', ['NX', 'EX' => 60])) {
+            return;
+        }
+
+        try {
+            $messages = [
+                ['role' => 'system', 'content' => $this->systemPrompt($persona, $female, false)],
+                ['role' => 'user', 'content' => sprintf(
+                    '对方刚送了你一份礼物「%s」。自然地表示感谢，一两句话，符合你平时的说话风格，别太夸张，不要提钱。',
+                    (string) $giftMessage->content,
+                )],
+            ];
+
+            $result = $this->client->chat($messages);
+            if ($result === null || $result['content'] === '') {
+                return;
+            }
+
+            $this->deliver($persona, $female, $male, $result, AiReplyLog::KIND_REPLY, (int) $giftMessage->conversation_id);
         } finally {
             $this->redis->del($lockKey);
         }

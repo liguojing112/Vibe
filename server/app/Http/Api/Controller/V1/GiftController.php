@@ -10,6 +10,7 @@ use App\Http\Api\Request\V1\GiftSendRequest;
 use App\Model\Cl\Gift;
 use App\Model\Cl\User;
 use App\Repository\Cl\GiftRepository;
+use App\Service\Cl\Ai\AiChatService;
 use App\Service\Cl\Gift\GiftBillingService;
 use Hyperf\Context\Context;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -26,6 +27,7 @@ final class GiftController
     public function __construct(
         private readonly GiftRepository $giftRepository,
         private readonly GiftBillingService $giftBillingService,
+        private readonly AiChatService $aiChatService,
     ) {}
 
     #[OA\Get(
@@ -54,12 +56,17 @@ final class GiftController
     #[Middleware(AppAuthMiddleware::class)]
     public function send(GiftSendRequest $request): ApiResult
     {
-        return ApiResult::success($this->giftBillingService->send(
+        $result = $this->giftBillingService->send(
             $this->currentUser(),
             (int) $request->input('receiver_id'),
             (int) $request->input('gift_id'),
             (string) $request->input('client_order_id'),
-        ));
+        );
+
+        // 对方女号开了 AI 代聊的话，异步回一句谢谢（礼物不走私信发送流程，得单独触发）
+        $this->aiChatService->handleGiftReceivedById((int) ($result['message']['id'] ?? 0));
+
+        return ApiResult::success($result);
     }
 
     /**
