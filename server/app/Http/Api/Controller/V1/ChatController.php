@@ -9,6 +9,7 @@ use App\Http\Api\Middleware\AppAuthMiddleware;
 use App\Http\Api\Request\V1\ChatReadRequest;
 use App\Http\Api\Request\V1\ChatSendRequest;
 use App\Model\Cl\User;
+use App\Service\Cl\Ai\AiChatService;
 use App\Service\Cl\Chat\ChatQueryService;
 use App\Service\Cl\Chat\MessageBillingService;
 use App\Service\Cl\Pricing\MessagePricingService;
@@ -30,6 +31,7 @@ final class ChatController
         private readonly MessageBillingService $billingService,
         private readonly ChatQueryService $queryService,
         private readonly MessagePricingService $pricingService,
+        private readonly AiChatService $aiChatService,
     ) {}
 
     #[OA\Post(
@@ -41,13 +43,18 @@ final class ChatController
     #[Middleware(AppAuthMiddleware::class)]
     public function send(ChatSendRequest $request): ApiResult
     {
-        return ApiResult::success($this->billingService->send(
+        $result = $this->billingService->send(
             $this->currentUser(),
             (int) $request->input('receiver_id'),
             (int) $request->input('type'),
             (string) $request->input('content'),
             (string) $request->input('client_msg_id'),
-        ));
+        );
+
+        // 对方女号开了 AI 代聊的话，异步生成回复（不阻塞这次发送）
+        $this->aiChatService->handleIncomingById((int) ($result['message']['id'] ?? 0));
+
+        return ApiResult::success($result);
     }
 
     #[OA\Get(
