@@ -15,6 +15,7 @@ use App\Repository\Cl\UserRepository;
 use App\Service\Cl\Chat\MessageBillingService;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Coroutine\Coroutine;
+use Hyperf\Redis\Redis;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -43,6 +44,7 @@ final class AiChatService
         private readonly UserRepository $userRepository,
         private readonly ConfigInterface $config,
         private readonly LoggerInterface $logger,
+        private readonly Redis $redis,
     ) {}
 
     /**
@@ -119,18 +121,29 @@ final class AiChatService
             return;
         }
 
-        $male = $this->userRepository->findById($incoming->sender_id);
-        if (! $male instanceof User || ! $male->isMale()) {
+        // 同一会话同时只允许一个 AI 在生成：连发几条消息只回一次，
+        // 也避免两个协程并发往同一对话插消息（会撞唯一键，表现为「消息发送失败」）
+        $lockKey = 'ai:reply:' . $incoming->conversation_id;
+        if (! $this->redis->set($lockKey, '1', ['NX', 'EX' => 60])) {
             return;
         }
 
-        $messages = $this->buildReplyMessages($persona, $female, $incoming);
-        $result = $this->client->chat($messages);
-        if ($result === null || $result['content'] === '') {
-            return;
-        }
+        try {
+            $male = $this->userRepository->findById($incoming->sender_id);
+            if (! $male instanceof User || ! $male->isMale()) {
+                return;
+            }
 
-        $this->deliver($persona, $female, $male, $result, AiReplyLog::KIND_REPLY, (int) $incoming->conversation_id);
+            $messages = $this->buildReplyMessages($persona, $female, $incoming);
+            $result = $this->client->chat($messages);
+            if ($result === null || $result['content'] === '') {
+                return;
+            }
+
+            $this->deliver($persona, $female, $male, $result, AiReplyLog::KIND_REPLY, (int) $incoming->conversation_id);
+        } finally {
+            $this->redis->del($lockKey);
+        }
     }
 
     // ---------- 公共 ----------
@@ -183,13 +196,20 @@ final class AiChatService
         $delay = min(7, max(2, (int) ceil(mb_strlen($result['content']) / 10)));
         sleep($delay);
 
-        $clientMsgId = sprintf('ai%d_%s', $persona->id, bin2hex(random_bytes(8)));
+        // 并发下偶尔会撞消息表的唯一键（表现为「消息发送失败」），换一个 client_msg_id 再试一次
+        $sent = null;
+        for ($try = 1; $try <= 2; ++$try) {
+            $clientMsgId = sprintf('ai%d_%s', $persona->id, bin2hex(random_bytes(8)));
 
-        try {
-            $sent = $this->billingService->send($female, $target->id, Message::TYPE_TEXT, $result['content'], $clientMsgId);
-        } catch (Throwable $e) {
-            $this->logger->warning('AI 代聊发送失败：' . $e->getMessage());
+            try {
+                $sent = $this->billingService->send($female, $target->id, Message::TYPE_TEXT, $result['content'], $clientMsgId);
+                break;
+            } catch (Throwable $e) {
+                $this->logger->warning(sprintf('AI 代聊发送失败（第 %d 次）：%s', $try, $e->getMessage()));
+            }
+        }
 
+        if ($sent === null) {
             return false;
         }
 

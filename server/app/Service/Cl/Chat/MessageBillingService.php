@@ -166,7 +166,10 @@ final class MessageBillingService
 
                 return $message;
             });
-        } catch (QueryException) {
+        } catch (QueryException $e) {
+            // 把真实的数据库错误打出来：并发问题光看「消息发送失败」查不出来
+            error_log('[chat-send] QueryException: ' . $e->getMessage());
+
             // 重试还是失败（并发同 client_msg_id 时对方已经写好了）→ 直接返回那一条
             $existing = $this->messageRepository->findByClientMsgId($sender->id, $clientMsgId);
             if ($existing instanceof Message) {
