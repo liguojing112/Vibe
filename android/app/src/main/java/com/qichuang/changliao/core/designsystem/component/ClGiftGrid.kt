@@ -10,14 +10,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
 
 private const val GIFT_COLUMNS = 3
@@ -84,7 +87,17 @@ private fun ClGiftCell(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(text = gift.icon, style = ClTheme.typography.amountMedium, textAlign = TextAlign.Center)
+        // 图标两种存法都认：http 开头当图片，否则当 emoji 文本（后台改一次就能切换）
+        if (gift.icon.startsWith("http")) {
+            AsyncImage(
+                model = gift.icon,
+                contentDescription = gift.name,
+                modifier = Modifier.size(ClTheme.size.iconL),
+                contentScale = ContentScale.Fit,
+            )
+        } else {
+            Text(text = gift.icon, style = ClTheme.typography.amountMedium, textAlign = TextAlign.Center)
+        }
         Text(
             text = gift.name,
             style = ClTheme.typography.cardTitle,
