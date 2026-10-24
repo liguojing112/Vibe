@@ -332,7 +332,10 @@ final class AiChatService
     }
 
     /**
-     * 给主动搭话挑一个对象：最近活跃的男用户，24 小时内被这个人设找过的不重复打扰。
+     * 给主动搭话挑一个对象：最近活跃的男用户。
+     *
+     * 两层去重：这个人设 24 小时内找过的人不重复打扰；**任何女号 1 小时内已经找过的人也不再找**
+     * （否则几个号会在同一轮里一起给同一个在线用户发消息）。
      */
     private function pickProactiveTarget(int $femaleId, AiPersona $persona): ?User
     {
@@ -340,6 +343,8 @@ final class AiChatService
             $persona->id,
             date('Y-m-d H:i:s', time() - 86400),
         );
+        $busy = $this->logRepository->busyTargets(date('Y-m-d H:i:s', time() - 3600));
+        $exclude = array_values(array_unique(array_merge($recent, $busy)));
 
         return $this->userRepository->getQuery()
             ->where('gender', User::GENDER_MALE)
@@ -347,7 +352,7 @@ final class AiChatService
             ->where('id', '!=', $femaleId)
             // 半小时内活跃过的，说明在线
             ->where('last_active_at', '>=', date('Y-m-d H:i:s', time() - 1800))
-            ->when($recent !== [], fn ($q) => $q->whereNotIn('id', $recent))
+            ->when($exclude !== [], fn ($q) => $q->whereNotIn('id', $exclude))
             ->inRandomOrder()
             ->first();
     }

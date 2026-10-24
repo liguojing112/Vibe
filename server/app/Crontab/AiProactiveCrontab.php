@@ -20,7 +20,7 @@ use Throwable;
 final class AiProactiveCrontab
 {
     /** 一次最多处理几个人设（防止某一轮把男用户全刷一遍）。 */
-    private const BATCH = 8;
+    private const BATCH = 3;
 
     public function __construct(
         private readonly AiPersonaRepository $personaRepository,

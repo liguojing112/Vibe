@@ -50,4 +50,23 @@ final class AiReplyLogRepository extends IRepository
                 ->all(),
         );
     }
+
+    /**
+     * 这段时间内已经被任意女号主动搭话过的男用户。
+     *
+     * 不加这个限制，几个女号会在同一轮里一起给同一个在线男用户发消息，看起来非常假。
+     *
+     * @return array<int,int>
+     */
+    public function busyTargets(string $since): array
+    {
+        return array_map(
+            static fn (mixed $id): int => (int) $id,
+            $this->model->newQuery()
+                ->where('kind', \App\Model\Cl\AiReplyLog::KIND_PROACTIVE)
+                ->where('created_at', '>=', $since)
+                ->pluck('to_user_id')
+                ->all(),
+        );
+    }
 }

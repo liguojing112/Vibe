@@ -12,6 +12,8 @@ return [
     'timeout' => (int) env('AI_TIMEOUT', 30),
     'max_tokens' => (int) env('AI_MAX_TOKENS', 120),
     'temperature' => (float) env('AI_TEMPERATURE', 1.1),
+    // 显式关掉思考模式：聊天场景不需要推理过程，开着既慢又容易被对方看到"思考痕迹"
+    'thinking' => env('AI_THINKING', 'disabled'),
     // 单次带多少条历史消息进上下文（太多既慢又贵）
     'context_messages' => (int) env('AI_CONTEXT_MESSAGES', 12),
 ];

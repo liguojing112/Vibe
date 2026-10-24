@@ -42,17 +42,23 @@ final class DeepSeekClient
 
         try {
             $client = $this->clientFactory->create(['timeout' => (float) ($cfg['timeout'] ?? 30)]);
+
+            $payload = [
+                'model' => (string) ($cfg['model'] ?? 'deepseek-chat'),
+                'messages' => $messages,
+                'max_tokens' => (int) ($cfg['max_tokens'] ?? 120),
+                'temperature' => (float) ($cfg['temperature'] ?? 1.1),
+            ];
+            if (($cfg['thinking'] ?? 'disabled') === 'disabled') {
+                $payload['thinking'] = ['type' => 'disabled'];
+            }
+
             $response = $client->post($baseUrl . '/chat/completions', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $apiKey,
                     'Content-Type' => 'application/json',
                 ],
-                'json' => [
-                    'model' => (string) ($cfg['model'] ?? 'deepseek-chat'),
-                    'messages' => $messages,
-                    'max_tokens' => (int) ($cfg['max_tokens'] ?? 120),
-                    'temperature' => (float) ($cfg['temperature'] ?? 1.1),
-                ],
+                'json' => $payload,
             ]);
 
             $status = $response->getStatusCode();
