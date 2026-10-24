@@ -152,6 +152,22 @@ class ChatViewModel @Inject constructor(
      * 顺序有讲究：**先标已读**的话，如果拉历史失败，未读已经清了但消息没显示出来；
      * 所以先补历史（本地没有才拉）再标已读。
      */
+    /**
+     * 回到前台 / 回到这个页面时补拉一次最新消息。
+     *
+     * 推送只保证「在线那一刻」送达，切后台、锁屏、网络切换期间的推送会丢；
+     * 不补拉的话对方（包括 AI 代聊）的回复就一直不出现。
+     */
+    fun refreshMessages() {
+        val id = peerId.value
+        if (id <= 0L) {
+            return
+        }
+        viewModelScope.launch {
+            chatRepository.loadInitialMessages(id, force = true)
+        }
+    }
+
     fun enter(peerId: Long) {
         if (this.peerId.value == peerId && entry.value != null) {
             return
@@ -180,7 +196,11 @@ class ChatViewModel @Inject constructor(
                 }
             }
 
-            chatRepository.loadInitialMessages(peerId).onSuccessBoolean { hasMore.value = it }
+            // force = true：每次进聊天页都从服务端补拉一次最新。
+            // 只靠 WebSocket 推送不够 —— 断线 / 切后台 / 网络抖动那一瞬间的推送会丢，
+            // 而本地已经有历史时不补拉的话，新消息（包括 AI 代聊的回复）就永远进不来。
+            // 已有的消息会撞唯一键被跳过，不会重复。
+            chatRepository.loadInitialMessages(peerId, force = true).onSuccessBoolean { hasMore.value = it }
             chatRepository.markRead(peerId)
         }
     }

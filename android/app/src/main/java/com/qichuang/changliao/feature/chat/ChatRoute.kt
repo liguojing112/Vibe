@@ -39,6 +39,8 @@ fun ChatRoute(
     // `enter()` 有「同一个 peer 就早退」的保护，光靠它不会刷新（T9.7）。
     LifecycleResumeEffect(Unit) {
         viewModel.refreshFee()
+        // 顺便补拉一次消息：挂后台期间收到的推送不会到客户端
+        viewModel.refreshMessages()
         onPauseOrDispose { }
     }
 
