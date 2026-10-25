@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -18,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
 import com.qichuang.changliao.core.designsystem.icon.ClIcons
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
 
@@ -33,9 +36,16 @@ fun ClBottomSheet(
     title: String? = null,
     /** 默认只有上面两个圆角（贴底）；传 `ClTheme.shapes.card` 可以做成四角圆角的悬浮卡片。 */
     shape: Shape = ClTheme.shapes.sheet,
+    /**
+     * 内容区高度占屏幕的比例（0~1）。null = 按内容自适应。
+     *
+     * 放在设计系统里是因为 feature 层不允许直接写 dp，只能传比例。
+     */
+    heightFraction: Float? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val screenHeight = LocalConfiguration.current.screenHeightDp
 
     ModalBottomSheet(
         onDismissRequest = onClose,
@@ -48,6 +58,13 @@ fun ClBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(
+                    if (heightFraction != null) {
+                        Modifier.height((screenHeight * heightFraction).dp)
+                    } else {
+                        Modifier
+                    },
+                )
                 .padding(bottom = ClTheme.spacing.xl),
         ) {
             if (title != null) {

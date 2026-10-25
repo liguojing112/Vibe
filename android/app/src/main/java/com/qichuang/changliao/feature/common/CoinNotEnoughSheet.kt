@@ -1,9 +1,13 @@
 package com.qichuang.changliao.feature.common
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,44 +37,45 @@ fun CoinNotEnoughSheet(
     ClBottomSheet(
         title = if (info.balance <= 0) "金币用完了" else "余额不足",
         onClose = onDismiss,
-        // 做成四角圆角的悬浮卡片：左右留边、底部留空，不再贴屏幕边缘
+        // 四角圆角的悬浮卡片：左右留边、底部只抬 16dp
         shape = ClTheme.shapes.card,
+        // 高度固定成屏幕的一半：内容就三行，按内容撑开会显得又扁又小
+        heightFraction = 0.5f,
         modifier = Modifier.padding(
             start = ClTheme.spacing.l,
             end = ClTheme.spacing.l,
-            bottom = ClTheme.spacing.xxxl * 4,
+            bottom = ClTheme.spacing.l,
         ),
     ) {
-        Text(
-            text = MoneyFormat.coins(info.balance),
-            style = ClTheme.typography.amountLarge,
-            color = ClTheme.colors.coinText,
-            textAlign = TextAlign.Center,
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = ClTheme.spacing.l),
-        )
-        Text(
-            text = "本次操作需要 ${info.needed} 金币，还差 ${info.short} 金币",
-            style = ClTheme.typography.bodySmall,
-            color = ClTheme.colors.inkSecondary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = ClTheme.spacing.l, vertical = ClTheme.spacing.l),
-        )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = ClTheme.spacing.l, end = ClTheme.spacing.l, bottom = ClTheme.spacing.l),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+                .fillMaxHeight()
+                .padding(horizontal = ClTheme.spacing.l),
+            verticalArrangement = Arrangement.SpaceEvenly,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            ClOutlineSmallButton(text = "暂不充值", onClick = onDismiss)
-            androidx.compose.foundation.layout.Spacer(
-                modifier = Modifier.padding(horizontal = ClTheme.spacing.s),
+            Text(
+                text = MoneyFormat.coins(info.balance),
+                style = ClTheme.typography.amountLarge,
+                color = ClTheme.colors.coinText,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
-            ClSoftButton(text = "去充值", onClick = onRecharge)
+            Text(
+                text = "本次操作需要 ${info.needed} 金币，还差 ${info.short} 金币",
+                style = ClTheme.typography.bodySmall,
+                color = ClTheme.colors.inkSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ClOutlineSmallButton(text = "暂不充值", onClick = onDismiss)
+                Spacer(modifier = Modifier.width(ClTheme.spacing.m))
+                ClSoftButton(text = "去充值", onClick = onRecharge)
+            }
         }
     }
 }
