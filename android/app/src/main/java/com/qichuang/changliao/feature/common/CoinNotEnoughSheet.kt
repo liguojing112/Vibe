@@ -43,10 +43,9 @@ fun CoinNotEnoughSheet(
     ClBottomSheet(
         title = if (info.balance <= 0) "金币用完了" else "余额不足",
         onClose = onDismiss,
-        // 四角圆角的悬浮卡片：左右留边、底部只抬 16dp
+        // 高度按内容自适应：金币图放大之后内容本身就有半屏高，
+        // 再固定一个 heightFraction 只会在按钮下面留一片空白
         shape = ClTheme.shapes.card,
-        // 高度占屏幕 0.6：金币图放大到 0.55 之后，半屏装不下「标题+图+金额+说明+按钮」
-        heightFraction = 0.6f,
         // 标题比普通弹窗更强调，和金额形成层级
         titleStyle = ClTheme.typography.pageTitle,
         modifier = Modifier.padding(
@@ -59,7 +58,8 @@ fun CoinNotEnoughSheet(
             // 固定间距排列：用 SpaceEvenly 时金币图一放大，下面的金额和按钮就被挤到一起了
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = ClTheme.spacing.l, vertical = ClTheme.spacing.l),
+                // 底部不留 padding：按钮下面再垫一层就是一片空白
+                .padding(start = ClTheme.spacing.l, end = ClTheme.spacing.l, top = ClTheme.spacing.l),
             verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.l),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
