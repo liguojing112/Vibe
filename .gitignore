@@ -32,3 +32,7 @@ local.properties
 *.aab
 android/app/release/
 android/captures/
+
+# 客户提供的头像原图（体积大，处理后的成品在 scripts/assets/fake-avatars/）
+docs/女头像/
+docs/男头像/
