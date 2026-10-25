@@ -48,18 +48,21 @@ fun CoinNotEnoughSheet(
         shape = ClTheme.shapes.card,
         // 标题比普通弹窗更强调，和金额形成层级
         titleStyle = ClTheme.typography.pageTitle,
+        // 内容自己控底部间距，不要组件再垫一层
+        compactBottom = true,
         modifier = Modifier.padding(
             start = ClTheme.spacing.l,
             end = ClTheme.spacing.l,
-            bottom = ClTheme.spacing.l,
+            // 系统安全区已关掉，这里自己留一段，让卡片和屏幕底部有一点距离
+            bottom = ClTheme.spacing.xxxl,
         ),
     ) {
         Column(
             // 固定间距排列：用 SpaceEvenly 时金币图一放大，下面的金额和按钮就被挤到一起了
             modifier = Modifier
                 .fillMaxWidth()
-                // 底部不留 padding：按钮下面再垫一层就是一片空白
-                .padding(start = ClTheme.spacing.l, end = ClTheme.spacing.l, top = ClTheme.spacing.l),
+                // 底部留 16dp：完全贴边的话按钮会被圆角切掉一块
+                .padding(start = ClTheme.spacing.l, end = ClTheme.spacing.l, top = ClTheme.spacing.l, bottom = ClTheme.spacing.l),
             verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.l),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

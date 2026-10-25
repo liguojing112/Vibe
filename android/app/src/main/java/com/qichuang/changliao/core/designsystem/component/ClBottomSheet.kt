@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -45,6 +47,8 @@ fun ClBottomSheet(
     heightFraction: Float? = null,
     /** 标题字号，默认 `sectionTitle`；想更强调可以传 `pageTitle`。 */
     titleStyle: TextStyle = ClTheme.typography.sectionTitle,
+    /** 内容自带了底部间距时置 true，去掉组件自带的 24dp，避免按钮下面多垫一层空白。 */
+    compactBottom: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -56,6 +60,11 @@ fun ClBottomSheet(
         shape = shape,
         containerColor = ClTheme.colors.surface,
         scrimColor = ClTheme.colors.mask,
+        // compactBottom 时连系统手势条的安全区一起去掉：否则按钮下面会有一道 48dp 的白边，
+        // 看起来像多出来的空白（间距改由调用方自己在 modifier 里控制）
+        contentWindowInsets = {
+            if (compactBottom) WindowInsets(0, 0, 0, 0) else BottomSheetDefaults.windowInsets
+        },
         modifier = modifier,
     ) {
         Column(
@@ -68,7 +77,7 @@ fun ClBottomSheet(
                         Modifier
                     },
                 )
-                .padding(bottom = ClTheme.spacing.xl),
+                .padding(bottom = if (compactBottom) 0.dp else ClTheme.spacing.xl),
         ) {
             if (title != null) {
                 Row(
