@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.qichuang.changliao.core.designsystem.icon.ClIcons
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
@@ -42,6 +43,8 @@ fun ClBottomSheet(
      * 放在设计系统里是因为 feature 层不允许直接写 dp，只能传比例。
      */
     heightFraction: Float? = null,
+    /** 标题字号，默认 `sectionTitle`；想更强调可以传 `pageTitle`。 */
+    titleStyle: TextStyle = ClTheme.typography.sectionTitle,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -81,7 +84,7 @@ fun ClBottomSheet(
                 ) {
                     Text(
                         text = title,
-                        style = ClTheme.typography.sectionTitle,
+                        style = titleStyle,
                         color = ClTheme.colors.ink,
                         modifier = Modifier.weight(1f),
                     )

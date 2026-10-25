@@ -45,8 +45,10 @@ fun CoinNotEnoughSheet(
         onClose = onDismiss,
         // 四角圆角的悬浮卡片：左右留边、底部只抬 16dp
         shape = ClTheme.shapes.card,
-        // 高度固定成屏幕的一半：内容就四块，按内容撑开会显得又扁又小
-        heightFraction = 0.5f,
+        // 高度占屏幕 0.6：金币图放大到 0.55 之后，半屏装不下「标题+图+金额+说明+按钮」
+        heightFraction = 0.6f,
+        // 标题比普通弹窗更强调，和金额形成层级
+        titleStyle = ClTheme.typography.pageTitle,
         modifier = Modifier.padding(
             start = ClTheme.spacing.l,
             end = ClTheme.spacing.l,
@@ -54,10 +56,11 @@ fun CoinNotEnoughSheet(
         ),
     ) {
         Column(
+            // 固定间距排列：用 SpaceEvenly 时金币图一放大，下面的金额和按钮就被挤到一起了
             modifier = Modifier
-                .fillMaxHeight()
-                .padding(horizontal = ClTheme.spacing.l),
-            verticalArrangement = Arrangement.SpaceEvenly,
+                .fillMaxWidth()
+                .padding(horizontal = ClTheme.spacing.l, vertical = ClTheme.spacing.l),
+            verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.l),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // 金币插图（AI 生成、去背后的 512 方图）
@@ -65,7 +68,7 @@ fun CoinNotEnoughSheet(
                 painter = painterResource(R.drawable.ic_coin_stack),
                 contentDescription = null,
                 modifier = Modifier
-                    .fillMaxWidth(0.42f)
+                    .fillMaxWidth(0.55f)
                     .aspectRatio(1f),
                 contentScale = ContentScale.Fit,
             )
