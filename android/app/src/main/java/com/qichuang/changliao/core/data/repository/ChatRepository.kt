@@ -340,11 +340,10 @@ class ChatRepository @Inject constructor(
             }
 
             is ApiResult.BizError -> {
-                if (result.code == CODE_COIN_NOT_ENOUGH) {
-                    messageDao.delete(localId)
-                } else {
-                    messageDao.updateStatus(localId, MessageStatus.FAILED.code, System.currentTimeMillis())
-                }
+                // 余额不足也把气泡留在列表里（红色感叹号），别直接删掉 ——
+                // 删了用户看到的是「消息没了」，既不知道发没发出去，也不知道为什么。
+                // 点红点可以重发，重发时会再弹充值。
+                messageDao.updateStatus(localId, MessageStatus.FAILED.code, System.currentTimeMillis())
                 result
             }
 

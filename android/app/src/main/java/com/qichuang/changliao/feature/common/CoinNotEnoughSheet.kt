@@ -28,7 +28,11 @@ fun CoinNotEnoughSheet(
     onDismiss: () -> Unit,
     onRecharge: () -> Unit,
 ) {
-    ClBottomSheet(title = "余额不足", onClose = onDismiss) {
+    // 余额已经是 0 的时候说「用完了」更直白，还有一点余额时才是「不足」
+    ClBottomSheet(
+        title = if (info.balance <= 0) "金币用完了" else "余额不足",
+        onClose = onDismiss,
+    ) {
         Text(
             text = MoneyFormat.coins(info.balance),
             style = ClTheme.typography.amountLarge,

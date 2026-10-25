@@ -132,7 +132,7 @@ class ChatViewModelTest {
     // ---------- ② 余额不足弹 P30 且输入保留 ----------
 
     @Test
-    fun `余额不足弹 P30，输入内容保留`() {
+    fun `余额不足弹 P30，输入清空（内容已进气泡）`() {
         val vm = viewModel()
         vm.onInputChange("这条发不出去")
         coEvery { chatRepository.send(any(), any(), any(), any()) } returns ApiResult.BizError(
@@ -147,7 +147,8 @@ class ChatViewModelTest {
         assertEquals(4L, info!!.balance)
         assertEquals(5L, info.needed)
         assertEquals(1L, info.short)
-        assertEquals("输入内容要留着，充值回来能直接发", "这条发不出去", vm.uiState.value.input)
+        // 气泡留在列表里（红点可点重发），输入框清空，避免同一句话摆两处
+        assertEquals("", vm.uiState.value.input)
     }
 
     /**
@@ -189,12 +190,12 @@ class ChatViewModelTest {
         vm.onSend()
 
         assertEquals("私信 5 币/条 · 余额 2 币", vm.uiState.value.fee!!.stripText)
-        // 输入内容照样留着
-        assertEquals("发不出去", vm.uiState.value.input)
+        // 输入框清空（气泡里已经有了）
+        assertEquals("", vm.uiState.value.input)
     }
 
     @Test
-    fun `关掉 P30 之后输入还在`() {
+    fun `关掉 P30 之后输入框仍然是空的`() {
         val vm = viewModel()
         vm.onInputChange("保留我")
         coEvery { chatRepository.send(any(), any(), any(), any()) } returns ApiResult.BizError(
@@ -207,7 +208,7 @@ class ChatViewModelTest {
         vm.onDismissCoinNotEnough()
 
         assertNull(vm.uiState.value.coinNotEnough)
-        assertEquals("保留我", vm.uiState.value.input)
+        assertEquals("", vm.uiState.value.input)
     }
 
     // ---------- ③ 发送失败可重发 ----------

@@ -335,6 +335,8 @@ class ChatViewModel @Inject constructor(
                     // 同一件事在同一个屏幕上两个说法（T9.1 走查发现的）。
                     // 余额和收费条文案都是服务端拼的（铁律 6），所以这里重问一次 `with/{userId}`。
                     refreshFee()
+                    // 气泡已经留在列表里（红色感叹号），输入框要清空，不然同一句话摆在两个地方
+                    onSuccess()
                 } else {
                     toast.value = result.message
                 }

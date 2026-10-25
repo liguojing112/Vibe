@@ -206,7 +206,7 @@ class ChatRepositoryTest {
     }
 
     @Test
-    fun `余额不足时把本地那条撤掉，交给页面把文字放回输入框`() = runTest {
+    fun `余额不足时气泡保留并标记失败，红点可重发`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(200)
                 .setBody("""{"code":20001,"message":"金币余额不足","data":{"balance":4}}"""),
@@ -216,7 +216,9 @@ class ChatRepositoryTest {
 
         assertTrue(result is ApiResult.BizError)
         assertEquals(ChatRepository.CODE_COIN_NOT_ENOUGH, (result as ApiResult.BizError).code)
-        assertTrue("本地不该留下一条会重复发送的气泡", messageDao.rows.isEmpty())
+        // 气泡要留着：直接删掉的话用户既不知道发没发出去，也不知道为什么
+        assertEquals(1, messageDao.rows.size)
+        assertEquals(MessageStatus.FAILED.code, messageDao.rows.single().status)
     }
 
     // ---------- 增量补拉 ----------
