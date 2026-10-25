@@ -17,6 +17,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import com.qichuang.changliao.core.designsystem.icon.ClIcons
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
 
@@ -30,6 +31,8 @@ fun ClBottomSheet(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     title: String? = null,
+    /** 默认只有上面两个圆角（贴底）；传 `ClTheme.shapes.card` 可以做成四角圆角的悬浮卡片。 */
+    shape: Shape = ClTheme.shapes.sheet,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -37,7 +40,7 @@ fun ClBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onClose,
         sheetState = sheetState,
-        shape = ClTheme.shapes.sheet,
+        shape = shape,
         containerColor = ClTheme.colors.surface,
         scrimColor = ClTheme.colors.mask,
         modifier = modifier,

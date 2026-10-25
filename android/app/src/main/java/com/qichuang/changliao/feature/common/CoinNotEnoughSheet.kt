@@ -33,15 +33,22 @@ fun CoinNotEnoughSheet(
     ClBottomSheet(
         title = if (info.balance <= 0) "金币用完了" else "余额不足",
         onClose = onDismiss,
-        // 往上抬两个气泡的高度：贴底时会正好压住最后一条消息，用户看不到刚才聊到哪
-        modifier = Modifier.padding(bottom = ClTheme.spacing.xxxl * 4),
+        // 做成四角圆角的悬浮卡片：左右留边、底部留空，不再贴屏幕边缘
+        shape = ClTheme.shapes.card,
+        modifier = Modifier.padding(
+            start = ClTheme.spacing.l,
+            end = ClTheme.spacing.l,
+            bottom = ClTheme.spacing.xxxl * 4,
+        ),
     ) {
         Text(
             text = MoneyFormat.coins(info.balance),
             style = ClTheme.typography.amountLarge,
             color = ClTheme.colors.coinText,
             textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = ClTheme.spacing.l),
         )
         Text(
             text = "本次操作需要 ${info.needed} 金币，还差 ${info.short} 金币",
@@ -50,7 +57,7 @@ fun CoinNotEnoughSheet(
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = ClTheme.spacing.l, vertical = ClTheme.spacing.m),
+                .padding(horizontal = ClTheme.spacing.l, vertical = ClTheme.spacing.l),
         )
         Row(
             modifier = Modifier
