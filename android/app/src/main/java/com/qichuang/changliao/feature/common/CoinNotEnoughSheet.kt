@@ -6,13 +6,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import com.qichuang.changliao.core.common.MoneyFormat
 import com.qichuang.changliao.core.data.model.CoinNotEnough
 import com.qichuang.changliao.core.designsystem.component.ClBottomSheet
-import com.qichuang.changliao.core.designsystem.component.ClPrimaryButton
-import com.qichuang.changliao.core.designsystem.component.ClSecondaryButton
+import com.qichuang.changliao.core.designsystem.component.ClOutlineSmallButton
+import com.qichuang.changliao.core.designsystem.component.ClSoftButton
 import com.qichuang.changliao.core.designsystem.theme.ClTheme
 
 /**
@@ -32,6 +33,8 @@ fun CoinNotEnoughSheet(
     ClBottomSheet(
         title = if (info.balance <= 0) "金币用完了" else "余额不足",
         onClose = onDismiss,
+        // 往上抬两个气泡的高度：贴底时会正好压住最后一条消息，用户看不到刚才聊到哪
+        modifier = Modifier.padding(bottom = ClTheme.spacing.xxxl * 4),
     ) {
         Text(
             text = MoneyFormat.coins(info.balance),
@@ -47,16 +50,20 @@ fun CoinNotEnoughSheet(
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = ClTheme.spacing.m),
+                .padding(horizontal = ClTheme.spacing.l, vertical = ClTheme.spacing.m),
         )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = ClTheme.spacing.l),
-            horizontalArrangement = Arrangement.spacedBy(ClTheme.spacing.m),
+                .padding(start = ClTheme.spacing.l, end = ClTheme.spacing.l, bottom = ClTheme.spacing.l),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            ClSecondaryButton(text = "暂不充值", modifier = Modifier.weight(1f), onClick = onDismiss)
-            ClPrimaryButton(text = "去充值", modifier = Modifier.weight(1f), onClick = onRecharge)
+            ClOutlineSmallButton(text = "暂不充值", onClick = onDismiss)
+            androidx.compose.foundation.layout.Spacer(
+                modifier = Modifier.padding(horizontal = ClTheme.spacing.s),
+            )
+            ClSoftButton(text = "去充值", onClick = onRecharge)
         }
     }
 }
