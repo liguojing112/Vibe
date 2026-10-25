@@ -66,13 +66,13 @@ fun CoinNotEnoughSheet(
             verticalArrangement = Arrangement.spacedBy(ClTheme.spacing.l),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // 金币插图（AI 生成、去背后的 512 方图）
+            // 金币插图（AI 生成、去背后的横向图，宽高比 1.91:1）
             Image(
                 painter = painterResource(R.drawable.ic_coin_stack),
                 contentDescription = null,
                 modifier = Modifier
-                    .fillMaxWidth(0.55f)
-                    .aspectRatio(1f),
+                    .fillMaxWidth(0.7f)
+                    .aspectRatio(1.91f),
                 contentScale = ContentScale.Fit,
             )
 
