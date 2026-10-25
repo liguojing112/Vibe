@@ -15,6 +15,7 @@ use Hyperf\DbConnection\Model\Model as MineModel;
  * @property string $persona
  * @property string $tone
  * @property string $taboos
+ * @property null|string $examples
  * @property int $proactive
  * @property int $active_start
  * @property int $active_end
@@ -43,7 +44,7 @@ class AiPersona extends MineModel
     protected ?string $table = 'cl_ai_persona';
 
     protected array $fillable = [
-        'id', 'user_id', 'enabled', 'persona', 'tone', 'taboos', 'proactive',
+        'id', 'user_id', 'enabled', 'persona', 'tone', 'taboos', 'examples', 'proactive',
         'active_start', 'active_end', 'daily_limit', 'replied_today', 'replied_on',
         'prompt_tokens', 'completion_tokens', 'status', 'created_at', 'updated_at',
     ];

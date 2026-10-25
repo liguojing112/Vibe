@@ -29,6 +29,8 @@ export interface ClAiDetail extends Omit<ClAiRow, 'configured' | 'total_tokens'>
   persona: string
   tone: string
   taboos: string
+  /** 对话示例（few-shot）：写几组真实对话，模型会照着语气和长度回复。 */
+  examples: string
   prompt_tokens: number
   completion_tokens: number
 }

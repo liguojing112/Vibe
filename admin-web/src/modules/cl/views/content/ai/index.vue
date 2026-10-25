@@ -195,6 +195,20 @@ const schema = ref<MaProTableSchema>({
           <el-input v-model="current.taboos" placeholder="被提到时轻轻带过，例如：政治、催婚" />
         </el-form-item>
 
+        <el-form-item label="对话示例">
+          <el-input
+            v-model="current.examples"
+            type="textarea"
+            :rows="7"
+            maxlength="2000"
+            show-word-limit
+            placeholder="对方：在干嘛&#10;你：刚下班 累死了&#10;---&#10;对方：吃饭没&#10;你：还没 不想动"
+          />
+          <div class="text-xs text-gray-400 mt-1">
+            写 3~5 组真实对话，用 <code>---</code> 分隔。模型会照着这里的语气、长度和标点回复 —— 比在「说话风格」里写抽象描述管用得多。
+          </div>
+        </el-form-item>
+
         <el-form-item label="主动程度">
           <el-radio-group v-model="current.proactive">
             <el-radio :value="0">

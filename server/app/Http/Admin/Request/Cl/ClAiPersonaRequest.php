@@ -19,6 +19,7 @@ class ClAiPersonaRequest extends FormRequest
             'persona' => 'nullable|string|max:1000',
             'tone' => 'nullable|string|max:300',
             'taboos' => 'nullable|string|max:300',
+            'examples' => 'nullable|string|max:2000',
             'proactive' => 'nullable|integer|between:0,3',
             'active_start' => 'nullable|integer|between:0,23',
             'active_end' => 'nullable|integer|between:0,23',
