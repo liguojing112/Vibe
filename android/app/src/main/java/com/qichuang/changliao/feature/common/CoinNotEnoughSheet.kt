@@ -71,7 +71,7 @@ fun CoinNotEnoughSheet(
                 painter = painterResource(R.drawable.ic_coin_stack),
                 contentDescription = null,
                 modifier = Modifier
-                    .fillMaxWidth(0.7f)
+                    .fillMaxWidth(0.55f)
                     .aspectRatio(1.91f),
                 contentScale = ContentScale.Fit,
             )
@@ -81,7 +81,7 @@ fun CoinNotEnoughSheet(
                 modifier = Modifier
                     .clip(ClTheme.shapes.card)
                     .background(ClTheme.colors.primaryChip)
-                    .padding(horizontal = ClTheme.spacing.xxl, vertical = ClTheme.spacing.m),
+                    .padding(horizontal = ClTheme.spacing.l, vertical = ClTheme.spacing.m),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
