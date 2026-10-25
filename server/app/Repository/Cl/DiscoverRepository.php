@@ -161,7 +161,9 @@ final class DiscoverRepository extends IRepository
         $keyword = trim((string) ($filters['keyword'] ?? ''));
         if ($keyword !== '') {
             $query->where(function (Builder $sub) use ($keyword): void {
-                $sub->where('nickname', 'like', '%' . $keyword . '%');
+                // 昵称、登录账号（手机号 / bot0001 这类）都支持模糊匹配，纯数字再按 ID 精确命中
+                $sub->where('nickname', 'like', '%' . $keyword . '%')
+                    ->orWhere('account', 'like', '%' . $keyword . '%');
                 if (ctype_digit($keyword)) {
                     $sub->orWhere('id', (int) $keyword);
                 }

@@ -367,10 +367,10 @@ private fun SearchBar(
         horizontalArrangement = Arrangement.spacedBy(ClTheme.spacing.s),
     ) {
         ClTextField(
-            label = "搜索会话",
+            label = "搜索用户",
             value = query,
             onValueChange = onQueryChange,
-            placeholder = "输入昵称",
+            placeholder = "昵称 / ID / 账号",
             modifier = Modifier.weight(1f),
         )
         Text(
