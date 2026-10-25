@@ -71,17 +71,18 @@ fun CoinNotEnoughSheet(
                 painter = painterResource(R.drawable.ic_coin_stack),
                 contentDescription = null,
                 modifier = Modifier
-                    .fillMaxWidth(0.55f)
+                    .fillMaxWidth(0.9f)
                     .aspectRatio(1.91f),
                 contentScale = ContentScale.Fit,
             )
 
-            // 金额放在浅黄色圆角块里，比裸露的大字更像「卡片」
+            // 金额块撑满大部分宽度，两侧不留大片空白
             Box(
                 modifier = Modifier
+                    .fillMaxWidth(0.85f)
                     .clip(ClTheme.shapes.card)
                     .background(ClTheme.colors.primaryChip)
-                    .padding(horizontal = ClTheme.spacing.l, vertical = ClTheme.spacing.m),
+                    .padding(vertical = ClTheme.spacing.m),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
