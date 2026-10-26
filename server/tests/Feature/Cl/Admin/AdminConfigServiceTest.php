@@ -55,6 +55,7 @@ final class AdminConfigServiceTest extends TestCase
         $this->originalFreeCount = (string) make(AppConfigService::class)->get('chat.free_count_per_pair', 3);
         $this->originalTiers = (string) json_encode(make(AppConfigService::class)->get('withdraw.tiers', []));
         $this->originalPacks = (string) json_encode(make(AppConfigService::class)->get('recharge.packs', []));
+        $this->originalAiKey = (string) make(AppConfigService::class)->get('ai.api_key', '');
         $this->originalLv1Price = (int) LevelConfig::query()->where('level', 1)->value('message_price');
     }
 
@@ -64,6 +65,8 @@ final class AdminConfigServiceTest extends TestCase
 
     private string $originalPacks = '[]';
 
+    private string $originalAiKey = '';
+
     private int $originalLv1Price = 5;
 
     protected function tearDown(): void
@@ -72,6 +75,7 @@ final class AdminConfigServiceTest extends TestCase
         $this->service->save($this->operator, 'billing', ['chat.free_count_per_pair' => $this->originalFreeCount]);
         $this->service->save($this->operator, 'withdraw', ['withdraw.tiers' => $this->originalTiers]);
         $this->service->save($this->operator, 'recharge', ['recharge.packs' => $this->originalPacks]);
+        make(AppConfigService::class)->set('ai.api_key', $this->originalAiKey);
         // 等级表也是共享的：改过单价要还原，不然别的测试（比如计费那批）会按错的价算
         LevelConfig::query()->where('level', 1)->update(['message_price' => $this->originalLv1Price]);
         $this->clear();
@@ -156,6 +160,22 @@ final class AdminConfigServiceTest extends TestCase
             [['coins' => 60, 'yuan' => 6], ['coins' => 300, 'yuan' => 30]],
             make(AppConfigService::class)->get('recharge.packs'),
         );
+    }
+
+    /** AI Key 不回显；留空保存不能把已有 Key 覆盖掉。 */
+    public function testAiApiKeyIsHiddenAndBlankKeepsOldValue(): void
+    {
+        $this->service->save($this->operator, 'ai', ['ai.api_key' => 'sk-test-123']);
+
+        $items = $this->service->group('ai')['items'];
+        $aiKey = array_values(array_filter(
+            $items,
+            static fn (array $item): bool => $item['key'] === 'ai.api_key',
+        ))[0];
+        self::assertSame('', $aiKey['value'], '密钥不回显');
+
+        $this->service->save($this->operator, 'ai', ['ai.api_key' => '']);
+        self::assertSame('sk-test-123', make(AppConfigService::class)->get('ai.api_key'));
     }
 
     public function testRejectsBadValues(): void

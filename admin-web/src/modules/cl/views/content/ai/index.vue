@@ -4,6 +4,7 @@ import type { Ref } from 'vue'
 import type { ClAiDetail, ClAiRow } from '../../../api/ai'
 import * as api from '../../../api/ai'
 import ClUserCell from '../../../components/ClUserCell.vue'
+import ConfigGroupPage from '../../operation/ConfigGroupPage.vue'
 import { useMessage } from '@/hooks/useMessage.ts'
 import { ResultCode } from '@/utils/ResultCode.ts'
 import hasAuth from '@/utils/permission/hasAuth.ts'
@@ -18,6 +19,7 @@ defineOptions({ name: 'cl:content:ai' })
 
 const msg = useMessage()
 const proTableRef = ref<MaProTableExpose>() as Ref<MaProTableExpose>
+const activeTab = ref('personas')
 
 const PROACTIVE_LABEL: Record<number, string> = {
   0: '不主动',
@@ -174,7 +176,19 @@ const schema = ref<MaProTableSchema>({
 
 <template>
   <div class="mine-layout">
-    <MaProTable ref="proTableRef" :options="options" :schema="schema" />
+    <el-tabs v-model="activeTab">
+      <el-tab-pane label="笔友管理" name="personas">
+        <MaProTable ref="proTableRef" :options="options" :schema="schema" />
+      </el-tab-pane>
+
+      <el-tab-pane label="AI 模型" name="model" lazy>
+        <ConfigGroupPage
+          :groups="['ai']"
+          title="AI 模型设置"
+          subtitle="填任意 OpenAI 兼容服务：Base URL + 模型名 + API Key。留空会回退到服务器的 .env 配置；API Key 留空保存表示不修改。"
+        />
+      </el-tab-pane>
+    </el-tabs>
 
     <el-dialog v-model="dialogVisible" :title="`AI 代聊 · ${current?.nickname ?? ''}`" width="640px">
       <el-form v-if="current" label-width="110px" label-position="left">

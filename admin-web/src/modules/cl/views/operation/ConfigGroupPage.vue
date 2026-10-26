@@ -40,6 +40,7 @@ const GROUP_LABELS: Record<string, string> = {
   withdraw: '提现',
   recharge: '充值档位与客服',
   pay: '在线支付',
+  ai: 'AI 模型',
   agreement: '协议',
   compliance: '合规声明',
   feature: '功能开关',

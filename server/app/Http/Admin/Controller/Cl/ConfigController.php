@@ -44,6 +44,7 @@ final class ConfigController extends AbstractController
         'withdraw' => 'cl:operation:billing',
         'recharge' => 'cl:operation:recharge',
         'pay' => 'cl:operation:pay',
+        'ai' => 'cl:content:ai:edit',
         'agreement' => 'cl:operation:agreement',
         'compliance' => 'cl:operation:agreement',
         'feature' => 'cl:operation:feature',

@@ -155,6 +155,38 @@ final class AdminFinanceControllerTest extends HttpTestCase
         self::assertSame(100, (int) $result['data']['list'][0]['coins']);
     }
 
+    /** 列表「加款」：客服有 cl:finance:grant，男号加金币、女号加积分；财务没有该权限。 */
+    public function testKefuCanGrantCoinsAndPointsButCaiwuCannot(): void
+    {
+        $kefu = $this->tokenOf($this->roleAdmin('kefu', 'cl:finance:grant'));
+        $male = $this->makeUser(User::GENDER_MALE);
+        $female = $this->makeUser(User::GENDER_FEMALE);
+
+        $coins = $this->post('/admin/cl/finance/grant', [
+            'user_id' => $male->id,
+            'amount' => 100,
+            'remark' => '测试加款',
+        ], $this->bearer($kefu));
+        self::assertSame(200, $coins['code'], json_encode($coins, JSON_UNESCAPED_UNICODE));
+        self::assertSame(100, (int) CoinWallet::query()->where('user_id', $male->id)->value('balance'));
+
+        $points = $this->post('/admin/cl/finance/grant', [
+            'user_id' => $female->id,
+            'amount' => 200,
+            'remark' => '测试加款',
+        ], $this->bearer($kefu));
+        self::assertSame(200, $points['code'], json_encode($points, JSON_UNESCAPED_UNICODE));
+        self::assertSame(200, (int) PointWallet::query()->where('user_id', $female->id)->value('balance'));
+
+        $caiwu = $this->tokenOf($this->roleAdmin('caiwu', 'cl:finance:recharge-list'));
+        $denied = $this->post('/admin/cl/finance/grant', [
+            'user_id' => $male->id,
+            'amount' => 100,
+            'remark' => '测试',
+        ], $this->bearer($caiwu));
+        self::assertSame(403, $denied['code'], '财务没有 cl:finance:grant，必须 403');
+    }
+
     // ---------- 工具 ----------
 
     private function superAdmin(): AdminUser

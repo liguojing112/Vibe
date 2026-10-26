@@ -64,6 +64,7 @@ class ZzClMenuSeeder20261014 extends Seeder
                 'cl:report:*',
                 'cl:finance:recharge', 'cl:finance:recharge-list',
                 'cl:finance:coin-log', 'cl:finance:point-log',
+                'cl:finance:grant',
                 'cl:operation:notice',
                 'cl:content:moment:list', 'cl:content:moment:comment',
             ],
@@ -267,6 +268,7 @@ class ZzClMenuSeeder20261014 extends Seeder
                             $this->button('cl:withdraw:paid', '标记已打款'),
                             $this->button('cl:finance:coin-deduct', '扣减金币'),
                             $this->button('cl:finance:point-adjust', '调整积分'),
+                            $this->button('cl:finance:grant', '加款'),
                         ],
                     ],
 

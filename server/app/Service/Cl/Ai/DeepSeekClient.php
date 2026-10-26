@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Cl\Ai;
 
+use App\Service\Cl\Config\AppConfigService;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Guzzle\ClientFactory;
 use Psr\Log\LoggerInterface;
@@ -12,14 +13,15 @@ use Throwable;
 /**
  * 大模型调用（OpenAI 兼容协议）。
  *
- * 只做一件事：给一组 messages，返回一段话 + token 用量。
- * 人设怎么拼、什么时候调用，都在 [AiChatService] 里。
+ * 模型地址 / 模型名 / API Key 优先读后台「AI 模型」配置（`cl_config` 的 `ai.*`），
+ * 后台留空时回退 `.env` 的 `AI_*`，这样客户可以自己接任意 OpenAI 兼容服务。
  */
 final class DeepSeekClient
 {
     public function __construct(
         private readonly ClientFactory $clientFactory,
         private readonly ConfigInterface $config,
+        private readonly AppConfigService $configService,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -31,20 +33,21 @@ final class DeepSeekClient
     public function chat(array $messages): ?array
     {
         $cfg = (array) $this->config->get('ai', []);
-        $apiKey = (string) ($cfg['api_key'] ?? '');
+        $apiKey = $this->setting('ai.api_key', (string) ($cfg['api_key'] ?? ''));
         if ($apiKey === '') {
-            $this->logger->warning('AI 代聊未配置 AI_API_KEY，跳过');
+            $this->logger->warning('AI 代聊未配置 API Key，跳过');
 
             return null;
         }
 
-        $baseUrl = rtrim((string) ($cfg['base_url'] ?? 'https://api.deepseek.com'), '/');
+        $baseUrl = rtrim($this->setting('ai.base_url', (string) ($cfg['base_url'] ?? 'https://api.deepseek.com')), '/');
+        $model = $this->setting('ai.model', (string) ($cfg['model'] ?? 'deepseek-chat'));
 
         try {
             $client = $this->clientFactory->create(['timeout' => (float) ($cfg['timeout'] ?? 30)]);
 
             $payload = [
-                'model' => (string) ($cfg['model'] ?? 'deepseek-chat'),
+                'model' => $model,
                 'messages' => $messages,
                 'max_tokens' => (int) ($cfg['max_tokens'] ?? 120),
                 'temperature' => (float) ($cfg['temperature'] ?? 1.1),
@@ -86,6 +89,14 @@ final class DeepSeekClient
 
             return null;
         }
+    }
+
+    /** 后台「AI 模型」配置优先；留空回退 `.env` 的默认值。 */
+    private function setting(string $key, string $fallback): string
+    {
+        $value = trim((string) $this->configService->get($key, ''));
+
+        return $value === '' ? $fallback : $value;
     }
 
     /** 去掉模型偶尔会加的前后缀（引号、括号里的旁白），并压掉多余换行。 */

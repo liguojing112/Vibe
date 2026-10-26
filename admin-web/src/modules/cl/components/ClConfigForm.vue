@@ -100,7 +100,7 @@ defineExpose({ validate })
         />
 
         <el-input
-          v-else-if="item.key === 'pay.epay_key'"
+          v-else-if="item.key === 'pay.epay_key' || item.key === 'ai.api_key'"
           :model-value="valueOf(item)"
           type="password"
           show-password

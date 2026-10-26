@@ -205,6 +205,54 @@ final class AdminFinanceService
         });
     }
 
+    /**
+     * 用户列表里的「加款」快捷操作（客户 2026-10-26 新增）。
+     *
+     * **不新增资金规则**：男号走后台充值单（金币），女号走积分补发（ADMIN_ADJUST）。
+     * 只允许正数，不能借这个入口扣钱；备注必填，方便对账。
+     *
+     * @return array{gender: int, amount: int, balance: int, order_no?: string}
+     */
+    public function grant(AdminUser $operator, int $userId, int $amount, int $amountFen, string $remark): array
+    {
+        if ($amount <= 0) {
+            throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '加款数量必须是正整数');
+        }
+
+        $remark = trim($remark);
+        if ($remark === '') {
+            throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '加款必须填写备注');
+        }
+
+        $user = $this->mustFindUser($userId);
+
+        if ($user->gender === User::GENDER_MALE) {
+            $result = $this->recharge(
+                $operator,
+                $userId,
+                $amount,
+                max(0, $amountFen),
+                RechargeOrder::CHANNEL_OTHER,
+                $remark,
+            );
+
+            return [
+                'gender' => User::GENDER_MALE,
+                'amount' => $amount,
+                'balance' => $result['balance'],
+                'order_no' => $result['order_no'],
+            ];
+        }
+
+        $this->adjustPoints($operator, $userId, $amount, $remark);
+
+        return [
+            'gender' => User::GENDER_FEMALE,
+            'amount' => $amount,
+            'balance' => (int) $this->pointWalletService->summaryOf($userId)['balance'],
+        ];
+    }
+
     // ---------- 平台收入（P3.14）----------
 
     /**

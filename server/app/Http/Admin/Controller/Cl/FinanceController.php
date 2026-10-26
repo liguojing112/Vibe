@@ -7,6 +7,7 @@ namespace App\Http\Admin\Controller\Cl;
 use App\Http\Admin\Controller\AbstractController;
 use App\Http\Admin\Middleware\PermissionMiddleware;
 use App\Http\Admin\Request\Cl\ClAdjustRequest;
+use App\Http\Admin\Request\Cl\ClGrantRequest;
 use App\Http\Admin\Request\Cl\ClRechargeRequest;
 use App\Http\Admin\Request\Cl\ClWithdrawActionRequest;
 use App\Http\Common\Middleware\AccessTokenMiddleware;
@@ -71,6 +72,31 @@ final class FinanceController extends AbstractController
             (int) ($data['amount_fen'] ?? 0),
             (string) $data['pay_channel'],
             (string) ($data['remark'] ?? ''),
+        ));
+    }
+
+    /**
+     * 用户列表里的「加款」快捷操作：男号加金币、女号加积分，复用现有充值/积分补发逻辑。
+     */
+    #[Post(
+        path: '/admin/cl/finance/grant',
+        operationId: 'clFinanceGrant',
+        summary: '加款（男号金币 / 女号积分）',
+        security: [['Bearer' => [], 'ApiKey' => []]],
+        tags: ['畅撩交友 / 资金管理']
+    )]
+    #[Permission(code: 'cl:finance:grant')]
+    #[ResultResponse(new Result())]
+    public function grant(ClGrantRequest $request): Result
+    {
+        $data = $request->validated();
+
+        return $this->success($this->financeService->grant(
+            $this->operator(),
+            (int) $data['user_id'],
+            (int) $data['amount'],
+            (int) ($data['amount_fen'] ?? 0),
+            (string) $data['remark'],
         ));
     }
 

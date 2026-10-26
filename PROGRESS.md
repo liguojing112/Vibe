@@ -3818,3 +3818,25 @@ App：
   改成 `minRows:12` 的自动增高文本框，内容不再被截成一行；
 - 静态路由 `dashboard:analysis`（MineAdmin 自带的「分析页」示例）已注释，侧边栏不再显示；
 - 验证：后台 lint 0 error、build 成功。
+
+---
+
+## 2026-10-26 AI 代聊：后台自定义模型
+
+- 新增 `ai.base_url` / `ai.model` / `ai.api_key` 三项配置（`cl_config`，group=`ai`），
+  迁移 `2026_10_26_000026`；
+- 后台「AI 笔友」页加「AI 模型」Tab，可填任意 OpenAI 兼容服务；API Key 用密码框，
+  不回显、留空保存不修改；
+- `DeepSeekClient` 优先读后台配置，留空回退 `.env` 的 `AI_*`，现有部署不受影响；
+- 验证：后端 605 测试全绿、phpstan 无错误；后台 lint 0 error、build 成功。
+
+---
+
+## 2026-10-26 后台：用户列表「加款」（客服/超管）
+
+- 用户管理列表操作菜单新增「加款」，权限 `cl:finance:grant`，客服和超管都能用；
+- 按性别自动选币种：男号加金币（复用后台充值单，写 RECHARGE 流水，可填实收金额）；
+  女号加积分（复用积分补发，写 ADMIN_ADJUST 流水，不计入累计收益）；
+- 只允许正数，备注必填；接口 `POST /admin/cl/finance/grant`；
+- 菜单节点迁移 `2026_10_26_000027`，客服角色授权，种子同步；
+- 验证：后端 609 测试全绿、phpstan 无错误；后台 lint 0 error、build 成功。

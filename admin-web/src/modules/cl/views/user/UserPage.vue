@@ -268,6 +268,50 @@ async function submitAdjust() {
   }
 }
 
+// ---------- 加款（客服/超管）----------
+const grantVisible = ref(false)
+const grantTarget = ref<ClUserRow | null>(null)
+const grantAmount = ref(0)
+const grantAmountFen = ref(0)
+const grantRemark = ref('')
+const grantLoading = ref(false)
+
+function openGrant(row: ClUserRow) {
+  grantTarget.value = row
+  grantAmount.value = 0
+  grantAmountFen.value = 0
+  grantRemark.value = ''
+  grantVisible.value = true
+}
+
+async function submitGrant() {
+  if (!grantTarget.value || grantAmount.value <= 0) {
+    msg.error('加款数量必须是正整数')
+    return
+  }
+  if (grantRemark.value.trim() === '') {
+    msg.error('必须填写备注')
+    return
+  }
+
+  grantLoading.value = true
+  try {
+    const res = await financeApi.grant({
+      user_id: grantTarget.value.id!,
+      amount: grantAmount.value,
+      amount_fen: female.value ? 0 : grantAmountFen.value,
+      remark: grantRemark.value.trim(),
+    })
+    afterAction(res, female.value ? '积分已加款' : '金币已加款')
+    if (res.code === ResultCode.SUCCESS) {
+      grantVisible.value = false
+    }
+  }
+  finally {
+    grantLoading.value = false
+  }
+}
+
 // ---------- 导出 ----------
 const exporting = ref(false)
 
@@ -321,6 +365,7 @@ const schema = ref<MaProTableSchema>({
     openVip,
     openGender,
     resetPassword,
+    openGrant,
     openAdjust,
   }),
 })
@@ -480,6 +525,38 @@ onMounted(async () => {
         </el-button>
         <el-button type="danger" :loading="adjustLoading" @click="submitAdjust">
           确认
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="grantVisible" :title="`加款 · ${grantTarget?.nickname ?? ''}`" width="460px">
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        class="mb-3"
+        :title="female
+          ? '给女号加积分：写积分补发流水，不计入累计收益。'
+          : '给男号加金币：会生成一条后台充值单和金币流水。'"
+      />
+      <el-form label-width="90px">
+        <el-form-item :label="female ? '积分数量' : '金币数量'">
+          <el-input-number v-model="grantAmount" :min="1" :max="10000000" controls-position="right" />
+        </el-form-item>
+        <el-form-item v-if="!female" label="实收金额">
+          <el-input-number v-model="grantAmountFen" :min="0" :max="100000000" controls-position="right" />
+          <span class="ml-2 text-xs text-gray-400">单位：分；赠送填 0</span>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="grantRemark" maxlength="200" placeholder="必填，会记入后台流水" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="grantVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="grantLoading" @click="submitGrant">
+          确认加款
         </el-button>
       </template>
     </el-dialog>

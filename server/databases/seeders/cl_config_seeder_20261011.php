@@ -58,6 +58,11 @@ class ClConfigSeeder20261011 extends Seeder
         ['key' => 'pay.return_url', 'value' => '', 'value_type' => 'string', 'group' => 'pay', 'label' => '同步跳转地址', 'remark' => 'App 支付不需要，可留空'],
         ['key' => 'pay.order_expire_minutes', 'value' => '30', 'value_type' => 'int', 'group' => 'pay', 'label' => '订单有效期（分钟）', 'remark' => '超过后待支付单自动关闭'],
 
+        // ---- AI 代聊的自定义模型 ----
+        ['key' => 'ai.base_url', 'value' => 'https://api.deepseek.com', 'value_type' => 'string', 'group' => 'ai', 'label' => 'AI 服务地址', 'remark' => 'OpenAI 兼容接口的 Base URL，例如 https://api.deepseek.com'],
+        ['key' => 'ai.model', 'value' => 'deepseek-chat', 'value_type' => 'string', 'group' => 'ai', 'label' => '模型名', 'remark' => '例如 deepseek-chat、gpt-4o-mini'],
+        ['key' => 'ai.api_key', 'value' => '', 'value_type' => 'string', 'group' => 'ai', 'label' => 'API Key', 'remark' => '只存服务端；后台留空表示不修改'],
+
         // ---- 协议文本（docs/04 第 6 节要求一并种子）----
         ['key' => 'agreement.user', 'value' => "欢迎使用畅撩交友。\n\n本平台为付费聊天服务，部分女用户为平台签约陪聊人员。\n\n一、服务说明\n1. 男用户充值金币后，可用于发送私信、赠送礼物、开通会员。\n2. 女用户收到付费消息与礼物后按等级获得积分，积分可申请提现。\n3. 充值与提现均由平台客服人工处理，无线上支付通道。\n\n二、用户义务\n1. 请使用本人真实资料与照片，虚假资料将被封号。\n2. 不得发布色情低俗、广告诈骗、辱骂骚扰等内容。\n\n三、其他\n本协议可由平台根据运营需要调整，调整后在本页公示。", 'value_type' => 'string', 'group' => 'agreement', 'label' => '用户协议', 'remark' => '后台可编辑'],
         ['key' => 'agreement.privacy', 'value' => "畅撩交友重视你的隐私。\n\n1. 我们只收集服务必需的信息：手机号、昵称、头像、资料，以及女用户实名认证所需的姓名与身份证号。\n2. 身份证号加密存储，页面回显时打码。\n3. 未经你的同意，我们不会向第三方提供你的个人信息，法律法规另有规定的除外。\n4. 你可以随时在「设置」里注销账号。", 'value_type' => 'string', 'group' => 'agreement', 'label' => '隐私政策', 'remark' => '后台可编辑'],

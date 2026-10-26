@@ -16,6 +16,8 @@ export interface UserTableActions {
   openVip: (row: ClUserRow) => void
   openGender: (row: ClUserRow) => void
   resetPassword: (row: ClUserRow) => void
+  /** 加款：男号加金币、女号加积分（复用现有充值/补发逻辑）。 */
+  openGrant: (row: ClUserRow) => void
   /** 超管的兜底手段（docs/06 第 8 节）：mode 决定扣金币还是调积分。 */
   openAdjust: (row: ClUserRow, mode: 'coin' | 'point') => void
 }
@@ -154,6 +156,13 @@ export default function getTableColumns(female: boolean, actions: UserTableActio
             icon: 'ri:bar-chart-2-line',
             show: () => female && hasAuth('cl:user:level'),
             onClick: ({ row }) => actions.openLevel(row),
+          },
+          {
+            name: 'grant',
+            text: '加款',
+            icon: 'ri:money-cny-circle-line',
+            show: () => hasAuth('cl:finance:grant'),
+            onClick: ({ row }) => actions.openGrant(row),
           },
           {
             name: 'vip',

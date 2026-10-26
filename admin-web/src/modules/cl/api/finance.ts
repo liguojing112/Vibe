@@ -125,6 +125,16 @@ export function pointAdjust(data: { user_id: number, amount: number, reason: str
   return useHttp().post('/admin/cl/finance/point-adjust', data)
 }
 
+/** 用户列表的「加款」：男号加金币、女号加积分（复用现有充值/补发逻辑）。 */
+export function grant(data: {
+  user_id: number
+  amount: number
+  amount_fen?: number
+  remark: string
+}): Promise<ResponseStruct<{ gender: number, amount: number, balance: number, order_no?: string }>> {
+  return useHttp().post('/admin/cl/finance/grant', data)
+}
+
 // ---------- 提现审核 ----------
 
 export function withdrawList(data: Record<string, any>): Promise<ResponseStruct<PageList<ClWithdrawRow> & { amount_fen: number, actual_fen: number }>> {

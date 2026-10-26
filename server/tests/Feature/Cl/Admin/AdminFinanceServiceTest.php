@@ -16,6 +16,7 @@ use App\Model\Cl\User;
 use App\Model\Enums\Cl\BizCode;
 use App\Model\Enums\Cl\CoinLogType;
 use App\Model\Enums\Cl\PlatformIncomeSource;
+use App\Model\Enums\Cl\PointLogType;
 use App\Model\Permission\User as AdminUser;
 use App\Service\Cl\Admin\AdminFinanceService;
 use Hyperf\Testing\Concerns\RunTestsInCoroutine;
@@ -279,6 +280,58 @@ final class AdminFinanceServiceTest extends TestCase
             'receiver_points' => $points,
             'income_date' => $date,
         ]);
+    }
+
+    /** 列表「加款」：男号走后台充值单，女号走积分补发。 */
+    public function testGrantMaleAddsCoinsThroughRecharge(): void
+    {
+        $male = $this->makeUser(User::GENDER_MALE);
+
+        $result = $this->service->grant($this->operator, $male->id, 500, 0, '活动加款');
+
+        self::assertSame(User::GENDER_MALE, $result['gender']);
+        self::assertSame(500, $result['amount']);
+        self::assertSame(500, $result['balance']);
+        self::assertSame(500, (int) CoinWallet::query()->where('user_id', $male->id)->value('balance'));
+        self::assertSame(1, RechargeOrder::query()->count());
+        self::assertSame('OTHER', (string) RechargeOrder::query()->value('pay_channel'));
+        self::assertSame(CoinLogType::RECHARGE->value, (string) CoinLog::query()->where('user_id', $male->id)->value('type'));
+    }
+
+    public function testGrantFemaleAddsPointsWithoutEarnedPoints(): void
+    {
+        $female = $this->makeUser(User::GENDER_FEMALE);
+
+        $result = $this->service->grant($this->operator, $female->id, 200, 0, '活动加款');
+
+        self::assertSame(User::GENDER_FEMALE, $result['gender']);
+        self::assertSame(200, $result['balance']);
+        self::assertSame(200, (int) PointWallet::query()->where('user_id', $female->id)->value('balance'));
+        self::assertSame(0, (int) $female->refresh()->total_earned_points, '加款不计入累计收益');
+        $log = PointLog::query()->where('user_id', $female->id)->firstOrFail();
+        self::assertSame(PointLogType::ADMIN_ADJUST->value, (string) $log->type);
+        self::assertSame(200, (int) $log->change);
+    }
+
+    public function testGrantRejectsNonPositiveAmountAndBlankRemark(): void
+    {
+        $male = $this->makeUser(User::GENDER_MALE);
+
+        foreach ([0, -1] as $amount) {
+            try {
+                $this->service->grant($this->operator, $male->id, $amount, 0, '测试');
+                self::fail('加款数量必须是正整数');
+            } catch (ClBusinessException $e) {
+                self::assertSame(BizCode::STATUS_NOT_ALLOWED->value, $e->getResponse()->code);
+            }
+        }
+
+        try {
+            $this->service->grant($this->operator, $male->id, 100, 0, '   ');
+            self::fail('备注不能为空');
+        } catch (ClBusinessException $e) {
+            self::assertSame(BizCode::STATUS_NOT_ALLOWED->value, $e->getResponse()->code);
+        }
     }
 
     private function makeUser(int $gender, int $coins = 0, int $points = 0, int $earned = 0): User

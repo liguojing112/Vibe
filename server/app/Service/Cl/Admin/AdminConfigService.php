@@ -33,6 +33,7 @@ final class AdminConfigService
         'withdraw' => '提现',
         'recharge' => '充值档位与客服',
         'pay' => '在线支付',
+        'ai' => 'AI 模型',
         'agreement' => '协议与声明',
         // `compliance.disclosure`（合规声明）在种子里是单独一组，不是 agreement ——
         // 验收明确要求它「不能存空」，所以这一组必须也能在后台改
@@ -54,6 +55,9 @@ final class AdminConfigService
 
     /** 万分比：0~10000（10000 = 100%）。 */
     private const RATIO_KEYS = ['share.unverified_factor', 'share.gift_rate', 'withdraw.fee_rate'];
+
+    /** 密钥类配置：不回显给浏览器，留空保存表示不修改。 */
+    private const SECRET_KEYS = ['pay.epay_key', 'ai.api_key'];
 
     /** 必须 > 0 的整数（0 会让 App 那边除零 / 换算炸掉）。 */
     private const POSITIVE_KEYS = ['coin.per_yuan', 'point.per_yuan'];
@@ -88,8 +92,8 @@ final class AdminConfigService
         foreach ($this->configRepository->listByGroup($group) as $row) {
             $items[] = [
                 'key' => (string) $row->key,
-                // 商户密钥只存在服务端，不回显给浏览器；留空保存表示不修改
-                'value' => (string) $row->key === 'pay.epay_key' ? '' : (string) $row->value,
+                // 密钥只存在服务端，不回显给浏览器；留空保存表示不修改
+                'value' => in_array((string) $row->key, self::SECRET_KEYS, true) ? '' : (string) $row->value,
                 'value_type' => (string) $row->value_type,
                 'label' => (string) $row->label,
                 'remark' => (string) ($row->remark ?? ''),
@@ -125,7 +129,7 @@ final class AdminConfigService
 
         foreach ($values as $key => $value) {
             // 密钥不回显，所以空值代表「保持原样」，不能拿空串把已有密钥覆盖掉
-            if ((string) $key === 'pay.epay_key' && trim((string) $value) === '') {
+            if (in_array((string) $key, self::SECRET_KEYS, true) && trim((string) $value) === '') {
                 continue;
             }
             $type = $allowed[$key];
