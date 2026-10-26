@@ -223,7 +223,6 @@ final class WithdrawControllerTest extends TestCase
         $config = make(AppConfigService::class);
         $config->set('point.per_yuan', 100);
         $config->set('withdraw.tiers', [50, 100, 200, 500]);
-        $config->set('withdraw.min_yuan', 50);
         $config->set('withdraw.daily_limit', 1);
         $config->set('withdraw.fee_rate', 0);
         $config->set('withdraw.need_real_name', 1);

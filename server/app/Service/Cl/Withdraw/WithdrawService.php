@@ -116,15 +116,9 @@ final class WithdrawService
             throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '请先完成实名认证');
         }
 
-        // ② 档位：先确认在档位里，再确认不低于最低提现金额；分开提示，避免「档位里有却不让提」的误报
+        // ② 档位（客户 2026-10-26 取消最低提现金额，只按档位校验）
         if (! \in_array($amountYuan, $this->tiers(), true)) {
             throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '请选择提现档位里的金额');
-        }
-        if ($amountYuan < $this->minYuan()) {
-            throw new ClBusinessException(
-                BizCode::STATUS_NOT_ALLOWED,
-                '最低提现金额是 ' . $this->minYuan() . ' 元',
-            );
         }
 
         $accountType = strtoupper(trim($accountType));
@@ -378,7 +372,7 @@ final class WithdrawService
     }
 
     /**
-     * 档位列表（P28 的「档位是否可选」）：积分不够、或低于最低提现金额的档位置灰。
+     * 档位列表（P28 的「档位是否可选」）：积分不够的档位置灰。
      *
      * @return array<int,array<string,mixed>>
      */
@@ -386,7 +380,6 @@ final class WithdrawService
     {
         $pointPerYuan = $this->pointPerYuan();
         $feeRate = $this->feeRate();
-        $minYuan = $this->minYuan();
         $tiers = [];
 
         foreach ($this->tiers() as $yuan) {
@@ -399,7 +392,7 @@ final class WithdrawService
                 'points' => $points,
                 'fee_fen' => $feeFen,
                 'actual_fen' => $amountFen - $feeFen,
-                'enabled' => $points > 0 && $balance >= $points && $yuan >= $minYuan,
+                'enabled' => $points > 0 && $balance >= $points,
             ];
         }
 
@@ -449,11 +442,6 @@ final class WithdrawService
         sort($tiers);
 
         return $tiers;
-    }
-
-    private function minYuan(): int
-    {
-        return max(0, (int) $this->configService->get('withdraw.min_yuan', 0));
     }
 
     private function dailyLimit(): int

@@ -37,7 +37,6 @@ final class AppConfigServiceTest extends TestCase
         'vip.daily_free_messages',
         'vip.female_free_view',
         'withdraw.tiers',
-        'withdraw.min_yuan',
         'withdraw.daily_limit',
         'withdraw.fee_rate',
         'withdraw.need_real_name',

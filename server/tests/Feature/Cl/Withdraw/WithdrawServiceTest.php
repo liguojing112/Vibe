@@ -347,12 +347,11 @@ final class WithdrawServiceTest extends TestCase
         self::assertSame('提交后 1~3 个工作日内审核打款', $info['notice']);
     }
 
-    /** 档位里配了低于最低提现金额的金额时：置灰，提交也要给明确提示（客户 2026-10-26 反馈）。 */
-    public function testTierBelowMinYuanIsDisabledAndRejectedWithClearMessage(): void
+    /** 取消最低提现金额后：档位里有的金额都能提（只要积分够）。 */
+    public function testEveryTierIsSelectableAfterMinYuanRemoved(): void
     {
         $config = make(AppConfigService::class);
         $config->set('withdraw.tiers', [1, 50, 100]);
-        $config->set('withdraw.min_yuan', 50);
 
         $female = $this->makeFemale(points: 10000);
         $info = $this->service->info($female);
@@ -360,15 +359,10 @@ final class WithdrawServiceTest extends TestCase
             $info['tiers'],
             static fn (array $tier): bool => $tier['yuan'] === 1,
         ))[0];
-        self::assertFalse($one['enabled'], '低于最低金额的档位不能选');
+        self::assertTrue($one['enabled'], '1 元档位只要积分够就能选');
 
-        try {
-            $this->service->apply($female, 1, 'ALIPAY', 'a@example.com');
-            self::fail('低于最低金额应该被拒绝');
-        } catch (ClBusinessException $e) {
-            self::assertSame(BizCode::STATUS_NOT_ALLOWED->value, $e->getResponse()->code);
-            self::assertStringContainsString('最低提现金额', (string) $e->getResponse()->message);
-        }
+        $result = $this->service->apply($female, 1, 'ALIPAY', 'a@example.com');
+        self::assertSame(100, (int) $result['amount_fen']);
     }
 
     public function testRecordsAreNewestFirst(): void
@@ -448,7 +442,6 @@ final class WithdrawServiceTest extends TestCase
         $config = make(AppConfigService::class);
         $config->set('point.per_yuan', 100);
         $config->set('withdraw.tiers', [50, 100, 200, 500]);
-        $config->set('withdraw.min_yuan', 50);
         $config->set('withdraw.daily_limit', 1);
         $config->set('withdraw.fee_rate', 0);
         $config->set('withdraw.need_real_name', 1);

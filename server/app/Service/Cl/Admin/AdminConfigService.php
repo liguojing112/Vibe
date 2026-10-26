@@ -67,7 +67,7 @@ final class AdminConfigService
 
     /** 不能小于 0 的整数。 */
     private const NON_NEGATIVE_KEYS = [
-        'chat.free_count_per_pair', 'vip.daily_free_messages', 'withdraw.min_yuan',
+        'chat.free_count_per_pair', 'vip.daily_free_messages',
         'withdraw.daily_limit', 'chat.message_max_length', 'chat.image_max_mb',
         'chat.message_retention_months',
         'pay.order_expire_minutes',

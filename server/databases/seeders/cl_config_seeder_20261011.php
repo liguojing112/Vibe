@@ -35,7 +35,6 @@ class ClConfigSeeder20261011 extends Seeder
 
         // ---- 2.5 提现 ----
         ['key' => 'withdraw.tiers', 'value' => '[50,100,200,500]', 'value_type' => 'json', 'group' => 'withdraw', 'label' => '提现档位（元）', 'remark' => 'JSON 数组'],
-        ['key' => 'withdraw.min_yuan', 'value' => '50', 'value_type' => 'int', 'group' => 'withdraw', 'label' => '最低提现金额（元）', 'remark' => ''],
         ['key' => 'withdraw.daily_limit', 'value' => '1', 'value_type' => 'int', 'group' => 'withdraw', 'label' => '每人每天最多申请次数', 'remark' => '0 = 不限'],
         ['key' => 'withdraw.fee_rate', 'value' => '0', 'value_type' => 'int', 'group' => 'withdraw', 'label' => '提现手续费', 'remark' => '万分比'],
         ['key' => 'withdraw.need_real_name', 'value' => '1', 'value_type' => 'bool', 'group' => 'withdraw', 'label' => '提现必须实名', 'remark' => '1 开 / 0 关'],
