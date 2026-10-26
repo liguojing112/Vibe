@@ -3763,3 +3763,18 @@ App：
   （例如 `"[20,100,200,500]"`）逐层解回真数组；`ClTierEditor` 和服务端 `AppConfigService`
   各加一层兼容，迁移没跑时也能正常显示/读取。
 - 验证：后端 603 测试全绿、phpstan 无错误；后台 lint 0 error、build 成功。
+
+---
+
+## 2026-10-26 生产部署（T9.66）—— ✅ 完成
+
+- 本地 `a9b4e7c` 已推送到 GitHub，服务器 `update.sh` 执行完成；
+- **部署前发现服务器工作区有未提交改动**（T9.30~T9.65 的 AI/朋友圈文件是直接同步上去的）：
+  已备份到 `/root/cljy-pre-deploy-20261026-161058.tar.gz`，并用 `git stash` 存到服务器
+  `stash@{0}`；逐文件比对确认内容与远程一致、没有服务器独有改动，stash 先保留待清理；
+- 迁移 `000022~000025` 已执行；`withdraw.tiers` 从双重编码的 `"[20,100,200,500]"`
+  修复为 `[20,100,200,500]`；
+- 服务器 pnpm 装在宝塔 Node 目录（`/www/server/nodejs/v24.22.0/bin`），非交互 SSH 的 PATH
+  不含它，部署时用 `PATH=/www/server/nodejs/v24.22.0/bin:$PATH` 运行 `update.sh`；
+- 冒烟：`admin.cyjiaoyou.lol` 200、`clapi.cyjiaoyou.lol/api/v1/app/config` 200；
+  `pay.enabled=0`、pid/key 仍为空（等客户填）；后台菜单「在线支付」已存在。
