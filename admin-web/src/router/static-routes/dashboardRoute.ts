@@ -33,6 +33,8 @@ const dashboardRoute: RouteRecordRaw = {
       },
       component: () => import(('~/base/views/dashboard/workbench.vue')),
     },
+    // 分析页是 MineAdmin 自带的示例页面，这个项目不用；需要时取消注释即可
+    /*
     {
       name: 'dashboard:analysis',
       path: '/dashboard/analysis',
@@ -47,6 +49,7 @@ const dashboardRoute: RouteRecordRaw = {
       },
       component: () => import(('~/base/views/dashboard/analysis.vue')),
     },
+    */
     {
       name: 'dashboard:report',
       path: '/dashboard/report',

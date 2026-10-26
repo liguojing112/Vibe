@@ -134,6 +134,11 @@ async function toggleEnabled(row: ClCatalogRow) {
   }
 }
 
+/** 图标列：图片地址显示缩略图，emoji / 文本原样显示。 */
+function isImageIcon(icon?: string | null): boolean {
+  return !!icon && /^(?:https?:\/\/|\/)/.test(icon)
+}
+
 onMounted(load)
 </script>
 
@@ -170,9 +175,17 @@ onMounted(load)
         @selection-change="(selected: ClCatalogRow[]) => selections = selected"
       >
         <el-table-column type="selection" width="50" />
-        <el-table-column v-if="props.hasIcon" label="图标" width="80">
+        <el-table-column v-if="props.hasIcon" label="图标" width="90">
           <template #default="{ row }">
-            <span class="text-xl">{{ row.icon }}</span>
+            <el-image
+              v-if="isImageIcon(row.icon)"
+              :src="row.icon"
+              :preview-src-list="[row.icon]"
+              preview-teleported
+              fit="cover"
+              class="h-10 w-10 rounded"
+            />
+            <span v-else class="text-xl">{{ row.icon }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="name" label="名称" width="160" />
@@ -216,7 +229,18 @@ onMounted(load)
           <el-input v-model="form.name" maxlength="64" />
         </el-form-item>
         <el-form-item v-if="props.hasIcon" label="图标">
-          <el-input v-model="form.icon" maxlength="255" placeholder="emoji（如 ⭐）或图片地址" />
+          <div class="w-full flex items-center gap-2">
+            <el-input v-model="form.icon" maxlength="255" placeholder="emoji（如 ⭐）或图片地址" />
+            <el-image
+              v-if="isImageIcon(form.icon)"
+              :src="form.icon"
+              :preview-src-list="[form.icon]"
+              preview-teleported
+              fit="cover"
+              class="h-10 w-10 shrink-0 rounded"
+            />
+            <span v-else class="shrink-0 text-xl">{{ form.icon }}</span>
+          </div>
         </el-form-item>
         <el-form-item v-for="field in props.fields" :key="field.key" :label="field.label">
           <el-input-number

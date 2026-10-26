@@ -33,6 +33,13 @@ function valueOf(item: ClConfigItem): string {
   return props.modelValue[item.key] ?? item.value ?? ''
 }
 
+/** 长文本（协议、合规声明）用可自动增高的大文本框，避免内容只显示一行。 */
+const LONG_TEXT_KEYS = new Set(['agreement.user', 'agreement.privacy', 'compliance.disclosure'])
+
+function isLongText(key: string): boolean {
+  return LONG_TEXT_KEYS.has(key)
+}
+
 function setValue(key: string, value: string) {
   emit('update:modelValue', { ...props.modelValue, [key]: value })
 }
@@ -98,6 +105,14 @@ defineExpose({ validate })
           type="password"
           show-password
           placeholder="留空表示不修改"
+          @update:model-value="(v: string) => setValue(item.key, v)"
+        />
+
+        <el-input
+          v-else-if="isLongText(item.key)"
+          :model-value="valueOf(item)"
+          type="textarea"
+          :autosize="{ minRows: 12, maxRows: 30 }"
           @update:model-value="(v: string) => setValue(item.key, v)"
         />
 
