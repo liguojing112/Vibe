@@ -29,6 +29,8 @@ const form = reactive({
   count: 10,
   prefix: '',
   remark: '',
+  initialAmount: 0,
+  assignAvatar: true,
 })
 const submitting = ref(false)
 
@@ -48,6 +50,8 @@ async function submit() {
       count: form.count,
       prefix: form.prefix || undefined,
       remark: form.remark || undefined,
+      initial_amount: form.initialAmount,
+      assign_avatar: form.assignAvatar ? 1 : 0,
     })
     if (res.code !== ResultCode.SUCCESS) {
       msg.error(res.message)
@@ -96,7 +100,7 @@ const options = ref<MaProTableOptions>({
   adaptionOffsetBottom: 161,
   header: {
     mainTitle: () => '批量开号',
-    subTitle: () => '账号规则：前缀 + 8 位数字；新号没有头像，本人上传并过审后才会出现在发现页。',
+    subTitle: () => '账号规则：前缀 + 8 位数字；默认按性别分配头像；初始金币（男）/积分（女）可选。',
   },
   searchOptions: { fold: true, show: false },
   requestOptions: {
@@ -181,6 +185,13 @@ function openBatchAccounts(row: ClBatchRow) {
         <el-form-item label="备注">
           <el-input v-model="form.remark" maxlength="200" placeholder="例如：8 月批次" style="width: 220px;" />
         </el-form-item>
+        <el-form-item :label="form.gender === 2 ? '初始积分' : '初始金币'">
+          <el-input-number v-model="form.initialAmount" :min="0" :max="10000000" controls-position="right" />
+        </el-form-item>
+        <el-form-item label="分配头像">
+          <el-switch v-model="form.assignAvatar" />
+          <span class="ml-2 text-xs text-gray-400">从默认头像池随机分配</span>
+        </el-form-item>
         <el-form-item>
           <el-button v-auth="['cl:user:batch']" type="primary" :loading="submitting" @click="submit">
             生成账号
@@ -200,6 +211,9 @@ function openBatchAccounts(row: ClBatchRow) {
       <el-alert type="warning" :closable="false" show-icon :title="exportedPasswordOnce" class="mb-3" />
       <div class="mb-2 text-sm text-gray-500">
         批次号：{{ result?.batch_no }} · 共 {{ result?.count }} 个
+        <span v-if="result?.initial_amount">
+          · 每个号初始 {{ result.gender === 2 ? '积分' : '金币' }} {{ result.initial_amount }}
+        </span>
       </div>
       <el-table :data="result?.accounts ?? []" size="small" border max-height="360">
         <el-table-column prop="account" label="账号" width="150" />

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace HyperfTests\Feature\Cl\Admin;
 
 use App\Model\Cl\BatchAccount;
+use App\Model\Cl\CoinLog;
 use App\Model\Cl\CoinWallet;
+use App\Model\Cl\PointLog;
 use App\Model\Cl\PointWallet;
+use App\Model\Cl\RechargeOrder;
 use App\Model\Cl\User;
 use App\Model\Permission\Menu;
 use App\Model\Permission\Meta;
@@ -33,12 +36,35 @@ final class AdminBatchControllerTest extends HttpTestCase
     {
         parent::setUp();
         $this->clear();
+        $this->ensureAvatarPool();
     }
 
     protected function tearDown(): void
     {
+        foreach ($this->createdAvatarFiles as $file) {
+            @unlink($file);
+        }
         $this->clear();
         parent::tearDown();
+    }
+
+    /** @var array<int,string> */
+    private array $createdAvatarFiles = [];
+
+    private function ensureAvatarPool(): void
+    {
+        $dir = BASE_PATH . '/storage/uploads/cl/fake';
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        foreach (['f_test.jpg', 'm_test.jpg'] as $name) {
+            $path = $dir . '/' . $name;
+            if (! is_file($path)) {
+                file_put_contents($path, 'test');
+                $this->createdAvatarFiles[] = $path;
+            }
+        }
     }
 
     public function testCreateReturnsPlaintextOnceAndPersistsAccounts(): void
@@ -62,8 +88,28 @@ final class AdminBatchControllerTest extends HttpTestCase
         /** @var User $user */
         $user = User::query()->where('account', $account['account'])->firstOrFail();
         self::assertTrue(password_verify($account['password'], $user->password));
-        self::assertSame('', $user->avatar);
+        self::assertNotSame('', $user->avatar, '批量号默认分配头像');
+        self::assertStringContainsString('/uploads/cl/fake/', $user->avatar);
         self::assertSame($result['data']['batch_no'], $user->batch_no);
+    }
+
+    public function testCreateWithInitialAmount(): void
+    {
+        $token = $this->tokenOf($this->superAdmin());
+
+        $result = $this->post('/admin/cl/user/batch-create', [
+            'gender' => User::GENDER_MALE,
+            'count' => 1,
+            'initial_amount' => 100,
+            'assign_avatar' => 0,
+        ], $this->bearer($token));
+
+        self::assertSame(200, $result['code'], json_encode($result, JSON_UNESCAPED_UNICODE));
+
+        /** @var User $user */
+        $user = User::query()->where('account', $result['data']['accounts'][0]['account'])->firstOrFail();
+        self::assertSame('', $user->avatar, '关掉头像开关时不分头像');
+        self::assertSame(100, (int) CoinWallet::query()->where('user_id', $user->id)->value('balance'));
     }
 
     public function testStaffWithoutBatchPermissionIsForbidden(): void
@@ -159,6 +205,9 @@ final class AdminBatchControllerTest extends HttpTestCase
     private function clear(): void
     {
         BatchAccount::query()->delete();
+        RechargeOrder::query()->delete();
+        CoinLog::query()->delete();
+        PointLog::query()->delete();
         PointWallet::query()->delete();
         CoinWallet::query()->delete();
         User::query()->delete();

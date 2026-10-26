@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Service\Cl\Admin;
 
 use App\Exception\ClBusinessException;
+use App\Model\Cl\RechargeOrder;
 use App\Model\Cl\User;
 use App\Model\Enums\Cl\BizCode;
+use App\Model\Enums\Cl\PointLogType;
 use App\Model\Permission\User as AdminUser;
 use App\Repository\Cl\Admin\AdminUserRepository;
 use App\Repository\Cl\Admin\BatchAccountRepository;
 use App\Service\Cl\Chat\Concerns\RetriesTransactions;
+use App\Service\Cl\Storage\StorageInterface;
 use App\Service\Cl\Wallet\CoinWalletService;
 use App\Service\Cl\Wallet\PointWalletService;
 
@@ -22,8 +25,8 @@ use App\Service\Cl\Wallet\PointWalletService;
  *    前端当场下载完就没了 —— 关掉弹窗只能对单个账号重置密码；
  * 2. **账号 = 前缀 + 8 位数字**，从一个前缀的「已用最大号 + 1」往下发，
  *    所以唯一性是算出来的，不是随机撞出来的；
- * 3. **批量号不带头像**（`avatar` 留空）：`DiscoverRepository` 会过滤掉 `avatar = ''` 的人，
- *    也就是说这批号在本人登录上传并过审之前，**不会出现在发现页**。
+ * 3. **默认从 fake 头像池按性别分配头像**：后台列表和 App 都能显示；
+ *    不想要头像可以关掉 `assign_avatar`，那样这批号在本人上传并过审前不会出现在发现页。
  */
 final class AdminBatchService
 {
@@ -47,20 +50,32 @@ final class AdminBatchService
         private readonly BatchAccountRepository $batchRepository,
         private readonly CoinWalletService $coinWalletService,
         private readonly PointWalletService $pointWalletService,
+        private readonly AdminFinanceService $financeService,
+        private readonly StorageInterface $storage,
     ) {}
 
     /**
      * 开一批号。
      *
-     * @return array{batch_no: string, gender: int, count: int, accounts: array<int,array{account: string, nickname: string, password: string}>}
+     * @return array{batch_no: string, gender: int, count: int, initial_amount: int, avatar_assigned: bool, accounts: array<int,array{account: string, nickname: string, password: string}>}
      */
-    public function create(AdminUser $operator, int $gender, int $count, string $prefix, string $remark): array
-    {
+    public function create(
+        AdminUser $operator,
+        int $gender,
+        int $count,
+        string $prefix,
+        string $remark,
+        int $initialAmount = 0,
+        bool $assignAvatar = true,
+    ): array {
         if (! in_array($gender, [User::GENDER_MALE, User::GENDER_FEMALE], true)) {
             throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '性别只能选男或女');
         }
         if ($count < 1 || $count > self::MAX_COUNT) {
             throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '一次最多开 ' . self::MAX_COUNT . ' 个号');
+        }
+        if ($initialAmount < 0) {
+            throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '初始金币/积分不能是负数');
         }
 
         $prefix = $this->normalizePrefix($prefix, $gender);
@@ -70,8 +85,9 @@ final class AdminBatchService
         }
 
         $batchNo = $this->makeBatchNo();
+        $avatars = $assignAvatar ? $this->avatarPool($gender) : [];
 
-        $accounts = $this->runTransaction(function () use ($operator, $gender, $count, $prefix, $remark, $batchNo, $start): array {
+        $accounts = $this->runTransaction(function () use ($operator, $gender, $count, $prefix, $remark, $batchNo, $start, $initialAmount, $avatars): array {
             $this->batchRepository->createBatch([
                 'batch_no' => $batchNo,
                 'gender' => $gender,
@@ -95,7 +111,7 @@ final class AdminBatchService
                     'gender' => $gender,
                     // 昵称先给个能认出来的，本人登录后再自己改（docs/04 第 7 节）
                     'nickname' => '用户' . substr($account, -4),
-                    'avatar' => '',
+                    'avatar' => $avatars === [] ? '' : $this->storage->url($avatars[$i % count($avatars)]),
                     'city' => '',
                     'level' => 1,
                     'status' => User::STATUS_NORMAL,
@@ -106,6 +122,10 @@ final class AdminBatchService
                 // 钱包要跟着建：没有钱包的号收不了付费私信 / 送不出礼物（注册接口也会建）
                 $this->coinWalletService->createForUser($user->id);
                 $this->pointWalletService->createForUser($user->id);
+
+                if ($initialAmount > 0) {
+                    $this->applyInitialAmount($operator, $user, $gender, $initialAmount);
+                }
 
                 $created[] = [
                     'account' => $account,
@@ -121,6 +141,8 @@ final class AdminBatchService
             'batch_no' => $batchNo,
             'gender' => $gender,
             'count' => $count,
+            'initial_amount' => $initialAmount,
+            'avatar_assigned' => $avatars !== [],
             'accounts' => $accounts,
         ];
     }
@@ -161,6 +183,51 @@ final class AdminBatchService
     }
 
     // ---------- 内部 ----------
+
+    /**
+     * 默认头像池（`storage/uploads/cl/fake` 里的 f_ / m_ 图片，和 bot 头像同一批）。
+     *
+     * @return array<int,string> storage 相对路径，例如 cl/fake/f_01.jpg
+     */
+    private function avatarPool(int $gender): array
+    {
+        $prefix = $gender === User::GENDER_FEMALE ? 'f_' : 'm_';
+        $files = glob(BASE_PATH . '/storage/uploads/cl/fake/' . $prefix . '*') ?: [];
+        shuffle($files);
+
+        return array_map(
+            static fn (string $file): string => 'cl/fake/' . basename($file),
+            $files,
+        );
+    }
+
+    /** 初始余额：男号加金币（后台充值单），女号加积分（积分补发，不计累计收益）。 */
+    private function applyInitialAmount(AdminUser $operator, User $user, int $gender, int $amount): void
+    {
+        if ($gender === User::GENDER_MALE) {
+            $this->financeService->recharge(
+                $operator,
+                $user->id,
+                $amount,
+                0,
+                RechargeOrder::CHANNEL_GIFT,
+                '批量开号初始金币',
+            );
+
+            return;
+        }
+
+        $this->pointWalletService->increase(
+            $user->id,
+            $amount,
+            PointLogType::ADMIN_ADJUST,
+            'batch_grant',
+            $user->id,
+            '批量开号初始积分',
+            null,
+            $operator->id,
+        );
+    }
 
     private function normalizePrefix(string $prefix, int $gender): string
     {

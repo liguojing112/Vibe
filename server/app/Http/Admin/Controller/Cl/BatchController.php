@@ -62,6 +62,8 @@ final class BatchController extends AbstractController
             (int) $data['count'],
             (string) ($data['prefix'] ?? ''),
             (string) ($data['remark'] ?? ''),
+            (int) ($data['initial_amount'] ?? 0),
+            (bool) ($data['assign_avatar'] ?? true),
         ));
     }
 

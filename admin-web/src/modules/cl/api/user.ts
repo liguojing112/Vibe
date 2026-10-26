@@ -165,6 +165,8 @@ export interface ClBatchCreateResult {
   batch_no: string
   gender: number
   count: number
+  initial_amount?: number
+  avatar_assigned?: boolean
   accounts: Array<{ account: string, nickname: string, password: string }>
 }
 
@@ -173,6 +175,8 @@ export function batchCreate(data: {
   count: number
   prefix?: string
   remark?: string
+  initial_amount?: number
+  assign_avatar?: boolean | number
 }): Promise<ResponseStruct<ClBatchCreateResult>> {
   return useHttp().post('/admin/cl/user/batch-create', data)
 }

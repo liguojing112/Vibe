@@ -21,6 +21,8 @@ class ClBatchCreateRequest extends FormRequest
             'count' => 'required|integer|between:1,200',
             'prefix' => 'nullable|string|max:8',
             'remark' => 'nullable|string|max:200',
+            'initial_amount' => 'nullable|integer|min:0|max:10000000',
+            'assign_avatar' => 'nullable|boolean',
         ];
     }
 
@@ -33,6 +35,8 @@ class ClBatchCreateRequest extends FormRequest
             'count.between' => '一次最多开 200 个号',
             'prefix.max' => '账号前缀最长 8 位',
             'remark.max' => '备注最长 200 个字',
+            'initial_amount.min' => '初始金币/积分不能是负数',
+            'initial_amount.max' => '初始金币/积分太大了',
         ];
     }
 }

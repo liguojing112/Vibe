@@ -6,8 +6,11 @@ namespace HyperfTests\Feature\Cl\Admin;
 
 use App\Exception\ClBusinessException;
 use App\Model\Cl\BatchAccount;
+use App\Model\Cl\CoinLog;
 use App\Model\Cl\CoinWallet;
+use App\Model\Cl\PointLog;
 use App\Model\Cl\PointWallet;
+use App\Model\Cl\RechargeOrder;
 use App\Model\Cl\User;
 use App\Model\Permission\User as AdminUser;
 use App\Service\Cl\Admin\AdminBatchService;
@@ -42,6 +45,9 @@ final class AdminBatchServiceTest extends TestCase
         $this->service = make(AdminBatchService::class);
         $this->operator = AdminUser::create(['username' => 'admin', 'password' => '123456', 'nickname' => '超管']);
 
+        // 头像池目录不进 git（生产/本地各有一份），测试自己放两张占位图
+        $this->ensureAvatarPool();
+
         // 发现页要读启动配置
         $config = make(AppConfigService::class);
         $config->set('feature.call_enabled', 0);
@@ -50,9 +56,31 @@ final class AdminBatchServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        foreach ($this->createdAvatarFiles as $file) {
+            @unlink($file);
+        }
         $this->clear();
         AdminUser::query()->where('username', 'admin')->delete();
         parent::tearDown();
+    }
+
+    /** @var array<int,string> */
+    private array $createdAvatarFiles = [];
+
+    private function ensureAvatarPool(): void
+    {
+        $dir = BASE_PATH . '/storage/uploads/cl/fake';
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        foreach (['f_test.jpg', 'm_test.jpg'] as $name) {
+            $path = $dir . '/' . $name;
+            if (! is_file($path)) {
+                file_put_contents($path, 'test');
+                $this->createdAvatarFiles[] = $path;
+            }
+        }
     }
 
     public function testCreatesExactCountWithWellFormedUniqueAccounts(): void
@@ -88,13 +116,14 @@ final class AdminBatchServiceTest extends TestCase
         );
     }
 
-    public function testDefaultProfileHasNoAvatarAndRecognisableNickname(): void
+    public function testDefaultProfileAssignsAvatarAndRecognisableNickname(): void
     {
         $result = $this->service->create($this->operator, User::GENDER_FEMALE, 1, 'F', '');
 
         /** @var User $user */
         $user = User::query()->where('account', $result['accounts'][0]['account'])->firstOrFail();
-        self::assertSame('', $user->avatar, '批量号默认没有头像');
+        self::assertNotSame('', $user->avatar, '批量号默认分配头像');
+        self::assertStringContainsString('/uploads/cl/fake/', $user->avatar);
         self::assertSame('用户' . substr($user->account, -4), $user->nickname);
         self::assertSame(2, (int) $user->source, 'source = 2 表示后台开号');
         self::assertSame($result['batch_no'], $user->batch_no);
@@ -124,11 +153,15 @@ final class AdminBatchServiceTest extends TestCase
         self::assertSame(0, (int) $batch->exported);
     }
 
-    /** 女号是给真人用的号：**没有头像就不该出现在发现页**（docs/04 第 7 节）。 */
+    /** 关掉头像开关时，女号**没有头像就不该出现在发现页**（docs/04 第 7 节）。 */
     public function testBatchFemaleWithoutAvatarDoesNotShowUpInDiscover(): void
     {
-        $batch = $this->service->create($this->operator, User::GENDER_FEMALE, 2, 'F', '');
+        $batch = $this->service->create($this->operator, User::GENDER_FEMALE, 2, 'F', '', 0, false);
         $male = $this->makeMaleViewer();
+
+        foreach (User::query()->where('batch_no', $batch['batch_no'])->get() as $user) {
+            self::assertSame('', $user->avatar, '关掉头像开关时不分配头像');
+        }
 
         $list = make(DiscoverService::class)->list($male, ['tab' => 'recommend'], 1);
         $ids = array_column($list['list'], 'id');
@@ -144,6 +177,22 @@ final class AdminBatchServiceTest extends TestCase
             (int) User::query()->where('batch_no', $batch['batch_no'])->value('id'),
             array_map('intval', array_column($after['list'], 'id')),
         );
+    }
+
+    /** 初始余额：男号金币（充值单），女号积分（补发，不计累计收益）。 */
+    public function testInitialCoinsForMaleAndPointsForFemale(): void
+    {
+        $maleBatch = $this->service->create($this->operator, User::GENDER_MALE, 2, 'M', '', 100, false);
+        foreach (User::query()->where('batch_no', $maleBatch['batch_no'])->get() as $user) {
+            self::assertSame(100, (int) CoinWallet::query()->where('user_id', $user->id)->value('balance'));
+        }
+        self::assertSame(2, RechargeOrder::query()->count(), '每个男号一条充值单');
+
+        $femaleBatch = $this->service->create($this->operator, User::GENDER_FEMALE, 2, 'F', '', 200, false);
+        foreach (User::query()->where('batch_no', $femaleBatch['batch_no'])->get() as $user) {
+            self::assertSame(200, (int) PointWallet::query()->where('user_id', $user->id)->value('balance'));
+            self::assertSame(0, (int) $user->total_earned_points, '初始积分不计入累计收益');
+        }
     }
 
     public function testBatchListCarriesOperatorName(): void
@@ -211,6 +260,9 @@ final class AdminBatchServiceTest extends TestCase
     private function clear(): void
     {
         BatchAccount::query()->delete();
+        RechargeOrder::query()->delete();
+        CoinLog::query()->delete();
+        PointLog::query()->delete();
         PointWallet::query()->delete();
         CoinWallet::query()->delete();
         User::query()->delete();
