@@ -272,14 +272,14 @@ async function submitAdjust() {
 const grantVisible = ref(false)
 const grantTarget = ref<ClUserRow | null>(null)
 const grantAmount = ref(0)
-const grantAmountFen = ref(0)
+const grantAmountYuan = ref(0)
 const grantRemark = ref('')
 const grantLoading = ref(false)
 
 function openGrant(row: ClUserRow) {
   grantTarget.value = row
   grantAmount.value = 0
-  grantAmountFen.value = 0
+  grantAmountYuan.value = 0
   grantRemark.value = ''
   grantVisible.value = true
 }
@@ -299,7 +299,7 @@ async function submitGrant() {
     const res = await financeApi.grant({
       user_id: grantTarget.value.id!,
       amount: grantAmount.value,
-      amount_fen: female.value ? 0 : grantAmountFen.value,
+      amount_fen: female.value ? 0 : Math.round(grantAmountYuan.value * 100),
       remark: grantRemark.value.trim(),
     })
     afterAction(res, female.value ? '积分已加款' : '金币已加款')
@@ -544,8 +544,15 @@ onMounted(async () => {
           <el-input-number v-model="grantAmount" :min="1" :max="10000000" controls-position="right" />
         </el-form-item>
         <el-form-item v-if="!female" label="实收金额">
-          <el-input-number v-model="grantAmountFen" :min="0" :max="100000000" controls-position="right" />
-          <span class="ml-2 text-xs text-gray-400">单位：分；赠送填 0</span>
+          <el-input-number
+            v-model="grantAmountYuan"
+            :min="0"
+            :max="1000000"
+            :precision="2"
+            :step="1"
+            controls-position="right"
+          />
+          <span class="ml-2 text-xs text-gray-400">单位：元；赠送填 0</span>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="grantRemark" maxlength="200" placeholder="必填，会记入后台流水" />
