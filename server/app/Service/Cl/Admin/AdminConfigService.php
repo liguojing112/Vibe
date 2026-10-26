@@ -297,6 +297,22 @@ final class AdminConfigService
             }
         }
 
+        // 充值档位：每项必须有正整数金币和价格
+        if ($key === 'recharge.packs') {
+            if (! is_array($decoded)) {
+                throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '充值档位必须是数组');
+            }
+            foreach ($decoded as $pack) {
+                if (! is_array($pack) || ! isset($pack['coins'], $pack['yuan'])) {
+                    throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '充值档位每项都要有金币和价格');
+                }
+                if (! is_int($pack['coins']) || $pack['coins'] <= 0
+                    || ! is_int($pack['yuan']) || $pack['yuan'] <= 0) {
+                    throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '充值档位的金币和价格必须是正整数');
+                }
+            }
+        }
+
         // 数组里有负数也没意义（档位、等级这些）
         if (is_array($decoded)) {
             foreach ($decoded as $item) {

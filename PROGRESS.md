@@ -3778,3 +3778,32 @@ App：
   不含它，部署时用 `PATH=/www/server/nodejs/v24.22.0/bin:$PATH` 运行 `update.sh`；
 - 冒烟：`admin.cyjiaoyou.lol` 200、`clapi.cyjiaoyou.lol/api/v1/app/config` 200；
   `pay.enabled=0`、pid/key 仍为空（等客户填）；后台菜单「在线支付」已存在。
+
+---
+
+## 2026-10-26 App：提现页回到前台时静默刷新
+
+- `WithdrawViewModel::onResume()`：首次进入等价 `enter()`；之后只刷 `/withdraw/info`，
+  不重拉记录、不覆盖用户正在填的收款信息；当前档位被后台删掉时自动选新的第一个可用档位；
+- `WithdrawRoute` 用 `LifecycleResumeEffect` 替代 `LaunchedEffect`，每次回到页面都刷新一次；
+- 新增 3 个单测；android 单测、`assembleDebug`、`check-ui.sh` 通过。
+
+---
+
+## 2026-10-26 后台：充值档位可视化 + 客服二维码上传
+
+- `recharge.packs` 改成表格编辑器（每行「金币 / 价格（元）」，可增删，保存按当前顺序序列化）；
+- `service.qrcode_url` 改成 `MaUploadImage` 图片上传/预览，不再手填 URL；
+- `pay.epay_key` 改成密码框（留空表示不修改）；
+- 服务端给 `recharge.packs` 加结构校验：每项必须有正整数金币和价格；
+- 验证：后端 604 测试全绿、phpstan 无错误；后台 lint 0 error、build 成功。
+
+---
+
+## 2026-10-26 实名认证：身份证号取消格式/校验位校验
+
+- 客户要求：身份证号**任意非空输入都收**，由审核员人工核对；
+- `RealNameService::submit` 只校验非空；删除 GB 11643 权重/校验码算法；
+- `mask()` 改用 `mb_*`，任意输入包含中文时也不会按字节截断出乱码；
+- 原「校验位错误」的测试改为「任意号码可提交」；空字符串仍拒绝；
+- 验证：后端 604 测试全绿、phpstan 无错误。

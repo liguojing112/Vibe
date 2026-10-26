@@ -10,9 +10,8 @@ use Hyperf\Validation\Request\FormRequest;
 /**
  * 提交实名的入参（docs/05 第 4.8 节 `/realname/submit`）。
  *
- * 这里**只做粗略校验**（非空、字符串、长度）：身份证号的格式和校验位交给
- * `RealNameService` 判，那边错了要返回业务码 **40003**（P29 要按业务码提示），
- * 表单校验只会给 422，客户端分不清「填错了」和「请求格式不对」。
+ * 客户 2026-10-26 要求身份证号**不做格式/校验位校验**，任意非空输入都收，
+ * 由审核员人工核对。这里只限制非空和长度，避免异常长的内容进库。
  */
 class RealNameSubmitRequest extends FormRequest
 {

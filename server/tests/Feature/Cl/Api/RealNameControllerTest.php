@@ -88,18 +88,19 @@ final class RealNameControllerTest extends TestCase
         self::assertSame('110***********1233', $again['data']['id_card_mask']);
     }
 
-    public function testBadChecksumReturns40003(): void
+    /** 客户 2026-10-26 要求：身份证号不做格式/校验位校验，任意非空输入都收。 */
+    public function testAnyIdCardIsAccepted(): void
     {
         $female = $this->registerUser(User::GENDER_FEMALE);
 
         $result = $this->post($female, '/api/v1/realname/submit', [
             'real_name' => '张三',
-            'id_card' => '110101199003071234',
+            'id_card' => 'ABC-12345678',
         ]);
 
-        self::assertSame(40003, $result['code']);
-        self::assertSame('实名信息格式错误', $result['message']);
-        self::assertSame(0, RealName::query()->where('user_id', $female->id)->count());
+        self::assertSame(200, $result['code']);
+        self::assertSame('ABC*****5678', $result['data']['id_card_mask']);
+        self::assertSame(1, RealName::query()->where('user_id', $female->id)->count());
     }
 
     public function testSecondSubmitWhileAuditingReturns40002(): void

@@ -1,9 +1,9 @@
 package com.qichuang.changliao.feature.withdraw
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
@@ -17,7 +17,11 @@ fun WithdrawRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) { viewModel.enter() }
+    // 每次回到这一页都静默刷新一次：后台改了提现档位，用户切回来就能看到
+    LifecycleResumeEffect(Unit) {
+        viewModel.onResume()
+        onPauseOrDispose { }
+    }
 
     WithdrawScreen(
         state = state,

@@ -41,6 +41,23 @@ class WithdrawViewModel @Inject constructor(
         load()
     }
 
+    /**
+     * 从别的页面 / 后台切回来时调用。
+     *
+     * 后台可能刚改过提现档位，这里静默刷新 `/withdraw/info`：不重拉记录、不覆盖用户
+     * 正在填的收款信息，只让档位和可提现金额跟着变。首次进入仍然走 [enter]。
+     */
+    fun onResume() {
+        if (!loaded) {
+            enter()
+            return
+        }
+        if (_uiState.value.submitting) {
+            return
+        }
+        refreshInfo()
+    }
+
     fun onSelectTier(yuan: Int) {
         _uiState.update { it.copy(selectedYuan = yuan) }
     }
@@ -161,6 +178,41 @@ class WithdrawViewModel @Inject constructor(
             // 记录拉不到不整页报错：表单还能用
             is ApiResult.BizError -> _uiState.update { it.copy(toast = result.message) }
             is ApiResult.NetworkError -> Unit
+        }
+    }
+
+    /** 静默刷新提现信息（档位/金额/次数），失败保留旧数据，不打扰用户。 */
+    private fun refreshInfo() {
+        viewModelScope.launch {
+            when (val result = withdrawRepository.info()) {
+                is ApiResult.Success -> {
+                    val info = result.data
+                    _uiState.update { state ->
+                        val selectedStillValid = info.tiers.any {
+                            it.yuan == state.selectedYuan && it.enabled
+                        }
+
+                        state.copy(
+                            info = info,
+                            selectedYuan = if (selectedStillValid) {
+                                state.selectedYuan
+                            } else {
+                                info.tiers.firstOrNull { it.enabled }?.yuan
+                            },
+                            // 用户正在填的内容不覆盖；空着才带出上次保存的收款信息
+                            accountType = if (state.accountNo.isBlank()) {
+                                info.account?.accountType ?: state.accountType
+                            } else {
+                                state.accountType
+                            },
+                            accountNo = state.accountNo.ifBlank { info.account?.accountNo.orEmpty() },
+                            bankName = state.bankName.ifBlank { info.account?.bankName.orEmpty() },
+                        )
+                    }
+                }
+
+                is ApiResult.BizError, is ApiResult.NetworkError -> Unit
+            }
         }
     }
 

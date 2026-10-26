@@ -233,6 +233,46 @@ class WithdrawViewModelTest {
         assertEquals("¥120.00", vm.uiState.value.amountText)
     }
 
+    /** 后台改了提现档位，用户从别的页面回到提现页时应该马上看到新档位。 */
+    @Test
+    fun `回到提现页时静默刷新档位，原档位没了就选新的第一个`() {
+        val vm = viewModel()
+        assertEquals(50, vm.uiState.value.selectedYuan)
+
+        coEvery { repository.info() } returns ApiResult.Success(
+            info(tiers = listOf(tier(20, 2000, enabled = true), tier(100, 10000, enabled = true))),
+        )
+        vm.onResume()
+
+        assertEquals(listOf(20, 100), vm.uiState.value.info?.tiers?.map { it.yuan })
+        assertEquals(20, vm.uiState.value.selectedYuan)
+    }
+
+    /** 静默刷新不能把用户正在填的收款账号覆盖掉。 */
+    @Test
+    fun `静默刷新保留正在编辑的收款信息`() {
+        val vm = viewModel()
+        vm.onAccountNoChange("draft@example.com")
+
+        coEvery { repository.info() } returns ApiResult.Success(
+            info(account = WithdrawAccount(WithdrawAccountType.ALIPAY, "old@example.com", null)),
+        )
+        vm.onResume()
+
+        assertEquals("draft@example.com", vm.uiState.value.accountNo)
+    }
+
+    /** 第一次 onResume 就是进页面：只请求一次，不要和 enter 重复拉。 */
+    @Test
+    fun `首次 onResume 等价于进页面`() {
+        val vm = WithdrawViewModel(repository)
+
+        vm.onResume()
+
+        assertTrue(vm.uiState.value.info != null)
+        coVerify(exactly = 1) { repository.info() }
+    }
+
     private fun info(
         points: Long = 12000,
         realNamePassed: Boolean = true,

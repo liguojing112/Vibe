@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ClConfigItem } from '../types'
 import { computed, ref } from 'vue'
+import MaUploadImage from '@/components/ma-upload-image/index.vue'
+import ClRechargePackEditor from './ClRechargePackEditor.vue'
 import ClTierEditor from './ClTierEditor.vue'
 
 defineOptions({ name: 'ClConfigForm' })
@@ -75,6 +77,27 @@ defineExpose({ validate })
         <ClTierEditor
           v-else-if="item.key === 'withdraw.tiers'"
           :model-value="valueOf(item)"
+          @update:model-value="(v: string) => setValue(item.key, v)"
+        />
+
+        <ClRechargePackEditor
+          v-else-if="item.key === 'recharge.packs'"
+          :model-value="valueOf(item)"
+          @update:model-value="(v: string) => setValue(item.key, v)"
+        />
+
+        <MaUploadImage
+          v-else-if="item.key === 'service.qrcode_url'"
+          :model-value="valueOf(item)"
+          @update:model-value="(v: string | string[]) => setValue(item.key, Array.isArray(v) ? (v[0] ?? '') : (v ?? ''))"
+        />
+
+        <el-input
+          v-else-if="item.key === 'pay.epay_key'"
+          :model-value="valueOf(item)"
+          type="password"
+          show-password
+          placeholder="留空表示不修改"
           @update:model-value="(v: string) => setValue(item.key, v)"
         />
 

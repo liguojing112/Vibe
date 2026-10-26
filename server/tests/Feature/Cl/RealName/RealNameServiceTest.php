@@ -43,9 +43,6 @@ final class RealNameServiceTest extends TestCase
     /** 校验位是 X 的那种，也要收。 */
     private const VALID_ID_X = '11010119900307002X';
 
-    /** 只把最后一位改错：格式对、校验位错。 */
-    private const BAD_CHECKSUM_ID = '110101199003071234';
-
     private RealNameService $service;
 
     private int $sequence = 0;
@@ -116,27 +113,27 @@ final class RealNameServiceTest extends TestCase
         self::assertSame(hash('sha256', self::VALID_ID_X), RealName::query()->where('user_id', $female->id)->value('id_card_hash'));
     }
 
-    public function testBadChecksumIsRejected(): void
+    /** 客户 2026-10-26 要求：身份证号不做格式/校验位校验，任意非空输入都收。 */
+    public function testAnyNonEmptyIdCardIsAccepted(): void
+    {
+        $female = $this->makeFemale();
+
+        $result = $this->service->submit($female, '张三', 'ABC-12345678');
+
+        self::assertSame('ABC*****5678', $result['id_card_mask']);
+        self::assertSame(
+            hash('sha256', 'ABC-12345678'),
+            RealName::query()->where('user_id', $female->id)->value('id_card_hash'),
+        );
+    }
+
+    public function testBlankIdCardIsRejected(): void
     {
         $female = $this->makeFemale();
 
         $this->assertBizCode(BizCode::REAL_NAME_FORMAT_ERROR, function () use ($female): void {
-            $this->service->submit($female, '张三', self::BAD_CHECKSUM_ID);
+            $this->service->submit($female, '张三', '   ');
         });
-
-        self::assertSame(0, RealName::query()->where('user_id', $female->id)->count(), '没写进去');
-        self::assertSame(User::REAL_NAME_NONE, (int) $female->refresh()->real_name_status);
-    }
-
-    public function testWrongLengthOrIllegalCharIsRejected(): void
-    {
-        $female = $this->makeFemale();
-
-        foreach (['12345678901234', '1101011990030712330', '1101011990030712ab', ''] as $bad) {
-            $this->assertBizCode(BizCode::REAL_NAME_FORMAT_ERROR, function () use ($female, $bad): void {
-                $this->service->submit($female, '张三', $bad);
-            });
-        }
     }
 
     public function testBlankRealNameIsRejected(): void

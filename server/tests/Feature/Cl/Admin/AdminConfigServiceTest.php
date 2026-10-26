@@ -54,12 +54,15 @@ final class AdminConfigServiceTest extends TestCase
         // 配置是**全表共享**的，改了会影响到别的测试类（计费那批就靠 free_count_per_pair）
         $this->originalFreeCount = (string) make(AppConfigService::class)->get('chat.free_count_per_pair', 3);
         $this->originalTiers = (string) json_encode(make(AppConfigService::class)->get('withdraw.tiers', []));
+        $this->originalPacks = (string) json_encode(make(AppConfigService::class)->get('recharge.packs', []));
         $this->originalLv1Price = (int) LevelConfig::query()->where('level', 1)->value('message_price');
     }
 
     private string $originalFreeCount = '3';
 
     private string $originalTiers = '[50,100,200,500]';
+
+    private string $originalPacks = '[]';
 
     private int $originalLv1Price = 5;
 
@@ -68,6 +71,7 @@ final class AdminConfigServiceTest extends TestCase
         // 用完必须还原（T6.3 记过这条教训：测试改共享数据不还原，别的用例会莫名其妙挂）
         $this->service->save($this->operator, 'billing', ['chat.free_count_per_pair' => $this->originalFreeCount]);
         $this->service->save($this->operator, 'withdraw', ['withdraw.tiers' => $this->originalTiers]);
+        $this->service->save($this->operator, 'recharge', ['recharge.packs' => $this->originalPacks]);
         // 等级表也是共享的：改过单价要还原，不然别的测试（比如计费那批）会按错的价算
         LevelConfig::query()->where('level', 1)->update(['message_price' => $this->originalLv1Price]);
         $this->clear();
@@ -141,6 +145,19 @@ final class AdminConfigServiceTest extends TestCase
         self::assertSame([30, 60, 120], make(AppConfigService::class)->get('withdraw.tiers'));
     }
 
+    /** 充值档位用可视化编辑器，服务端只认正整数金币/价格。 */
+    public function testSaveRechargePacks(): void
+    {
+        $this->service->save($this->operator, 'recharge', [
+            'recharge.packs' => '[{"coins":60,"yuan":6},{"coins":300,"yuan":30}]',
+        ]);
+
+        self::assertSame(
+            [['coins' => 60, 'yuan' => 6], ['coins' => 300, 'yuan' => 30]],
+            make(AppConfigService::class)->get('recharge.packs'),
+        );
+    }
+
     public function testRejectsBadValues(): void
     {
         $cases = [
@@ -155,6 +172,8 @@ final class AdminConfigServiceTest extends TestCase
             ['withdraw', ['withdraw.tiers' => '[-50]'], '档位不能有负数'],
             ['withdraw', ['withdraw.tiers' => '[50,"abc"]'], '档位必须是正整数'],
             ['withdraw', ['withdraw.tiers' => '[50,0]'], '档位必须是正整数'],
+            ['recharge', ['recharge.packs' => '[{"coins":60}]'], '档位必须包含金币和价格'],
+            ['recharge', ['recharge.packs' => '[{"coins":0,"yuan":6}]'], '金币必须是正整数'],
         ];
 
         foreach ($cases as [$group, $values, $why]) {

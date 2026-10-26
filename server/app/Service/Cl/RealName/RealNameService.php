@@ -36,11 +36,6 @@ final class RealNameService
 
     private const TAG_LENGTH = 16;
 
-    /** GB 11643-1999 的加权因子与校验码表（第 18 位）。 */
-    private const WEIGHTS = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
-
-    private const CHECK_CODES = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
-
     private const STATUS_TEXTS = [
         User::REAL_NAME_NONE => '未认证',
         User::REAL_NAME_AUDITING => '审核中',
@@ -100,8 +95,9 @@ final class RealNameService
         if ($realName === '') {
             throw new ClBusinessException(BizCode::REAL_NAME_FORMAT_ERROR, '请填写真实姓名');
         }
-        if (! $this->isValidIdCard($idCard)) {
-            throw new ClBusinessException(BizCode::REAL_NAME_FORMAT_ERROR);
+        // 客户要求：身份证号不做格式/校验位校验，只要非空即可（审核员人工看）
+        if ($idCard === '') {
+            throw new ClBusinessException(BizCode::REAL_NAME_FORMAT_ERROR, '请填写身份证号');
         }
 
         $existing = $this->realNameRepository->findByUserId($user->id);
@@ -223,29 +219,15 @@ final class RealNameService
      * 校验位算法：前 17 位各自乘加权因子求和，除以 11 取余数，查表得到第 18 位
      * （余数 2 对应 'X'）。
      */
-    private function isValidIdCard(string $idCard): bool
-    {
-        if (preg_match('/^\d{17}[\dX]$/', $idCard) !== 1) {
-            return false;
-        }
-
-        $sum = 0;
-        for ($i = 0; $i < 17; ++$i) {
-            $sum += ((int) $idCard[$i]) * self::WEIGHTS[$i];
-        }
-
-        return self::CHECK_CODES[$sum % 11] === $idCard[17];
-    }
-
-    /** `110***********1234`：留前 3 后 4（docs/01 P29 的格式）。 */
+    /** `110***********1234`：留前 3 后 4（docs/01 P29 的格式）。任意输入也按字符打码，避免中文被截断。 */
     private function mask(string $idCard): string
     {
-        $length = \strlen($idCard);
+        $length = mb_strlen($idCard);
         if ($length <= 7) {
             return $idCard;
         }
 
-        return substr($idCard, 0, 3) . str_repeat('*', $length - 7) . substr($idCard, -4);
+        return mb_substr($idCard, 0, 3) . str_repeat('*', $length - 7) . mb_substr($idCard, -4);
     }
 
     /** AES-256-GCM：`base64(IV | TAG | 密文)`。 */
