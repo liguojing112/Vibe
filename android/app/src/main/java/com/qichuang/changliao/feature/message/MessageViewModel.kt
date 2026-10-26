@@ -176,6 +176,17 @@ class MessageViewModel @Inject constructor(
         refresh()
     }
 
+    /**
+     * 从子页面（最近访客、喜欢我的人等）返回时调用。
+     *
+     * 访客未读在 `/user/me` 的 `stats.unread_visitors` 里，而 `/relation/visitors`
+     * 的响应不带 stats —— 访客页读过之后服务端已经清零，这里必须重新拉一次资料，
+     * 否则消息页的角标会一直停在旧数字。
+     */
+    fun onResume() {
+        viewModelScope.launch { userRepository.me() }
+    }
+
     /** 删除会话：本地先隐藏（秒生效），服务端那边只对我隐藏（docs/01 P06）。 */
     fun onDelete(peerId: Long) {
         viewModelScope.launch { chatRepository.deleteConversation(peerId) }

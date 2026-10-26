@@ -62,9 +62,35 @@ data class RechargeServiceDto(
 data class RechargeInfoDto(
     val balance: Long = 0,
     val packs: List<RechargePackDto> = emptyList(),
+    /** 在线支付是否可用（后台填好 pid/key 并打开开关）。 */
+    @SerialName("pay_enabled") val payEnabled: Boolean = false,
     val service: RechargeServiceDto = RechargeServiceDto(),
     /** 合规声明（铁律 13，服务端保证非空）。 */
     @SerialName("compliance_disclosure") val complianceDisclosure: String = "",
-    /** 说明文字（「选好档位后联系客服充值…」）。 */
+    /** 说明文字（「可直接在线支付，也可联系客服充值…」）。 */
     val notice: String = "",
+)
+
+/** 下单请求：只传档位下标，金额和金币由服务端定。 */
+@Serializable
+data class CreateRechargeOrderBody(
+    @SerialName("pack_index") val packIndex: Int,
+)
+
+/**
+ * 在线充值单（下单 / 轮询共用）。
+ *
+ * `status`：0 待支付 / 1 已支付 / 2 已关闭；轮询接口额外带 `balance`。
+ */
+@Serializable
+data class RechargeOrderDto(
+    @SerialName("order_no") val orderNo: String = "",
+    val coins: Int = 0,
+    @SerialName("amount_fen") val amountFen: Long = 0,
+    @SerialName("amount_text") val amountText: String = "",
+    /** 支付宝付款链接：App 本地生成二维码，也可以直接交给支付宝 App。 */
+    @SerialName("pay_url") val payUrl: String = "",
+    val status: Int = 0,
+    @SerialName("expire_at") val expireAt: String? = null,
+    val balance: Long = 0,
 )

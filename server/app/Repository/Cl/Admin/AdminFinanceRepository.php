@@ -33,9 +33,9 @@ final class AdminFinanceRepository
      */
     public function rechargePage(array $filters, int $page, int $pageSize): array
     {
-        // 合计单独建一个查询：在已经 select 过的 builder 上再 selectRaw 会变成
-        // 「一堆列 + SUM」而没有 group by，MySQL 直接报错
+        // 合计只算**已支付**：待支付/已关闭的单没有真收到钱，算进去会让客服对账对不上
         $totals = $this->rechargeQuery($filters, false)
+            ->where('cl_recharge_order.status', RechargeOrder::STATUS_PAID)
             ->selectRaw('COALESCE(SUM(cl_recharge_order.coins), 0) as coins, COALESCE(SUM(cl_recharge_order.amount_fen), 0) as amount_fen')
             ->first();
 
@@ -57,6 +57,10 @@ final class AdminFinanceRepository
                 'coins' => (int) $row->coins,
                 'amount_fen' => (int) $row->amount_fen,
                 'pay_channel' => (string) $row->pay_channel,
+                'source' => (string) ($row->source ?? RechargeOrder::SOURCE_ADMIN),
+                'status' => (int) ($row->status ?? RechargeOrder::STATUS_PAID),
+                'trade_no' => (string) ($row->trade_no ?? ''),
+                'paid_at' => $row->paid_at?->toDateTimeString(),
                 'remark' => (string) ($row->remark ?? ''),
                 'operator_id' => $row->operator_id === null ? null : (int) $row->operator_id,
                 'operator_name' => (string) ($row->operator_name ?? ''),
@@ -168,7 +172,9 @@ final class AdminFinanceRepository
             $query->select([
                 'cl_recharge_order.id', 'cl_recharge_order.order_no', 'cl_recharge_order.user_id',
                 'cl_recharge_order.coins', 'cl_recharge_order.amount_fen', 'cl_recharge_order.pay_channel',
-                'cl_recharge_order.remark', 'cl_recharge_order.operator_id', 'cl_recharge_order.created_at',
+                'cl_recharge_order.source', 'cl_recharge_order.status', 'cl_recharge_order.trade_no',
+                'cl_recharge_order.paid_at', 'cl_recharge_order.remark', 'cl_recharge_order.operator_id',
+                'cl_recharge_order.created_at',
                 'cl_user.nickname as user_nickname', 'cl_user.avatar as user_avatar',
                 'op.username as operator_name',
             ]);
@@ -177,6 +183,7 @@ final class AdminFinanceRepository
         $this->exact($query, 'cl_recharge_order.user_id', $filters, 'user_id');
         $this->exact($query, 'cl_recharge_order.operator_id', $filters, 'operator_id');
         $this->exact($query, 'cl_recharge_order.pay_channel', $filters, 'pay_channel');
+        $this->exact($query, 'cl_recharge_order.status', $filters, 'status');
         $this->range($query, 'cl_recharge_order.created_at', $filters);
 
         return $query;

@@ -282,6 +282,7 @@ class ZzClMenuSeeder20261014 extends Seeder
                             $this->operation('cl:operation:vip-order', 'vipOrder', '会员开通记录', 'ri:file-user-line'),
                             $this->operation('cl:operation:task', 'task', '每日任务', 'ri:calendar-check-line'),
                             $this->operation('cl:operation:recharge', 'recharge', '充值档位与客服', 'ri:customer-service-2-line'),
+                            $this->operation('cl:operation:pay', 'pay', '在线支付', 'ri:alipay-line'),
                             $this->operation('cl:operation:notice', 'notice', '系统通知', 'ri:notification-3-line'),
                             $this->operation('cl:operation:agreement', 'agreement', '协议与声明', 'ri:file-text-line'),
                             $this->operation('cl:operation:tag-city', 'tagCity', '兴趣标签与城市', 'ri:map-pin-line'),

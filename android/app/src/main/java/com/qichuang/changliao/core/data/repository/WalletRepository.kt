@@ -5,6 +5,7 @@ import com.qichuang.changliao.core.data.model.CoinLogEntry
 import com.qichuang.changliao.core.data.model.CoinLogPage
 import com.qichuang.changliao.core.data.model.CoinLogTab
 import com.qichuang.changliao.core.data.model.RechargeInfo
+import com.qichuang.changliao.core.data.model.RechargeOrder
 import com.qichuang.changliao.core.data.model.RechargePack
 import com.qichuang.changliao.core.data.model.RechargeService
 import com.qichuang.changliao.core.data.model.WalletCoin
@@ -12,7 +13,9 @@ import com.qichuang.changliao.core.network.ApiResult
 import com.qichuang.changliao.core.network.WalletApi
 import com.qichuang.changliao.core.network.dto.CoinLogDto
 import com.qichuang.changliao.core.network.dto.CoinLogPageDto
+import com.qichuang.changliao.core.network.dto.CreateRechargeOrderBody
 import com.qichuang.changliao.core.network.dto.RechargeInfoDto
+import com.qichuang.changliao.core.network.dto.RechargeOrderDto
 import com.qichuang.changliao.core.network.dto.WalletCoinDto
 import com.qichuang.changliao.core.network.safeApiCall
 import javax.inject.Inject
@@ -50,6 +53,24 @@ class WalletRepository @Inject constructor(
             is ApiResult.BizError -> result
             is ApiResult.NetworkError -> result
         }
+
+    /** 下单并取支付链接（金额和金币都由服务端按档位定）。 */
+    suspend fun createRechargeOrder(packIndex: Int): ApiResult<RechargeOrder> =
+        when (val result = safeApiCall<RechargeOrderDto> {
+            walletApi.createRechargeOrder(CreateRechargeOrderBody(packIndex))
+        }) {
+            is ApiResult.Success -> ApiResult.Success(result.data.toModel())
+            is ApiResult.BizError -> result
+            is ApiResult.NetworkError -> result
+        }
+
+    /** 轮询支付结果（只查本地订单，回调负责改状态）。 */
+    suspend fun rechargeOrderStatus(orderNo: String): ApiResult<RechargeOrder> =
+        when (val result = safeApiCall<RechargeOrderDto> { walletApi.rechargeOrderStatus(orderNo) }) {
+            is ApiResult.Success -> ApiResult.Success(result.data.toModel())
+            is ApiResult.BizError -> result
+            is ApiResult.NetworkError -> result
+        }
 }
 
 private fun WalletCoinDto.toModel() = WalletCoin(
@@ -82,7 +103,10 @@ private fun CoinLogDto.toModel() = CoinLogEntry(
 
 private fun RechargeInfoDto.toModel() = RechargeInfo(
     balance = balance,
-    packs = packs.map { RechargePack(coins = it.coins, yuan = it.yuan) },
+    packs = packs.mapIndexed { index, pack ->
+        RechargePack(coins = pack.coins, yuan = pack.yuan, index = index)
+    },
+    payEnabled = payEnabled,
     service = RechargeService(
         wechat = service.wechat,
         qrcodeUrl = service.qrcodeUrl,
@@ -90,4 +114,15 @@ private fun RechargeInfoDto.toModel() = RechargeInfo(
     ),
     complianceDisclosure = complianceDisclosure,
     notice = notice,
+)
+
+private fun RechargeOrderDto.toModel() = RechargeOrder(
+    orderNo = orderNo,
+    coins = coins,
+    amountFen = amountFen,
+    amountText = amountText,
+    payUrl = payUrl,
+    status = status,
+    expireAt = expireAt.orEmpty(),
+    balance = balance,
 )

@@ -61,7 +61,10 @@ class MineViewModelTest {
 
         val labels = viewModel().uiState.value.menus.map { it.label }
 
-        assertEquals(listOf("金币收支明细", "畅撩交友会员", "每日任务", "基本资料", "隐私与设置"), labels)
+        assertEquals(
+            listOf("我的朋友圈", "金币收支明细", "畅撩交友会员", "每日任务", "基本资料", "隐私与设置"),
+            labels,
+        )
     }
 
     @Test
@@ -71,7 +74,10 @@ class MineViewModelTest {
 
         val labels = viewModel().uiState.value.menus.map { it.label }
 
-        assertEquals(listOf("我的收益", "我的等级与收费", "实名认证", "每日任务", "基本资料", "隐私与设置"), labels)
+        assertEquals(
+            listOf("我的朋友圈", "我的收益", "我的等级与收费", "实名认证", "每日任务", "基本资料", "隐私与设置"),
+            labels,
+        )
         assertFalse("女号不该出现会员入口", "畅撩交友会员" in labels)
     }
 

@@ -37,18 +37,10 @@ fun PublishMomentScreen(
     onToastShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val toast = rememberClToast()
     val remaining = PublishMomentUiState.MAX_IMAGES - state.images.size
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(PublishMomentUiState.MAX_IMAGES),
     ) { uris -> if (uris.isNotEmpty()) onImagesPicked(uris) }
-
-    LaunchedEffect(state.toast) {
-        state.toast?.let {
-            toast.show(it)
-            onToastShown()
-        }
-    }
 
     ClScaffold(
         modifier = modifier,
@@ -69,6 +61,15 @@ fun PublishMomentScreen(
             )
         },
     ) {
+        // Toast 宿主由 ClScaffold 提供，必须在这里面取（外面拿到的是兜底实例，永远不会显示）
+        val toast = rememberClToast()
+        LaunchedEffect(state.toast) {
+            state.toast?.let {
+                toast.show(it)
+                onToastShown()
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()

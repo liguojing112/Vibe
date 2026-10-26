@@ -14,6 +14,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -79,7 +80,8 @@ class RelationListViewModelTest {
     private fun stubFirstPage(
         kind: RelationKind,
         page: RelationPage,
-        force: Boolean = false,
+        // 访客页进入时强制刷新（服务端读一次列表才会把未读清零），喜欢我的人仍走 60 秒节流
+        force: Boolean = kind == RelationKind.VISITORS,
         userId: Long = 7,
     ) {
         every { relationRepository.firstPage(kind, userId, force) } returns flowOf(ApiResult.Success(page))
@@ -128,13 +130,35 @@ class RelationListViewModelTest {
 
     @Test
     fun `加载失败整页可重试`() {
-        every { relationRepository.firstPage(RelationKind.VISITORS, 7, false) } returns
+        every { relationRepository.firstPage(RelationKind.VISITORS, 7, true) } returns
             flowOf(ApiResult.NetworkError(NETWORK_ERROR_MESSAGE))
 
         val viewModel = viewModel()
         viewModel.enter(RelationKind.VISITORS)
 
         assertEquals(NETWORK_ERROR_MESSAGE, viewModel.uiState.value.error)
+    }
+
+    /** 访客列表读取会清零服务端未读，不能因为本地缓存没过 60 秒就不请求服务端。 */
+    @Test
+    fun `进入最近访客时强制刷新，确保服务端未读清零`() {
+        stubFirstPage(RelationKind.VISITORS, page(listOf(person(1))), force = true)
+
+        val viewModel = viewModel()
+        viewModel.enter(RelationKind.VISITORS)
+
+        verify { relationRepository.firstPage(RelationKind.VISITORS, 7, true) }
+    }
+
+    /** 喜欢我的人没有未读副作用，保留缓存节流，别每次进来都打接口。 */
+    @Test
+    fun `进入喜欢我的人时仍走缓存节流`() {
+        stubFirstPage(RelationKind.FANS, page(listOf(person(1))), force = false)
+
+        val viewModel = viewModel()
+        viewModel.enter(RelationKind.FANS)
+
+        verify { relationRepository.firstPage(RelationKind.FANS, 7, false) }
     }
 
     // ---------- 打码 ----------

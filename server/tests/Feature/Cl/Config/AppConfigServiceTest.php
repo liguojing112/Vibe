@@ -25,8 +25,6 @@ final class AppConfigServiceTest extends TestCase
     private const EXPECTED_KEYS = [
         'coin.per_yuan',
         'point.per_yuan',
-        'feature.call_enabled',
-        'app.version',
         'chat.message_max_length',
         'chat.image_max_mb',
         'chat.message_retention_months',
@@ -48,6 +46,14 @@ final class AppConfigServiceTest extends TestCase
         'service.wechat',
         'service.qrcode_url',
         'service.phone',
+        'pay.enabled',
+        'pay.epay_url',
+        'pay.epay_pid',
+        'pay.epay_key',
+        'pay.epay_type',
+        'pay.notify_url',
+        'pay.return_url',
+        'pay.order_expire_minutes',
         'compliance.disclosure',
         'agreement.user',
         'agreement.privacy',
@@ -80,8 +86,9 @@ final class AppConfigServiceTest extends TestCase
 
     public function testGetBool(): void
     {
+        // T9.43/T9.44 移除了 feature.call_enabled 与 app.version，这里改用还在的 bool 配置
         self::assertTrue($this->service->get('chat.mutual_follow_free'));
-        self::assertFalse($this->service->get('feature.call_enabled'));
+        self::assertFalse($this->service->get('share.unverified_apply_gift'));
     }
 
     public function testGetJson(): void
@@ -90,6 +97,20 @@ final class AppConfigServiceTest extends TestCase
         $packs = $this->service->get('recharge.packs');
         self::assertIsArray($packs);
         self::assertSame(60, $packs[0]['coins']);
+    }
+
+    /** 历史双重编码（`"[50,100]"`）也要能读成数组，迁移没跑时不至于让 App 拿到字符串。 */
+    public function testGetJsonDecodesDoubleEncodedLegacyValue(): void
+    {
+        $row = Config::query()->where('key', 'withdraw.tiers')->firstOrFail();
+        $original = (string) $row->value;
+        $row->update(['value' => json_encode($original)]);
+        $this->service->forget();
+
+        self::assertSame([50, 100, 200, 500], $this->service->get('withdraw.tiers'));
+
+        $row->update(['value' => $original]);
+        $this->service->forget();
     }
 
     public function testGetString(): void
@@ -126,10 +147,10 @@ final class AppConfigServiceTest extends TestCase
 
     public function testSetBoolAndJson(): void
     {
-        self::assertTrue($this->service->set('feature.call_enabled', true));
-        self::assertTrue($this->service->get('feature.call_enabled'));
-        self::assertTrue($this->service->set('feature.call_enabled', false));
-        self::assertFalse($this->service->get('feature.call_enabled'));
+        self::assertTrue($this->service->set('share.unverified_apply_gift', true));
+        self::assertTrue($this->service->get('share.unverified_apply_gift'));
+        self::assertTrue($this->service->set('share.unverified_apply_gift', false));
+        self::assertFalse($this->service->get('share.unverified_apply_gift'));
 
         self::assertTrue($this->service->set('withdraw.tiers', [100, 200]));
         self::assertSame([100, 200], $this->service->get('withdraw.tiers'));

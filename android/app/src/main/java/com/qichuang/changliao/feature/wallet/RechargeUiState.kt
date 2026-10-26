@@ -1,13 +1,14 @@
 package com.qichuang.changliao.feature.wallet
 
 import com.qichuang.changliao.core.data.model.RechargeInfo
+import com.qichuang.changliao.core.data.model.RechargeOrder
 import com.qichuang.changliao.core.data.model.RechargePack
 
 /**
  * 充值页（P22）状态。
  *
- * **App 里没有支付**（docs/06 第 8 节：充值由后台客服人工完成），所以这个页面只有「选中档位」，
- * 没有任何下单/付款动作 —— 档位网格是给用户看着联系客服用的。
+ * 客服充值仍然保留；后台配好商户号并打开开关后，[payEnabled] 为 true，
+ * 页面才会出现「立即支付」，下单成功后 [payOrder] 驱动二维码弹窗。
  */
 data class RechargeUiState(
     val info: RechargeInfo? = null,
@@ -15,6 +16,10 @@ data class RechargeUiState(
     val loading: Boolean = true,
     val error: String? = null,
     val toast: String? = null,
+    /** 正在创建订单（按钮转圈，防连点重复下单）。 */
+    val paying: Boolean = false,
+    /** 当前待支付的订单；不为空时显示二维码弹窗。 */
+    val payOrder: RechargeOrder? = null,
 ) {
     val balance: Long get() = info?.balance ?: 0
 
@@ -24,4 +29,11 @@ data class RechargeUiState(
 
     /** 客服微信没配时不给复制按钮（复制一个空字符串没意义）。 */
     val canCopyWechat: Boolean get() = info?.service?.wechat?.isNotBlank() == true
+
+    /** 在线支付可用且选了档位，才显示「立即支付」。 */
+    val canPay: Boolean get() = info?.payEnabled == true && selectedPack != null
+
+    /** 按钮上的金额；金额也来自服务端档位，App 不参与定价。 */
+    val payAmountText: String
+        get() = selectedPack?.let { "¥${it.yuan}.00" } ?: ""
 }

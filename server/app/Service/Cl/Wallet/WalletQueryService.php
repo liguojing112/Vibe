@@ -11,6 +11,7 @@ use App\Model\Enums\Cl\CoinLogType;
 use App\Repository\Cl\CoinLogRepository;
 use App\Repository\Cl\LevelConfigRepository;
 use App\Service\Cl\Config\AppConfigService;
+use App\Service\Cl\Pay\RechargePayService;
 
 /**
  * 金币钱包的**查询**（docs/05 第 4.7 节，P13/P22/P24 三个页面）。
@@ -31,13 +32,15 @@ final class WalletQueryService
      * 写在这里而不是配置里：`docs/06` 第 2.6 节给充值页列的 4 个可配项是「档位 / 客服 / 合规声明」，
      * 这句说明不在其中，属于固定文案。**合规声明**才是后台可改的那个（`compliance.disclosure`）。
      */
-    private const RECHARGE_NOTICE = '选好档位后联系客服充值，客服确认后金币到账';
+    private const RECHARGE_NOTICE = '可直接在线支付，也可联系客服充值；客服确认后金币到账';
 
     public function __construct(
         private readonly CoinWalletService $walletService,
         private readonly CoinLogRepository $coinLogRepository,
         private readonly LevelConfigRepository $levelConfigRepository,
         private readonly AppConfigService $configService,
+        private readonly RechargePackCatalog $packCatalog,
+        private readonly RechargePayService $rechargePayService,
     ) {}
 
     /**
@@ -109,7 +112,9 @@ final class WalletQueryService
 
         return [
             'balance' => $this->walletService->balanceOf($user->id),
-            'packs' => $this->packs(),
+            'packs' => $this->packCatalog->all(),
+            // App 据此决定是否显示「立即支付」；没配好 pid/key 或后台关掉时只显示客服充值
+            'pay_enabled' => $this->rechargePayService->enabled(),
             'service' => [
                 'wechat' => (string) $this->configService->get('service.wechat', ''),
                 'qrcode_url' => (string) $this->configService->get('service.qrcode_url', ''),
@@ -119,32 +124,6 @@ final class WalletQueryService
             'compliance_disclosure' => $this->complianceDisclosure(),
             'notice' => self::RECHARGE_NOTICE,
         ];
-    }
-
-    /**
-     * 充值档位（`recharge.packs` 是 JSON 数组）。后台填错了也不能让 App 崩，所以这里逐个挑字段。
-     *
-     * @return array<int,array{coins: int, yuan: int}>
-     */
-    private function packs(): array
-    {
-        $raw = $this->configService->get('recharge.packs', []);
-        if (is_string($raw)) {
-            $raw = json_decode($raw, true);
-        }
-        if (! is_array($raw)) {
-            return [];
-        }
-
-        $packs = [];
-        foreach ($raw as $pack) {
-            if (! is_array($pack) || ! isset($pack['coins'], $pack['yuan'])) {
-                continue;
-            }
-            $packs[] = ['coins' => (int) $pack['coins'], 'yuan' => (int) $pack['yuan']];
-        }
-
-        return $packs;
     }
 
     /** 合规声明：后台可改文字但不能改成空（docs/06 第 2.6 节）。这里再兜一层底。 */

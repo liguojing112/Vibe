@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ClConfigItem } from '../types'
 import { computed, ref } from 'vue'
+import ClTierEditor from './ClTierEditor.vue'
 
 defineOptions({ name: 'ClConfigForm' })
 
@@ -69,6 +70,12 @@ defineExpose({ validate })
           :min="0"
           controls-position="right"
           @update:model-value="(v: number | undefined) => setValue(item.key, String(v ?? 0))"
+        />
+
+        <ClTierEditor
+          v-else-if="item.key === 'withdraw.tiers'"
+          :model-value="valueOf(item)"
+          @update:model-value="(v: string) => setValue(item.key, v)"
         />
 
         <el-input

@@ -42,7 +42,10 @@ class RelationListViewModel @Inject constructor(
         viewModelScope.launch {
             val id = currentUserId() ?: return@launch
             userId = id
-            load(kind, force = false)
+            // 访客列表读一次服务端会清零未读；缓存 60 秒节流会让服务端收不到这次请求，
+            // 所以访客页每次进入都强制请求（先发缓存再刷新，页面仍然秒开）。
+            // 喜欢我的人没有未读副作用，保留节流。
+            load(kind, force = kind == RelationKind.VISITORS)
         }
     }
 

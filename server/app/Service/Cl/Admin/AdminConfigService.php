@@ -32,6 +32,7 @@ final class AdminConfigService
         'vip' => '会员',
         'withdraw' => '提现',
         'recharge' => '充值档位与客服',
+        'pay' => '在线支付',
         'agreement' => '协议与声明',
         // `compliance.disclosure`（合规声明）在种子里是单独一组，不是 agreement ——
         // 验收明确要求它「不能存空」，所以这一组必须也能在后台改
@@ -65,6 +66,7 @@ final class AdminConfigService
         'chat.free_count_per_pair', 'vip.daily_free_messages', 'withdraw.min_yuan',
         'withdraw.daily_limit', 'chat.message_max_length', 'chat.image_max_mb',
         'chat.message_retention_months',
+        'pay.order_expire_minutes',
     ];
 
     public function __construct(
@@ -86,7 +88,8 @@ final class AdminConfigService
         foreach ($this->configRepository->listByGroup($group) as $row) {
             $items[] = [
                 'key' => (string) $row->key,
-                'value' => (string) $row->value,
+                // 商户密钥只存在服务端，不回显给浏览器；留空保存表示不修改
+                'value' => (string) $row->key === 'pay.epay_key' ? '' : (string) $row->value,
                 'value_type' => (string) $row->value_type,
                 'label' => (string) $row->label,
                 'remark' => (string) ($row->remark ?? ''),
@@ -121,7 +124,16 @@ final class AdminConfigService
         }
 
         foreach ($values as $key => $value) {
-            $this->configService->set((string) $key, $this->validateValue((string) $key, (string) $value, $allowed[$key]));
+            // 密钥不回显，所以空值代表「保持原样」，不能拿空串把已有密钥覆盖掉
+            if ((string) $key === 'pay.epay_key' && trim((string) $value) === '') {
+                continue;
+            }
+            $type = $allowed[$key];
+            $normalized = $this->validateValue((string) $key, (string) $value, $type);
+            // `set()` 会按 value_type 再编码一次；JSON 项在校验后已经是字符串，
+            // 不先解成数组就会双重编码（后台改完档位，App 读出来还是旧值或空）。
+            $stored = $type === 'json' ? json_decode($normalized, true) : $normalized;
+            $this->configService->set((string) $key, $stored);
         }
 
         // 存完必须清缓存，不然 App 那边还是老配置（`07` 第 3.15 节的验收就是这条）
@@ -271,6 +283,18 @@ final class AdminConfigService
         $decoded = json_decode($value, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, $key . ' 不是合法的 JSON');
+        }
+
+        // 提现档位有专门的编辑器，但接口也可能被直接调用：只收正整数（元）
+        if ($key === 'withdraw.tiers') {
+            if (! is_array($decoded)) {
+                throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '提现档位必须是数组');
+            }
+            foreach ($decoded as $tier) {
+                if (! is_int($tier) || $tier <= 0) {
+                    throw new ClBusinessException(BizCode::STATUS_NOT_ALLOWED, '提现档位必须是正整数（元）');
+                }
+            }
         }
 
         // 数组里有负数也没意义（档位、等级这些）

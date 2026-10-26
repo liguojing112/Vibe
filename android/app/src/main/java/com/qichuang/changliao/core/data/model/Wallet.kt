@@ -66,10 +66,11 @@ data class CoinNotEnough(
     val short: Long = (needed - balance).coerceAtLeast(0)
 }
 
-/** 一个充值档位（`recharge.packs`）。只做展示和选中，**App 里没有支付**（docs/06 第 8 节）。 */
+/** 一个充值档位（`recharge.packs`）。[index] 是下单时传给服务端的下标，金额以服务端为准。 */
 data class RechargePack(
     val coins: Int = 0,
     val yuan: Int = 0,
+    val index: Int = 0,
 ) {
     /** 网格组件要一个 id，用金币数就够了（档位不会重复）。 */
     val id: Long get() = coins.toLong()
@@ -88,8 +89,32 @@ data class RechargeService(
 data class RechargeInfo(
     val balance: Long = 0,
     val packs: List<RechargePack> = emptyList(),
+    /** 在线支付是否可用；false 时页面只显示客服充值。 */
+    val payEnabled: Boolean = false,
     val service: RechargeService = RechargeService(),
     /** 合规声明（铁律 13，服务端保证非空）。 */
     val complianceDisclosure: String = "",
     val notice: String = "",
 )
+
+/** 在线充值单（下单 / 轮询共用）。 */
+data class RechargeOrder(
+    val orderNo: String = "",
+    val coins: Int = 0,
+    val amountFen: Long = 0,
+    val amountText: String = "",
+    /** 支付宝付款链接：本地生成二维码，也可以直接交给支付宝 App。 */
+    val payUrl: String = "",
+    val status: Int = STATUS_PENDING,
+    val expireAt: String = "",
+    val balance: Long = 0,
+) {
+    companion object {
+        const val STATUS_PENDING = 0
+        const val STATUS_PAID = 1
+        const val STATUS_CLOSED = 2
+    }
+
+    val isPaid: Boolean get() = status == STATUS_PAID
+    val isClosed: Boolean get() = status == STATUS_CLOSED
+}

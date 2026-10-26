@@ -34,8 +34,10 @@ fi
 if [ -d "$FEATURE" ]; then
   while IFS= read -r f; do
     [ -z "$f" ] && continue
-    scaffold_line=$(grep -n "ClScaffold(" "$f" | head -1 | cut -d: -f1)
-    toast_line=$(grep -n "rememberClToast()" "$f" | head -1 | cut -d: -f1)
+    # 没有 ClScaffold / rememberClToast 的文件也要能走到下一行：
+    # `set -euo pipefail` 下 grep 无匹配会返回 1，管道会让整个脚本直接退出
+    scaffold_line=$( { grep -n "ClScaffold(" "$f" || true; } | head -1 | cut -d: -f1)
+    toast_line=$( { grep -n "rememberClToast()" "$f" || true; } | head -1 | cut -d: -f1)
     if [ -n "$scaffold_line" ] && [ -n "$toast_line" ] && [ "$toast_line" -lt "$scaffold_line" ]; then
       echo "❌ $f 第 $toast_line 行：rememberClToast() 写在 ClScaffold 外面，Toast 不会显示"
       FAIL=1

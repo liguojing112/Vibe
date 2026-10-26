@@ -337,17 +337,20 @@ final class DiscoverControllerTest extends TestCase
         self::assertArrayNotHasKey('video_price', $item);
     }
 
-    public function testVoiceVideoPriceShownWhenCallEnabled(): void
+    /**
+     * T9.44 有意移除 `feature.call_enabled`：语音/视频这一轮不做，
+     * 发现页只返回私信价格，不再返回语音/视频价格。
+     */
+    public function testVoiceVideoPriceNotShownAfterSwitchRemoved(): void
     {
-        make(AppConfigService::class)->set('feature.call_enabled', 1);
         $this->loginAs(User::GENDER_MALE);
-        $level = $this->levelThree();
+        $this->levelThree();
         $this->makeUser(User::GENDER_FEMALE, ['level' => 3]);
 
         $item = $this->discover()['data']['list'][0];
 
-        self::assertSame((int) $level->voice_price, $item['voice_price']);
-        self::assertSame((int) $level->video_price, $item['video_price']);
+        self::assertArrayNotHasKey('voice_price', $item);
+        self::assertArrayNotHasKey('video_price', $item);
     }
 
     public function testFemaleViewerGetsNoPrice(): void

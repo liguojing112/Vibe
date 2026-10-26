@@ -104,9 +104,33 @@ class AppConfigService
         return match ($type) {
             'int' => (int) $raw,
             'bool' => filter_var($raw ?? '0', \FILTER_VALIDATE_BOOLEAN),
-            'json' => json_decode($raw ?? 'null', true),
+            'json' => $this->decodeJson($raw),
             default => (string) $raw,
         };
+    }
+
+    /**
+     * JSON 配置解码。
+     *
+     * 兼容历史上被双重编码的数据（`"[50,100]"`）：解出来还是字符串就再解一层。
+     * 迁移 `2026_10_26_000025` 会把存量数据修好，这里再兜一层底，
+     * 避免迁移没跑时 App 读到字符串。
+     */
+    private function decodeJson(?string $raw): mixed
+    {
+        $decoded = json_decode($raw ?? 'null', true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return null;
+        }
+
+        if (is_string($decoded)) {
+            $again = json_decode($decoded, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $again;
+            }
+        }
+
+        return $decoded;
     }
 
     private function stringify(mixed $value, string $type): string

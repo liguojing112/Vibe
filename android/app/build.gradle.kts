@@ -124,6 +124,8 @@ dependencies {
 
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    // 支付二维码在本地生成，不加载码支付网站的图片
+    implementation(libs.zxing.core)
 
     testImplementation(libs.junit)
     // Room 的 DAO / 迁移在 JVM 上跑（Robolectric 提供 Android 环境）

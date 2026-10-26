@@ -1,6 +1,7 @@
 package com.qichuang.changliao.feature.wallet
 
 import com.qichuang.changliao.core.data.model.RechargeInfo
+import com.qichuang.changliao.core.data.model.RechargeOrder
 import com.qichuang.changliao.core.data.model.RechargePack
 import com.qichuang.changliao.core.data.model.RechargeService
 import com.qichuang.changliao.core.data.repository.WalletRepository
@@ -40,12 +41,27 @@ class RechargeViewModelTest {
     private fun info(
         packs: List<RechargePack> = listOf(RechargePack(60, 6), RechargePack(300, 30)),
         wechat: String = "changliao_kf",
+        payEnabled: Boolean = false,
     ) = RechargeInfo(
         balance = 360,
         packs = packs,
+        payEnabled = payEnabled,
         service = RechargeService(wechat = wechat),
         complianceDisclosure = "本平台为付费聊天服务。",
-        notice = "选好档位后联系客服充值，客服确认后金币到账",
+        notice = "可直接在线支付，也可联系客服充值",
+    )
+
+    private fun order(
+        orderNo: String = "P1",
+        status: Int = RechargeOrder.STATUS_PENDING,
+    ) = RechargeOrder(
+        orderNo = orderNo,
+        coins = 60,
+        amountFen = 600,
+        amountText = "6.00",
+        payUrl = "https://qr.alipay.com/test",
+        status = status,
+        expireAt = "2026-10-26 23:59:59",
     )
 
     @Test
@@ -102,5 +118,70 @@ class RechargeViewModelTest {
 
         assertEquals(NETWORK_ERROR_MESSAGE, state.error)
         assertFalse(state.loading)
+    }
+
+    @Test
+    fun `后台没开在线支付时不显示立即支付`() {
+        coEvery { repository.rechargeInfo() } returns ApiResult.Success(info(payEnabled = false))
+
+        val state = RechargeViewModel(repository).uiState.value
+
+        assertFalse(state.canPay)
+    }
+
+    @Test
+    fun `下单成功显示二维码弹窗`() {
+        coEvery { repository.rechargeInfo() } returns ApiResult.Success(info(payEnabled = true))
+        coEvery { repository.createRechargeOrder(0) } returns ApiResult.Success(order())
+        val vm = RechargeViewModel(repository)
+
+        vm.onPay()
+
+        assertEquals("P1", vm.uiState.value.payOrder?.orderNo)
+        assertEquals("https://qr.alipay.com/test", vm.uiState.value.payOrder?.payUrl)
+        assertFalse(vm.uiState.value.paying)
+        // 轮询还在等，测试结束前主动停掉
+        vm.onDismissPay()
+    }
+
+    @Test
+    fun `下单失败给出提示，不弹二维码`() {
+        coEvery { repository.rechargeInfo() } returns ApiResult.Success(info(payEnabled = true))
+        coEvery { repository.createRechargeOrder(0) } returns ApiResult.BizError(40001, "支付服务暂时不可用")
+        val vm = RechargeViewModel(repository)
+
+        vm.onPay()
+
+        assertNull(vm.uiState.value.payOrder)
+        assertEquals("支付服务暂时不可用", vm.uiState.value.toast)
+    }
+
+    @Test
+    fun `查到已支付后清空弹窗并提示到账`() {
+        coEvery { repository.rechargeInfo() } returns ApiResult.Success(info(payEnabled = true))
+        coEvery { repository.createRechargeOrder(0) } returns ApiResult.Success(order())
+        coEvery { repository.rechargeOrderStatus("P1") } returns ApiResult.Success(
+            order(status = RechargeOrder.STATUS_PAID),
+        )
+        val vm = RechargeViewModel(repository)
+
+        vm.onPay()
+        vm.onCheckPaid()
+
+        assertNull(vm.uiState.value.payOrder)
+        assertTrue(vm.uiState.value.toast!!.contains("充值成功"))
+        vm.onDismissPay()
+    }
+
+    @Test
+    fun `关掉弹窗后停止轮询，订单不再覆盖状态`() {
+        coEvery { repository.rechargeInfo() } returns ApiResult.Success(info(payEnabled = true))
+        coEvery { repository.createRechargeOrder(0) } returns ApiResult.Success(order())
+        val vm = RechargeViewModel(repository)
+
+        vm.onPay()
+        vm.onDismissPay()
+
+        assertNull(vm.uiState.value.payOrder)
     }
 }

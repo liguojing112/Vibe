@@ -53,10 +53,13 @@ final class AdminConfigServiceTest extends TestCase
 
         // 配置是**全表共享**的，改了会影响到别的测试类（计费那批就靠 free_count_per_pair）
         $this->originalFreeCount = (string) make(AppConfigService::class)->get('chat.free_count_per_pair', 3);
+        $this->originalTiers = (string) json_encode(make(AppConfigService::class)->get('withdraw.tiers', []));
         $this->originalLv1Price = (int) LevelConfig::query()->where('level', 1)->value('message_price');
     }
 
     private string $originalFreeCount = '3';
+
+    private string $originalTiers = '[50,100,200,500]';
 
     private int $originalLv1Price = 5;
 
@@ -64,6 +67,7 @@ final class AdminConfigServiceTest extends TestCase
     {
         // 用完必须还原（T6.3 记过这条教训：测试改共享数据不还原，别的用例会莫名其妙挂）
         $this->service->save($this->operator, 'billing', ['chat.free_count_per_pair' => $this->originalFreeCount]);
+        $this->service->save($this->operator, 'withdraw', ['withdraw.tiers' => $this->originalTiers]);
         // 等级表也是共享的：改过单价要还原，不然别的测试（比如计费那批）会按错的价算
         LevelConfig::query()->where('level', 1)->update(['message_price' => $this->originalLv1Price]);
         $this->clear();
@@ -129,6 +133,14 @@ final class AdminConfigServiceTest extends TestCase
         self::assertSame(5, (int) make(AppConfigService::class)->get('chat.free_count_per_pair'));
     }
 
+    /** 提现档位用可视化编辑器，但服务端仍然只认正整数数组。 */
+    public function testSaveWithdrawTiers(): void
+    {
+        $this->service->save($this->operator, 'withdraw', ['withdraw.tiers' => '[30,60,120]']);
+
+        self::assertSame([30, 60, 120], make(AppConfigService::class)->get('withdraw.tiers'));
+    }
+
     public function testRejectsBadValues(): void
     {
         $cases = [
@@ -141,6 +153,8 @@ final class AdminConfigServiceTest extends TestCase
             ['feature', ['feature.call_enabled' => 'true'], '开关只能是 0/1'],
             ['withdraw', ['withdraw.tiers' => '[50,100,]'], 'JSON 不合法'],
             ['withdraw', ['withdraw.tiers' => '[-50]'], '档位不能有负数'],
+            ['withdraw', ['withdraw.tiers' => '[50,"abc"]'], '档位必须是正整数'],
+            ['withdraw', ['withdraw.tiers' => '[50,0]'], '档位必须是正整数'],
         ];
 
         foreach ($cases as [$group, $values, $why]) {

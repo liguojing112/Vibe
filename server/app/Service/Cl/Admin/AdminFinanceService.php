@@ -15,6 +15,8 @@ use App\Model\Permission\User as AdminUser;
 use App\Repository\Cl\Admin\AdminFinanceRepository;
 use App\Repository\Cl\UserRepository;
 use App\Service\Cl\Chat\Concerns\RetriesTransactions;
+use App\Service\Cl\Pay\RechargePayService;
+use App\Service\Cl\Support\OrderNo;
 use App\Service\Cl\Wallet\CoinWalletService;
 use App\Service\Cl\Wallet\PlatformIncomeService;
 use App\Service\Cl\Wallet\PointWalletService;
@@ -45,6 +47,7 @@ final class AdminFinanceService
         private readonly UserRepository $userRepository,
         private readonly CoinWalletService $coinWalletService,
         private readonly PointWalletService $pointWalletService,
+        private readonly RechargePayService $rechargePayService,
     ) {}
 
     // ---------- 后台充值（P3.10 / P3.11）----------
@@ -86,7 +89,7 @@ final class AdminFinanceService
 
         /** @var RechargeOrder $order */
         $order = RechargeOrder::query()->create([
-            'order_no' => $this->makeOrderNo(),
+            'order_no' => OrderNo::recharge(),
             'user_id' => $user->id,
             'coins' => $coins,
             'amount_fen' => $amountFen,
@@ -119,6 +122,16 @@ final class AdminFinanceService
     public function rechargeList(array $filters, int $page, int $pageSize): array
     {
         return $this->repository->rechargePage($filters, $page, $pageSize);
+    }
+
+    /**
+     * 在线支付单查单补发：回调丢了时由后台主动去码支付查一次。
+     *
+     * @return array{paid: bool, status: int, balance: int}
+     */
+    public function syncRecharge(int $orderId): array
+    {
+        return $this->rechargePayService->sync($orderId);
     }
 
     // ---------- 流水（P3.12）----------
@@ -247,10 +260,5 @@ final class AdminFinanceService
         ]);
 
         return (int) $row->id;
-    }
-
-    private function makeOrderNo(): string
-    {
-        return 'R' . date('YmdHis') . strtoupper(bin2hex(random_bytes(2)));
     }
 }

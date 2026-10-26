@@ -251,6 +251,35 @@ class MessageViewModelTest {
         assertNull(state.visitorDesc)
     }
 
+    /**
+     * 从最近访客页返回时：服务端已经把未读清零，但消息页拿的是 `/user/me` 的旧 stats。
+     * 回到消息页必须重新拉一次资料，角标才能消失。
+     */
+    @Test
+    fun `回到消息页刷新资料后访客未读角标消失`() {
+        currentUser.value = UserProfile(
+            id = 7,
+            nickname = "我",
+            stats = ProfileStats(visitors = 30, unreadVisitors = 2),
+        )
+        coEvery { userRepository.me() } answers {
+            val fresh = UserProfile(
+                id = 7,
+                nickname = "我",
+                stats = ProfileStats(visitors = 30, unreadVisitors = 0),
+            )
+            currentUser.value = fresh
+            ApiResult.Success(fresh)
+        }
+        val vm = viewModel()
+        assertEquals(2, vm.uiState.value.unreadVisitors)
+
+        vm.onResume()
+
+        assertEquals(0, vm.uiState.value.unreadVisitors)
+        coVerify { userRepository.me() }
+    }
+
     @Test
     fun `语音视频开关关着时连线记录入口不显示`() {
         config.value = AppConfig(callEnabled = false)

@@ -85,18 +85,19 @@ final class WalletControllerTest extends TestCase
         self::assertSame(8, $result['data']['message_price_min']);
     }
 
-    public function testCoinIncludesCallPricesOnlyWhenEnabled(): void
+    /**
+     * T9.44 有意移除了 `feature.call_enabled`：语音/视频这一轮不做，
+     * 服务端按 false 处理，钱包接口永远不返回语音/视频价格。
+     */
+    public function testCallPricesAreNeverReturnedAfterSwitchRemoved(): void
     {
         $male = $this->registerUser(User::GENDER_MALE, 0);
-        make(AppConfigService::class)->set('feature.call_enabled', 1);
 
         $result = $this->get($male, '/api/v1/wallet/coin');
 
-        self::assertTrue($result['data']['call_enabled']);
-        self::assertSame(60, $result['data']['voice_price_min']);
-        self::assertSame(200, $result['data']['voice_price_max']);
-        self::assertSame(120, $result['data']['video_price_min']);
-        self::assertSame(400, $result['data']['video_price_max']);
+        self::assertFalse($result['data']['call_enabled']);
+        self::assertArrayNotHasKey('voice_price_min', $result['data']);
+        self::assertArrayNotHasKey('video_price_min', $result['data']);
     }
 
     public function testCoinRequiresLogin(): void
@@ -198,7 +199,9 @@ final class WalletControllerTest extends TestCase
         self::assertSame('400-000-0000', $result['data']['service']['phone']);
         // 铁律 13：合规声明必须有内容
         self::assertNotSame('', $result['data']['compliance_disclosure']);
-        self::assertSame('选好档位后联系客服充值，客服确认后金币到账', $result['data']['notice']);
+        self::assertSame('可直接在线支付，也可联系客服充值；客服确认后金币到账', $result['data']['notice']);
+        // 测试库默认没开在线支付，App 只显示客服充值
+        self::assertFalse($result['data']['pay_enabled']);
     }
 
     /** 合规声明被后台清空时服务端兜底（docs/06 第 2.6 节：不能为空）。 */
@@ -309,11 +312,14 @@ final class WalletControllerTest extends TestCase
     private function resetConfig(): void
     {
         $config = make(AppConfigService::class);
-        $config->set('feature.call_enabled', 0);
         $config->set('service.wechat', '');
         $config->set('service.qrcode_url', '');
         $config->set('service.phone', '');
         $config->set('compliance.disclosure', '本平台为付费聊天服务，部分女用户为平台签约陪聊人员。');
+        // 在线支付默认关（测试它自己的用例会单独打开）
+        $config->set('pay.enabled', 0);
+        $config->set('pay.epay_pid', '');
+        $config->set('pay.epay_key', '');
         // ⚠️ 这里必须传**数组**而不是 JSON 字符串：`AppConfigService::set()` 会按这一项的
         // value_type（json）再编码一次，传字符串就变成「双重编码」—— 本测试里看着没事
         // （服务端会兜一层解码），但会把后面跑的 `AppConfigServiceTest::testGetJson` 弄红（踩过）。

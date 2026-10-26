@@ -8,7 +8,8 @@
 ## 当前状态
 
 - 当前阶段：**已上线**（阿里云香港 + 宝塔，`clapi.cyjiaoyou.lol` / `admin.cyjiaoyou.lol`）
-- 当前任务：生产部署完成，等上线前收尾（改默认密码 / 开数据库备份 / 关公网端口）
+- 当前任务：**在线支付（万世码支付 / 支付宝）已接入（2026-10-26）**，代码与测试完成；
+  等客户在后台「运营配置 → 在线支付」填 pid/key 并执行迁移后联调
 - 任务状态：全部完成 <!-- 未开始 / 进行中 / 已完成 -->
 - 上次停在哪：**T9.11~T9.13 生产部署完成（2026-10-21）**。后端 50 张表建成、接口
   `https://clapi.cyjiaoyou.lol/api/v1/app/config` 返回 200；管理后台能登录；部署脚本跑通
@@ -3666,3 +3667,99 @@ C0-2 是**架构级变更**，不是加个配置。它会影响：
 - 任务清单里 T2.6（网络层与本地存储）的工作量和验收标准
 
 **计费逻辑不受影响**：扣费、分成、余额仍在服务端计算（铁律第 6 条），本地库只存展示用的消息内容。
+
+---
+
+## 2026-10-26 在线支付接入（客户新增需求）
+
+> 客户原话：客户没有资质用不了官方 SDK，经理决定对接码支付（万世码支付 `xpay.wsmfk.com`），
+> 只要支付宝；App 自己生成二维码，二维码下方加「唤醒支付宝」，**不跳转码支付网站**。
+> 商户 ID 和密钥由客户自己在后台填。
+
+### 与旧文档的冲突（未改需求文档，按铁律 15 记录）
+
+- `docs/00` 第 2 节「不接微信支付、支付宝」、`docs/06` 第 8 节「App 无在线支付」是**旧约定**，
+  已被客户 2026-10-26 的新需求覆盖。客服人工充值**保留**，在线支付是新增的第二条路。
+- `docs/05` 没有这三个新接口；实现后需同步接口文档（见下）。
+
+### 落地内容
+
+后端：
+- 迁移 `2026_10_26_000022`：`cl_recharge_order` 加 `source/status/trade_no/pay_url/paid_at`；
+- 迁移 `2026_10_26_000023`：`cl_config` 新增 `pay.*` 8 项（默认关闭，pid/key 留空）；
+- 迁移 `2026_10_26_000024`：后台菜单「运营配置 → 在线支付」；
+- `EpayService`：MD5 签名/验签、`mapi.php` 取码、`api.php` 查单；
+- `RechargePayService`：下单、轮询状态、回调入账（验签 + 金额核对 + 订单行锁 + 钱包幂等）、后台补单；
+- 接口：`POST /api/v1/wallet/recharge/order`、`GET /api/v1/wallet/recharge/order/{orderNo}`、
+  `GET|POST /api/v1/wallet/recharge/notify`（公开，无 AppAuth，靠验签）；
+- 后台：`POST /admin/cl/finance/recharge/{id}/sync` 查单补发；充值记录返回来源/状态/三方单号，
+  合计只统计已支付单。
+
+App：
+- 充值页在线支付：选中档位 → 立即支付 → 弹窗显示本地生成的二维码 + 「打开支付宝支付」+「我已支付」；
+- 每 3 秒轮询订单状态（最多 10 分钟），成功后刷新余额；客服充值区保留；
+- 新增依赖 `com.google.zxing:core:3.5.3`（本地画码，不加载码支付网页）；
+- `AndroidManifest` 加支付宝包可见性 `<queries>`。
+
+### 验证
+
+- 后端：`composer test` → **601 测试 / 3265 断言全绿**；`composer analyse` → `[OK] No errors`；
+- App：`testDebugUnitTest` → **463 测试全绿**；`assembleDebug` 成功；`scripts/check-ui.sh` 通过；
+- 后台：`pnpm lint`（0 error）、`pnpm build` 成功；
+- 新增单测：`EpayServiceTest`（签名/验签/金额换算）、`RechargePayServiceTest`（回调加币、重复回调、
+  金额不符、未配置不下单、女号拒绝）。
+
+### 上线前待办
+
+1. 生产库执行 3 条新迁移（`php bin/hyperf.php migrate`）；
+2. 客户在后台填码支付的 `pid` / `key`，确认 `notify_url` 是 `https://clapi.cyjiaoyou.lol/api/v1/wallet/recharge/notify`，
+   再打开「开启在线支付」；
+3. 用最小档 6 元真实支付一笔，验证「取码 → 扫码/唤醒 → 回调 → 加币 → 充值记录」；
+4. `docs/05` 补三个新接口、`docs/06` 第 8 节与 `docs/00` 的「无在线支付」条款需要客户确认后更新；
+5. `agreement.user` 里「充值与提现均由平台客服人工处理，无线上支付通道」这句已与事实不符，
+   等客户确认协议文案后再改（生产库的文本不要擅自改）；
+6. 商户密钥存在 `cl_config` 明文，数据库备份要注意保管。
+
+### 顺手修掉的遗留问题（不是本次功能引入）
+
+- `check-ui.sh` 在 `grep` 无匹配时被 `set -e` 直接中断 → 加 `|| true`；
+- `MomentListScreen` / `PublishMomentScreen` 的 `rememberClToast()` 在 `ClScaffold` 外（Toast 永远不显示）→ 移进去；
+- 后台 `content/moment/index.vue` 使用 `ElMessageBox` 未导入 → 补 import；
+- T9.43/T9.44 删掉 `feature.call_enabled` / `app.version` 后，6 个旧测试仍引用 → 改为断言「已移除」；
+- `ChatMigrationTest` 仍断言 DB 版本 2（实际已升到 3）→ 改 3；
+- `MineViewModelTest` 菜单少了「我的朋友圈」→ 补上。
+
+---
+
+## 2026-10-26 修复：最近访客未读角标返回后不消失
+
+**根因（两处叠加）**：
+
+1. 消息页的访客角标取自 `/user/me` 的 `stats.unread_visitors`，从访客页返回时没有任何地方重新拉资料；
+2. 访客页 `enter()` 走 `force=false`，本地缓存 60 秒内不请求服务端，`/relation/visitors` 的
+   `markAllRead` 没被触发，服务端未读也没清零。
+
+**修复**：
+
+- `MessageViewModel::onResume()` + `MessageRoute` 的 `LifecycleResumeEffect`：返回消息页就刷 `/user/me`；
+- `RelationListViewModel::enter()`：访客页每次进入 `force=true`（先发缓存再请求，页面仍然秒开）；
+  「喜欢我的人」没有未读副作用，保持 60 秒节流。
+
+**验证**：新增 3 个单测（返回刷新角标、访客强制刷新、喜欢我的人保持节流）；android 单测全绿、
+`assembleDebug`、`check-ui.sh` 通过。
+
+---
+
+## 2026-10-26 后台：提现档位改成可视化编辑
+
+- 后台「运营配置 → 计费与分成 → 提现」的 `withdraw.tiers` 不再手写 JSON：
+  新增 `ClTierEditor.vue`，用金额标签增删档位，保存时自动去重、升序；
+- 服务端仍存 JSON 数组，`WithdrawService::tiers()` 不用改；
+- `AdminConfigService::jsonValue` 对 `withdraw.tiers` 增加校验：只收正整数（元）；
+- **顺带修掉一个既有 bug**：后台保存任何 JSON 配置时被双重编码（`AdminConfigService::save`
+  把已序列化的 JSON 字符串又交给 `AppConfigService::set()` 编码一次），导致改完档位 App 读不到。
+  现在保存前先解成数组再交给 `set()`，`recharge.packs` 也一起修好。
+- **存量数据修复**：迁移 `2026_10_26_000025` 把所有 `value_type = json` 的双重编码值
+  （例如 `"[20,100,200,500]"`）逐层解回真数组；`ClTierEditor` 和服务端 `AppConfigService`
+  各加一层兼容，迁移没跑时也能正常显示/读取。
+- 验证：后端 603 测试全绿、phpstan 无错误；后台 lint 0 error、build 成功。

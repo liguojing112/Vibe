@@ -111,6 +111,23 @@ final class FinanceController extends AbstractController
         return $this->success($this->financeService->rechargeList($this->filters(), $this->getCurrentPage(), $this->getPageSize()));
     }
 
+    /**
+     * 在线支付单查单补发。回调丢了（用户付了钱但没到账）时由客服点这个。
+     */
+    #[Post(
+        path: '/admin/cl/finance/recharge/{id}/sync',
+        operationId: 'clFinanceRechargeSync',
+        summary: '在线充值单查单补发',
+        security: [['Bearer' => [], 'ApiKey' => []]],
+        tags: ['畅撩交友 / 资金管理']
+    )]
+    #[Permission(code: 'cl:finance:recharge')]
+    #[ResultResponse(new Result())]
+    public function syncRecharge(int $id): Result
+    {
+        return $this->success($this->financeService->syncRecharge($id));
+    }
+
     // ---------- 流水（P3.12）----------
 
     #[Get(

@@ -3,6 +3,7 @@ package com.qichuang.changliao.feature.message
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.qichuang.changliao.core.navigation.Routes
 
@@ -23,6 +24,12 @@ fun MessageRoute(
     viewModel: MessageViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // 从访客页返回时刷新 `/user/me`，让「最近访客」的未读角标跟着清零
+    LifecycleResumeEffect(Unit) {
+        viewModel.onResume()
+        onPauseOrDispose { }
+    }
 
     MessageScreen(
         state = state,

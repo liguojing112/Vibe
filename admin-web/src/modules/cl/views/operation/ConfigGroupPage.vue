@@ -39,6 +39,7 @@ const GROUP_LABELS: Record<string, string> = {
   vip: '会员',
   withdraw: '提现',
   recharge: '充值档位与客服',
+  pay: '在线支付',
   agreement: '协议',
   compliance: '合规声明',
   feature: '功能开关',

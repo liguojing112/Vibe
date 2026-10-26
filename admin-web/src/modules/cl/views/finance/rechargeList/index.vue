@@ -1,24 +1,63 @@
 <script setup lang="tsx">
 import type { MaProTableExpose, MaProTableOptions, MaProTableSchema } from '@mineadmin/pro-table'
 import type { Ref } from 'vue'
+import type { ClRechargeRow } from '../../../api/finance'
 import * as api from '../../../api/finance'
 import ClUserCell from '../../../components/ClUserCell.vue'
+import { useMessage } from '@/hooks/useMessage.ts'
+import { ResultCode } from '@/utils/ResultCode.ts'
+import hasAuth from '@/utils/permission/hasAuth.ts'
 
 /**
  * 充值记录（docs/07 第 3.11 节）。
  *
  * 底部合计放标题下面一直显示 —— 「这一批一共充了多少」是客服对账时第一个要看数。
+ * 在线支付单（source=ONLINE）可能停在「待支付」，回调丢了可以点「查单补发」。
  */
 defineOptions({ name: 'cl:finance:recharge-list' })
 
+const msg = useMessage()
 const proTableRef = ref<MaProTableExpose>() as Ref<MaProTableExpose>
 const totals = reactive({ coins: 0, amountFen: 0 })
+const syncing = ref(0)
 
 const CHANNEL_TEXT: Record<string, string> = {
   WECHAT: '微信',
   ALIPAY: '支付宝',
   OTHER: '其他',
   GIFT: '赠送',
+}
+
+const SOURCE_TEXT: Record<string, string> = {
+  ADMIN: '人工',
+  ONLINE: '在线支付',
+}
+
+const STATUS_TEXT: Record<number, string> = {
+  0: '待支付',
+  1: '已支付',
+  2: '已关闭',
+}
+
+async function sync(row: ClRechargeRow) {
+  syncing.value = row.id
+  try {
+    const res = await api.syncRecharge(row.id)
+    if (res.code !== ResultCode.SUCCESS) {
+      msg.error(res.message)
+      return
+    }
+    if (res.data.paid) {
+      msg.success('已确认付款，金币已到账')
+      proTableRef.value?.refresh()
+    }
+    else {
+      msg.warning('码支付还没有确认这笔付款')
+    }
+  }
+  finally {
+    syncing.value = 0
+  }
 }
 
 const options = ref<MaProTableOptions>({
@@ -52,6 +91,15 @@ const schema = ref<MaProTableSchema>({
       renderProps: {
         clearable: true,
         options: Object.entries(CHANNEL_TEXT).map(([value, label]) => ({ label, value })),
+      },
+    },
+    {
+      label: '状态',
+      prop: 'status',
+      render: 'select',
+      renderProps: {
+        clearable: true,
+        options: Object.entries(STATUS_TEXT).map(([value, label]) => ({ label, value })),
       },
     },
     { label: '开始日期', prop: 'created_from', render: 'date-picker', renderProps: { type: 'date', valueFormat: 'YYYY-MM-DD' } },
@@ -90,9 +138,46 @@ const schema = ref<MaProTableSchema>({
       width: '100px',
       cellRender: ({ row }) => <span>{CHANNEL_TEXT[row.pay_channel] ?? row.pay_channel}</span>,
     },
+    {
+      label: '来源',
+      prop: 'source',
+      width: '100px',
+      cellRender: ({ row }) => <span>{SOURCE_TEXT[row.source] ?? row.source}</span>,
+    },
+    {
+      label: '状态',
+      prop: 'status',
+      width: '100px',
+      cellRender: ({ row }) => (
+        <el-tag
+          type={row.status === 0 ? 'warning' : row.status === 2 ? 'info' : 'success'}
+          size="small"
+          disable-transitions
+        >
+          {STATUS_TEXT[row.status] ?? row.status}
+        </el-tag>
+      ),
+    },
+    { label: '码支付单号', prop: 'trade_no', width: '190px', showOverflowTooltip: true },
     { label: '操作人', prop: 'operator_name', width: '110px' },
     { label: '备注', prop: 'remark', showOverflowTooltip: true },
     { label: '时间', prop: 'created_at', width: '170px' },
+    {
+      type: 'operation',
+      label: '操作',
+      width: '120px',
+      operationConfigure: {
+        actions: [
+          {
+            name: 'sync',
+            text: '查单补发',
+            icon: 'ri:refresh-line',
+            show: ({ row }) => row.source === 'ONLINE' && row.status === 0 && hasAuth('cl:finance:recharge'),
+            onClick: ({ row }) => sync(row),
+          },
+        ],
+      },
+    },
   ],
 })
 </script>

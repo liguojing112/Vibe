@@ -121,17 +121,20 @@ final class UserDetailControllerTest extends TestCase
         self::assertArrayNotHasKey('video_price', $price);
     }
 
-    public function testVoiceVideoPriceShownWhenCallEnabled(): void
+    /**
+     * T9.44 有意移除 `feature.call_enabled`：语音/视频这一轮不做，
+     * 他人主页只返回私信价格，不再返回语音/视频价格。
+     */
+    public function testVoiceVideoPriceNotShownAfterSwitchRemoved(): void
     {
-        make(AppConfigService::class)->set('feature.call_enabled', 1);
         $this->loginAs(User::GENDER_MALE);
-        $level = $this->ensureLevel(1, 5);
+        $this->ensureLevel(1, 5);
         $female = $this->makeUser(User::GENDER_FEMALE, ['level' => 1]);
 
         $price = $this->detail($female->id)['data']['price'];
 
-        self::assertSame((int) $level->voice_price, $price['voice_price']);
-        self::assertSame((int) $level->video_price, $price['video_price']);
+        self::assertArrayNotHasKey('voice_price', $price);
+        self::assertArrayNotHasKey('video_price', $price);
     }
 
     public function testFemaleViewerGetsNoPrice(): void

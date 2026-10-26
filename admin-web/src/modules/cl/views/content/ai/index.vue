@@ -204,7 +204,7 @@ const schema = ref<MaProTableSchema>({
             show-word-limit
             placeholder="对方：在干嘛&#10;你：刚下班 累死了&#10;---&#10;对方：吃饭没&#10;你：还没 不想动"
           />
-          <div class="text-xs text-gray-400 mt-1">
+          <div class="mt-1 text-xs text-gray-400">
             写 3~5 组真实对话，用 <code>---</code> 分隔。模型会照着这里的语气、长度和标点回复 —— 比在「说话风格」里写抽象描述管用得多。
           </div>
         </el-form-item>
@@ -227,11 +227,11 @@ const schema = ref<MaProTableSchema>({
         </el-form-item>
 
         <el-form-item label="活跃时段">
-          <el-select v-model="current.active_start" style="width: 100px">
+          <el-select v-model="current.active_start" style="width: 100px;">
             <el-option v-for="h in 24" :key="h" :label="`${h - 1}:00`" :value="h - 1" />
           </el-select>
           <span class="mx-2">到</span>
-          <el-select v-model="current.active_end" style="width: 100px">
+          <el-select v-model="current.active_end" style="width: 100px;">
             <el-option v-for="h in 24" :key="h" :label="`${h - 1}:00`" :value="h - 1" />
           </el-select>
           <span class="ml-2 text-xs text-gray-400">相同表示全天</span>

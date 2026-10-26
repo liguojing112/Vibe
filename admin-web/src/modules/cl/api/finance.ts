@@ -16,6 +16,12 @@ export interface ClRechargeRow {
   /** 实收金额（分）；0 = 赠送 */
   amount_fen: number
   pay_channel: string
+  /** ADMIN 人工充值 / ONLINE 在线支付 */
+  source: string
+  /** 0 待支付 / 1 已支付 / 2 已关闭 */
+  status: number
+  trade_no: string
+  paid_at?: string | null
   remark: string
   operator_name: string
   created_at?: string | null
@@ -92,6 +98,11 @@ export function rate(): Promise<ResponseStruct<{ coin_per_yuan: number, point_pe
 
 export function rechargeList(data: Record<string, any>): Promise<ResponseStruct<PageList<ClRechargeRow> & { coins: number, amount_fen: number }>> {
   return useHttp().get('/admin/cl/finance/recharge/list', { params: data })
+}
+
+/** 在线支付单查单补发（回调丢了时用）。 */
+export function syncRecharge(id: number): Promise<ResponseStruct<{ paid: boolean, status: number, balance: number }>> {
+  return useHttp().post(`/admin/cl/finance/recharge/${id}/sync`)
 }
 
 // ---------- 流水 ----------

@@ -81,7 +81,7 @@ class ChatMigrationTest {
         )
         db.close()
 
-        assertDatabaseVersion(2)
+        assertDatabaseVersion(3)
         assertTableExists("message")
         assertTableExists("conversation")
         assertTrue("Room 校验通过后才会写 identity hash", tableExists("room_master_table"))
