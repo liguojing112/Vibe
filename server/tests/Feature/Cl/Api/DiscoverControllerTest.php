@@ -417,6 +417,28 @@ final class DiscoverControllerTest extends TestCase
         self::assertSame(0, $this->get('/api/v1/discover/search', ['keyword' => '阿宁'])['data']['total']);
     }
 
+    /** 客户 2026-11-01：搜索要能搜到没头像的指定女号（批量新号），发现页推荐仍然不显示。 */
+    public function testSearchFindsUserWithoutAvatar(): void
+    {
+        $this->loginAs(User::GENDER_MALE);
+        $target = $this->makeUser(User::GENDER_FEMALE, [
+            'nickname' => '无头像女号',
+            'account' => 'FNOAVATAR01',
+            'avatar' => '',
+        ]);
+
+        $byAccount = $this->get('/api/v1/discover/search', ['keyword' => 'FNOAVATAR01']);
+        self::assertSame(1, $byAccount['data']['total']);
+        self::assertSame($target->id, $byAccount['data']['list'][0]['id']);
+
+        $byId = $this->get('/api/v1/discover/search', ['keyword' => (string) $target->id]);
+        self::assertSame(1, $byId['data']['total']);
+
+        // 发现页推荐仍然不显示没头像的
+        $discover = $this->get('/api/v1/discover', ['tab' => 'recommend']);
+        self::assertNotContains($target->id, array_column($discover['data']['list'], 'id'));
+    }
+
     public function testSearchWithoutKeywordRejected(): void
     {
         $this->loginAs(User::GENDER_MALE);

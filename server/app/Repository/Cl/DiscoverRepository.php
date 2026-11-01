@@ -65,9 +65,12 @@ final class DiscoverRepository extends IRepository
         // 只返回异性
         $query->where('gender', '!=', (int) ($filters['viewer_gender'] ?? 0));
 
-        // 只返回正常的、有头像的（没头像 = 资料没过审）
+        // 只返回正常的；发现页要求有头像（没头像 = 资料没过审）。
+        // 搜索放开：客户 2026-11-01 要求男用户能搜到指定的女用户（批量新号可能还没头像）。
         $query->where('status', User::STATUS_NORMAL);
-        $query->where('avatar', '!=', '');
+        if (($filters['tab'] ?? 'recommend') !== 'search') {
+            $query->where('avatar', '!=', '');
+        }
 
         // 任一方向拉黑都不出现
         $exclude = $filters['exclude_ids'] ?? [];
