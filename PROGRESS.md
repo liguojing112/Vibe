@@ -3906,3 +3906,14 @@ App：
   `AuthController::login` 和码支付 clientip 都改用它；
 - 已清掉生产旧的 `cl:login_rate:*` key，用户立即恢复登录；
 - 验证：后端 617 测试全绿、phpstan 无错误；新增按真实 IP 分桶的测试。
+
+---
+
+## 2026-11-03 正式交付：在线支付上线 + 正式签名 APK
+
+- 生成正式签名 `android/keystore/changliao-release.jks`（不进 git，密码随交付单独给客户）；
+- `release` 构建指向生产：`https://clapi.cyjiaoyou.lol` / `wss://clapi.cyjiaoyou.lol/ws`；
+- `assembleRelease` 成功：`com.qichuang.changliao`，versionCode 2，versionName 3.2.0；
+- 生产 `pay.enabled=1`，App 充值页出现在线支付；
+- 正式 APK 已覆盖 `https://admin.cyjiaoyou.lol/download/changliao.apk`，下载页大小更新为 15.4 MB；
+- **签名文件和密码必须交付客户长期保存**，丢失后无法覆盖升级。

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -6,9 +8,27 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore/keystore.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
 android {
     namespace = "com.qichuang.changliao"
     compileSdk = 37
+
+    signingConfigs {
+        if (keystoreProperties.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.qichuang.changliao"
@@ -37,13 +57,14 @@ android {
             buildConfigField("String", "WS_URL", "\"$wsUrl\"")
         }
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            buildConfigField("String", "API_BASE_URL", "\"https://api.changliao.example.com\"")
-            buildConfigField("String", "WS_URL", "\"wss://api.changliao.example.com/ws\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://clapi.cyjiaoyou.lol\"")
+            buildConfigField("String", "WS_URL", "\"wss://clapi.cyjiaoyou.lol/ws\"")
         }
     }
 
