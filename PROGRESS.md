@@ -3917,3 +3917,15 @@ App：
 - 生产 `pay.enabled=1`，App 充值页出现在线支付；
 - 正式 APK 已覆盖 `https://admin.cyjiaoyou.lol/download/changliao.apk`，下载页大小更新为 15.4 MB；
 - **签名文件和密码必须交付客户长期保存**，丢失后无法覆盖升级。
+
+---
+
+## 2026-11-03 修复：支付二维码 2 秒消失、支付宝唤醒失败（3.2.1）
+
+- 二维码消失：轮询接口 `rechargeOrderStatus` 没返回 `pay_url`，App 每 3 秒把弹窗里的
+  支付链接覆盖成空；后端 status 现在返回 `pay_url`，App 端也加了兜底（空值保留原链接）；
+- 唤醒失败：支付宝不认 `render.alipay.com` + 指定包名的 Intent；改成先构造
+  `alipayqr://platformapi/startapp?appId=20000067&url=...`，回退 `alipays://` 和原链接，
+  并在未安装支付宝时提示扫码；
+- 版本升到 3.2.1（versionCode 3），正式包已覆盖下载页；
+- 验证：后端支付测试 / phpstan 通过；Android 单测与 release 构建通过。

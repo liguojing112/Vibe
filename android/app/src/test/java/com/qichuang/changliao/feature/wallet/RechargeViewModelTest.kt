@@ -54,12 +54,13 @@ class RechargeViewModelTest {
     private fun order(
         orderNo: String = "P1",
         status: Int = RechargeOrder.STATUS_PENDING,
+        payUrl: String = "https://qr.alipay.com/test",
     ) = RechargeOrder(
         orderNo = orderNo,
         coins = 60,
         amountFen = 600,
         amountText = "6.00",
-        payUrl = "https://qr.alipay.com/test",
+        payUrl = payUrl,
         status = status,
         expireAt = "2026-10-26 23:59:59",
     )
@@ -170,6 +171,22 @@ class RechargeViewModelTest {
 
         assertNull(vm.uiState.value.payOrder)
         assertTrue(vm.uiState.value.toast!!.contains("充值成功"))
+        vm.onDismissPay()
+    }
+
+    @Test
+    fun `轮询返回空支付链接时保留原二维码`() {
+        coEvery { repository.rechargeInfo() } returns ApiResult.Success(info(payEnabled = true))
+        coEvery { repository.createRechargeOrder(0) } returns ApiResult.Success(order())
+        coEvery { repository.rechargeOrderStatus("P1") } returns ApiResult.Success(
+            order(payUrl = ""),
+        )
+        val vm = RechargeViewModel(repository)
+
+        vm.onPay()
+        vm.onCheckPaid()
+
+        assertEquals("https://qr.alipay.com/test", vm.uiState.value.payOrder?.payUrl)
         vm.onDismissPay()
     }
 

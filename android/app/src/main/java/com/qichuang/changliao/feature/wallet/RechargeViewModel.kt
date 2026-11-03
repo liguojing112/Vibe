@@ -166,7 +166,16 @@ class RechargeViewModel @Inject constructor(
             }
 
             else -> {
-                _uiState.update { it.copy(payOrder = order) }
+                // 轮询接口老版本不带 pay_url；拿到空值时要保留已有二维码链接，否则弹窗会变「生成失败」
+                _uiState.update { state ->
+                    val keptUrl = state.payOrder?.payUrl
+                    val next = if (order.payUrl.isBlank() && !keptUrl.isNullOrBlank()) {
+                        order.copy(payUrl = keptUrl)
+                    } else {
+                        order
+                    }
+                    state.copy(payOrder = next)
+                }
                 false
             }
         }

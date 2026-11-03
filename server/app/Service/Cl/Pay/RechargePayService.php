@@ -133,6 +133,8 @@ final class RechargePayService
             'coins' => (int) $order->coins,
             'amount_fen' => (int) $order->amount_fen,
             'amount_text' => EpayService::fenToYuan((int) $order->amount_fen),
+            // 轮询也要带回支付链接：App 每 3 秒拉一次，不带的话会把二维码内容覆盖成空
+            'pay_url' => (string) $order->pay_url,
             'status' => (int) $order->status,
             'balance' => $this->coinWalletService->balanceOf($user->id),
         ];

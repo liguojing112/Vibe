@@ -56,6 +56,18 @@ final class RechargePayServiceTest extends TestCase
         parent::tearDown();
     }
 
+    public function testStatusKeepsPayUrlForPolling(): void
+    {
+        $user = $this->male();
+        $order = $this->pendingOrder($user, 60, 600);
+        $order->pay_url = 'https://render.alipay.com/p/s/i?scheme=test';
+        $order->save();
+
+        $result = $this->service->status($user, (string) $order->order_no);
+
+        self::assertSame('https://render.alipay.com/p/s/i?scheme=test', $result['pay_url']);
+    }
+
     public function testNotifyMarksPaidAndAddsCoinsOnlyOnce(): void
     {
         $user = $this->male();

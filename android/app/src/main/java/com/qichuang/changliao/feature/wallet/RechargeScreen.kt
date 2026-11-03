@@ -345,15 +345,20 @@ private fun RechargePaySheet(
 /**
  * 把支付宝付款链接交给支付宝 App。
  *
- * 先试 `alipays://` 扫码 scheme（最稳），再试原始链接；两个都指定支付宝包名，
- * 避免被浏览器接走。没装支付宝时返回 false，由调用方提示扫码。
+ * 码支付返回的是 `https://render.alipay.com/...`，直接用它的链接 + 指定支付宝包名
+ * 在部分机型上打不开（支付宝没有注册这个域名的 Intent）。支付宝认的是 `alipayqr://`
+ * 启动格式，所以先按它拼唤醒链接；再回退 `alipays://`，最后才让系统自己处理原链接。
  */
 private fun openAlipay(context: Context, payUrl: String): Boolean {
     if (payUrl.isBlank()) {
         return false
     }
+    if (!isAlipayInstalled(context)) {
+        return false
+    }
 
     val targets = listOf(
+        "alipayqr://platformapi/startapp?appId=20000067&url=" + Uri.encode(payUrl),
         "alipays://platformapi/startapp?saId=10000007&qrcode=" + Uri.encode(payUrl),
         payUrl,
     )
@@ -362,7 +367,6 @@ private fun openAlipay(context: Context, payUrl: String): Boolean {
         try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                setPackage(ALIPAY_PACKAGE)
             }
             context.startActivity(intent)
             return true
@@ -374,3 +378,12 @@ private fun openAlipay(context: Context, payUrl: String): Boolean {
 
     return false
 }
+
+private fun isAlipayInstalled(context: Context): Boolean =
+    try {
+        context.packageManager.getPackageInfo(ALIPAY_PACKAGE, 0)
+        true
+    }
+    catch (_: Exception) {
+        false
+    }
