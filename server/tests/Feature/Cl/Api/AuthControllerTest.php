@@ -275,6 +275,32 @@ final class AuthControllerTest extends TestCase
     }
 
     /**
+     * 登录限流必须按真实 IP 分桶：生产在 Nginx 后面，`remote_addr` 全是 127.0.0.1，
+     * 直接拿它做 key 会让全站共用一个 10 次/分钟的额度（2026-11-03 全站 10005）。
+     */
+    public function testLoginRateLimitUsesRealIp(): void
+    {
+        for ($i = 0; $i < 10; ++$i) {
+            self::assertSame(10001, $this->loginWithIp('1.1.1.1')['code']);
+        }
+        self::assertSame(10005, $this->loginWithIp('1.1.1.1')['code'], '同一 IP 第 11 次限流');
+
+        self::assertSame(10001, $this->loginWithIp('2.2.2.2')['code'], '换 IP 不受影响');
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function loginWithIp(string $ip): array
+    {
+        return $this->client->post('/api/v1/auth/login', [
+            'account' => '19999999999',
+            'password' => 'wrong',
+            'device_id' => 'test-device',
+        ], ['X-Real-IP' => $ip]);
+    }
+
+    /**
      * @return array<string,mixed>
      */
     private function login(string $password = self::PASSWORD): array

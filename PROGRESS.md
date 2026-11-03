@@ -3893,3 +3893,16 @@ App：
 - 仍保留：异性、账号正常、未被拉黑；
 - 新增测试：搜索能搜到无头像女号（按账号/ID），推荐列表仍不显示；
 - 验证：后端 613 测试全绿、phpstan 无错误。
+
+---
+
+## 2026-11-03 修复：全站登录 10005（限流按 127.0.0.1 共享）
+
+- 现象：App 登录不了，登录接口返回 `10005 操作太频繁`；
+- 根因：生产在 Nginx 后面，`getClientIps()` 返回 `remote_addr`（127.0.0.1），
+  所有用户共用 `cl:login_rate:127.0.0.1`，一分钟全站超过 10 次登录就全部被限流；
+- 修复：新增 `ClientIp::of()`：优先 `X-Real-IP`（Nginx 用 `$remote_addr` 覆盖），
+  其次 `X-Forwarded-For` 第一个，最后回退 `remote_addr`；
+  `AuthController::login` 和码支付 clientip 都改用它；
+- 已清掉生产旧的 `cl:login_rate:*` key，用户立即恢复登录；
+- 验证：后端 617 测试全绿、phpstan 无错误；新增按真实 IP 分桶的测试。

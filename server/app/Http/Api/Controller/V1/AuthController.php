@@ -13,6 +13,7 @@ use App\Http\Api\Request\V1\RefreshRequest;
 use App\Http\Api\Request\V1\RegisterRequest;
 use App\Model\Cl\User;
 use App\Service\Cl\Auth\AppAuthService;
+use App\Service\Cl\Support\ClientIp;
 use Hyperf\Context\Context;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\Stringable\Str;
@@ -59,7 +60,7 @@ final class AuthController
         return ApiResult::success($this->authService->login(
             (string) $request->input('account'),
             (string) $request->input('password'),
-            (string) ($request->getClientIps()[0] ?? '0.0.0.0'),
+            (string) ClientIp::of($request),
             (string) $request->input('device_id', ''),
         ));
     }

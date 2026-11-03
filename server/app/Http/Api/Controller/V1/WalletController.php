@@ -10,6 +10,7 @@ use App\Http\Api\Request\V1\CoinLogsRequest;
 use App\Http\Api\Request\V1\CreateRechargeOrderRequest;
 use App\Model\Cl\User;
 use App\Service\Cl\Pay\RechargePayService;
+use App\Service\Cl\Support\ClientIp;
 use App\Service\Cl\Wallet\WalletQueryService;
 use Hyperf\Context\Context;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -139,18 +140,10 @@ final class WalletController
         return $this->rechargePayService->handleNotify($params) ? 'success' : 'fail';
     }
 
-    /** 码支付要求 clientip；生产在 Nginx 后面，优先后取转发头。 */
+    /** 码支付要求 clientip：统一走 ClientIp，优先 X-Real-IP（Nginx 已设置）。 */
     private function clientIp(RequestInterface $request): string
     {
-        $header = $request->getHeaderLine('x-forwarded-for');
-        $comma = strpos($header, ',');
-        $forwarded = trim($comma === false ? $header : substr($header, 0, $comma));
-
-        if ($forwarded !== '') {
-            return $forwarded;
-        }
-
-        return (string) ($request->getServerParams()['remote_addr'] ?? '');
+        return ClientIp::of($request);
     }
 
     private function currentUser(): User
