@@ -3929,3 +3929,16 @@ App：
   并在未安装支付宝时提示扫码；
 - 版本升到 3.2.1（versionCode 3），正式包已覆盖下载页；
 - 验证：后端支付测试 / phpstan 通过；Android 单测与 release 构建通过。
+
+---
+
+## 2026-11-08 AI 代聊：后台列表空 + 发送失败排查
+
+- 后台 AI 列表空：AI 页面加 Tab 后 `MaProTable` 在 tab 内没有正常加载；已恢复直接挂载，
+  「AI 模型」改成右上角按钮 + 弹窗；
+- 陈佳佳没有自动回复：数据库确认 AI 开启（status=1、全天）、AI 服务正常，其他女号
+  19:09 后都有回复；她的消息 565 触发了模型，但 `MessageBillingService::send` 抛
+  `QueryException`，两次重试都失败；
+- 已把真实 QueryException 写入 Hyperf 日志（原来的 `error_log` 没落盘），待复现定位；
+- 陈佳佳 `persona` 为空，建议客户补人设（不阻塞回复，但回复会缺少个性）；
+- 验证：后端 618 测试全绿、phpstan 无错误；后台 lint 0 error、build 成功。

@@ -28,6 +28,7 @@ use App\Service\Cl\Wallet\PointWalletService;
 use Hyperf\Database\Exception\QueryException;
 use Hyperf\Database\Exception\UniqueConstraintViolationException;
 use Hyperf\DbConnection\Db;
+use Psr\Log\LoggerInterface;
 
 /**
  * 发私信计费（docs/06 第 3.3 节的七步）：
@@ -65,6 +66,7 @@ final class MessageBillingService
         private readonly ChatPresenter $presenter,
         private readonly ConversationService $conversationService,
         private readonly PushService $pushService,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -167,8 +169,13 @@ final class MessageBillingService
                 return $message;
             });
         } catch (QueryException $e) {
-            // 把真实的数据库错误打出来：并发问题光看「消息发送失败」查不出来
-            error_log('[chat-send] QueryException: ' . $e->getMessage());
+            // 把真实的数据库错误打进 Hyperf 日志：光看「消息发送失败」查不出字段/并发问题
+            $this->logger->error('chat-send QueryException', [
+                'sender_id' => $sender->id,
+                'receiver_id' => $receiver->id,
+                'client_msg_id' => $clientMsgId,
+                'error' => $e->getMessage(),
+            ]);
 
             // 重试还是失败（并发同 client_msg_id 时对方已经写好了）→ 直接返回那一条
             $existing = $this->messageRepository->findByClientMsgId($sender->id, $clientMsgId);
