@@ -102,7 +102,10 @@ final class DeepSeekClient
     /** 去掉模型偶尔会加的前后缀（引号、括号里的旁白），并压掉多余换行。 */
     private function sanitize(string $content): string
     {
-        $content = trim($content, " \t\n\r\"'“”「」");
+        // 必须按「字符」裁，不能用 trim($s, "“”「」")：trim 的 charlist 是字节集合，
+        // 「」= E3 80 8C 拆开后 8C 会匹配到「完」E5 AE 8C 的末字节，把汉字削成半个字符，
+        // 写库时报 1366 Incorrect string value。
+        $content = preg_replace('/^[\s"\'“”「」]+|[\s"\'“”「」]+$/u', '', $content) ?? $content;
 
         // 「（笑）」这类括号旁白容易让对话变味，直接去掉
         $content = preg_replace('/（[^）]{0,10}）|\([^)]{0,10}\)/u', '', $content) ?? $content;
