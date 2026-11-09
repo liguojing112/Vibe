@@ -92,6 +92,7 @@ class ZzClMenuSeeder20261014 extends Seeder
                 'cl:report:*',
                 'cl:content:moment:*',
                 'cl:content:ai:list', 'cl:content:ai:edit',
+                'cl:content:bot:list', 'cl:content:bot:edit',
             ],
         ],
     ];
@@ -314,6 +315,14 @@ class ZzClMenuSeeder20261014 extends Seeder
                             ],
                             $this->button('cl:content:ai:list', '查看 AI 代聊'),
                             $this->button('cl:content:ai:edit', '配置人设与开关'),
+                            [
+                                'name' => 'cl:content:bot',
+                                'path' => '/cl/content/bot-chat',
+                                'component' => 'cl/views/content/botChat/index',
+                                'meta' => $this->page('AI 互聊', 'ri:user-voice-line'),
+                            ],
+                            $this->button('cl:content:bot:list', '查看 AI 互聊'),
+                            $this->button('cl:content:bot:edit', '配置互聊规则'),
                         ],
                     ],
                 ],

@@ -153,6 +153,12 @@ final class MessagePricingService
         return (int) $this->levelOf($female)->message_share_rate;
     }
 
+    /** 女方等级的私信单价（不判断任何免费条件，只读等级表）。 */
+    public function levelPriceOf(User $female): int
+    {
+        return (int) $this->levelOf($female)->message_price;
+    }
+
     /**
      * 这一单女方能拿多少积分（docs/06 第 3.4 节）：
      *

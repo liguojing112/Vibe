@@ -56,6 +56,7 @@ final class AppConfigServiceTest extends TestCase
         'ai.base_url',
         'ai.model',
         'ai.api_key',
+        'bot_chat.enabled',
         'compliance.disclosure',
         'agreement.user',
         'agreement.privacy',

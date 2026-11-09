@@ -14,6 +14,7 @@ use App\Repository\Cl\MessageRepository;
 use App\Repository\Cl\UserRepository;
 use App\Service\Cl\Chat\MessageBillingService;
 use Hyperf\Contract\ConfigInterface;
+use Hyperf\Contract\ContainerInterface;
 use Hyperf\Coroutine\Coroutine;
 use Hyperf\Redis\Redis;
 use Psr\Log\LoggerInterface;
@@ -35,6 +36,12 @@ final class AiChatService
     /** 连续被问几次就承认（第一次打太极，第二次承认）。 */
     private const IDENTITY_ADMIT_AFTER = 2;
 
+    /**
+     * `$botChatService` **不能**走构造函数注入：`BotChatService` 依赖本类，
+     * 构造函数互引会让容器直接抛循环依赖。用属性延迟解析。
+     */
+    private ?BotChatService $botChatService = null;
+
     public function __construct(
         private readonly AiPersonaRepository $personaRepository,
         private readonly AiReplyLogRepository $logRepository,
@@ -45,7 +52,13 @@ final class AiChatService
         private readonly ConfigInterface $config,
         private readonly LoggerInterface $logger,
         private readonly Redis $redis,
+        private readonly ContainerInterface $container,
     ) {}
+
+    private function botChatService(): BotChatService
+    {
+        return $this->botChatService ??= $this->container->get(BotChatService::class);
+    }
 
     /**
      * 收到一条消息后调用（**异步**，不阻塞发消息的请求）。
@@ -100,7 +113,76 @@ final class AiChatService
             return false;
         }
 
-        return $this->deliver($persona, $female, $target, $result, AiReplyLog::KIND_PROACTIVE);
+        // deliver() 返回落库的消息 id（null 表示失败），这里只要「有没有发出去」
+        return $this->deliver($persona, $female, $target, $result, AiReplyLog::KIND_PROACTIVE) !== null;
+    }
+
+    /**
+     * 收到**机器人规则**发来的消息时，让女号回一条（由 `BotChatService` 调用）。
+     *
+     * 和普通 `replyTo` 的区别只有一处：回应前要先问规则「这一对今天还能不能继续」，
+     * 超轮数或超日收益上限就不再回。**不在这里写死任何数字**，阈值全在规则里。
+     *
+     * 女号没开 AI 代聊时直接返回 —— 这样「目标女号没开 AI 就只发单向开场白」自动成立。
+     */
+    public function replyToBotMessage(int $messageId): void
+    {
+        if ($messageId <= 0) {
+            return;
+        }
+
+        $message = $this->messageRepository->findById($messageId);
+        if (! $message instanceof Message) {
+            return;
+        }
+
+        $female = $this->userRepository->findById($message->receiver_id);
+        if (! $female instanceof User || ! $female->isFemale()) {
+            return;
+        }
+
+        $persona = $this->personaRepository->findByUser($female->id);
+        if (! $persona instanceof AiPersona || $persona->enabled !== 1) {
+            return;
+        }
+        if (! $this->canReplyNow($persona)) {
+            return;
+        }
+
+        // 规则层的闸：超轮数 / 超当日上限就不再回
+        $botChat = $this->botChatService();
+        $ruleId = $botChat->ruleIdOfMessage($messageId);
+        if ($ruleId === null) {
+            return;
+        }
+        if (! $botChat->canFemaleReply($ruleId, (int) $message->sender_id, $female->id, date('Y-m-d'))) {
+            return;
+        }
+
+        $male = $this->userRepository->findById($message->sender_id);
+        if (! $male instanceof User || ! $male->isMale()) {
+            return;
+        }
+
+        $lockKey = 'ai:reply:' . $message->conversation_id;
+        if (! $this->redis->set($lockKey, '1', ['NX', 'EX' => 60])) {
+            return;
+        }
+
+        try {
+            $messages = $this->buildReplyMessages($persona, $female, $message);
+            $result = $this->client->chat($messages);
+            if ($result === null || $result['content'] === '') {
+                return;
+            }
+
+            $sentId = $this->deliver($persona, $female, $male, $result, AiReplyLog::KIND_REPLY, (int) $message->conversation_id, waitTyping: false);
+            if ($sentId !== null && $sentId > 0) {
+                $botChat->recordFemaleReply($ruleId, $male->id, $female->id, $sentId);
+            }
+        } finally {
+            $this->redis->del($lockKey);
+        }
     }
 
     /**
@@ -254,6 +336,7 @@ final class AiChatService
      * 发出去 + 记账。
      *
      * @param array{content: string, prompt_tokens: int, completion_tokens: int} $result
+     * @return null|int 成功时返回落库的 cl_message.id，失败返回 null
      */
     private function deliver(
         AiPersona $persona,
@@ -262,10 +345,15 @@ final class AiChatService
         array $result,
         string $kind,
         ?int $conversationId = null,
-    ): bool {
-        // 模拟真人打字：按字数算 2~7 秒，别秒回
-        $delay = min(7, max(2, (int) ceil(mb_strlen($result['content']) / 10)));
-        sleep($delay);
+        bool $waitTyping = true,
+    ): ?int {
+        // 模拟真人打字：按字数算 2~7 秒，别秒回。
+        // 机器人互聊不睡：那一轮的节奏已经由规则里的 interval_seconds 控制，
+        // 再叠一次 sleep 只会让定时任务越来越慢。
+        if ($waitTyping) {
+            $delay = min(7, max(2, (int) ceil(mb_strlen($result['content']) / 10)));
+            sleep($delay);
+        }
 
         // 并发下偶尔会撞消息表的唯一键（表现为「消息发送失败」），换一个 client_msg_id 再试一次
         $sent = null;
@@ -281,7 +369,7 @@ final class AiChatService
         }
 
         if ($sent === null) {
-            return false;
+            return null;
         }
 
         $this->personaRepository->recordUsage(
@@ -302,7 +390,7 @@ final class AiChatService
             'completion_tokens' => $result['completion_tokens'],
         ]);
 
-        return true;
+        return (int) ($sent['message']['id'] ?? 0);
     }
 
     // ---------- 提示词 ----------
