@@ -60,7 +60,7 @@ final class BotChatController extends AbstractController
     }
 
     #[Get(
-        path: '/admin/cl/bot-chat/{id}',
+        path: '/admin/cl/bot-chat/{id:\d+}',
         operationId: 'clBotChatDetail',
         summary: '规则详情',
         security: [['Bearer' => [], 'ApiKey' => []]],
@@ -113,7 +113,7 @@ final class BotChatController extends AbstractController
     }
 
     #[Post(
-        path: '/admin/cl/bot-chat/{id}/toggle',
+        path: '/admin/cl/bot-chat/{id:\d+}/toggle',
         operationId: 'clBotChatToggle',
         summary: '启动/暂停规则',
         security: [['Bearer' => [], 'ApiKey' => []]],
@@ -129,7 +129,7 @@ final class BotChatController extends AbstractController
     }
 
     #[Delete(
-        path: '/admin/cl/bot-chat/{id}',
+        path: '/admin/cl/bot-chat/{id:\d+}',
         operationId: 'clBotChatDelete',
         summary: '删除规则',
         security: [['Bearer' => [], 'ApiKey' => []]],
@@ -145,7 +145,7 @@ final class BotChatController extends AbstractController
     }
 
     #[Get(
-        path: '/admin/cl/bot-chat/{id}/targets',
+        path: '/admin/cl/bot-chat/{id:\d+}/targets',
         operationId: 'clBotChatTargets',
         summary: '目标女号明细',
         security: [['Bearer' => [], 'ApiKey' => []]],
@@ -159,7 +159,7 @@ final class BotChatController extends AbstractController
     }
 
     #[Get(
-        path: '/admin/cl/bot-chat/{id}/logs',
+        path: '/admin/cl/bot-chat/{id:\d+}/logs',
         operationId: 'clBotChatLogs',
         summary: '发送记录',
         security: [['Bearer' => [], 'ApiKey' => []]],
