@@ -35,6 +35,31 @@ final class BotChatTargetRepository extends IRepository
         return $rows;
     }
 
+    /**
+     * 某条规则下参与中的目标女号，**最久没说过话的排在前面**。
+     *
+     * 定时任务每轮只看一部分目标（防止一次跑太久）。如果按 id 固定顺序取，
+     * 排在前面的永远被看到、后面的永远轮不到。按 `last_sent_at` 排就能自然轮转：
+     * 从没发过的（NULL）最优先，发过的按时间先后。
+     *
+     * @return array<int,BotChatTarget>
+     */
+    public function listActiveByRuleDueFirst(int $ruleId, int $limit): array
+    {
+        /** @var array<int,BotChatTarget> $rows */
+        $rows = $this->model->newQuery()
+            ->where('rule_id', $ruleId)
+            ->where('enabled', 1)
+            ->orderByRaw('last_sent_at IS NULL DESC')
+            ->orderBy('last_sent_at')
+            ->orderBy('id')
+            ->limit($limit)
+            ->get()
+            ->all();
+
+        return $rows;
+    }
+
     public function findByRuleAndFemale(int $ruleId, int $femaleId): ?BotChatTarget
     {
         /** @var null|BotChatTarget $row */

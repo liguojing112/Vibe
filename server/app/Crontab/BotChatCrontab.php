@@ -25,8 +25,20 @@ use Throwable;
  */
 final class BotChatCrontab
 {
-    /** 单轮最多处理多少个目标女号。 */
-    private const BATCH = 10;
+    /**
+     * 每条规则每轮最多「看一眼」多少个目标女号。
+     *
+     * 看≠发：绝大多数目标因为没到间隔会被直接跳过，真正发几条由 `SEND_BUDGET` 控制。
+     */
+    private const CHECKS_PER_RULE = 50;
+
+    /**
+     * 整轮最多真正发出多少条（也就是最多调几次模型）。
+     *
+     * 以前这个数是「最多处理多少个目标」，结果排在前面的规则把名额吃光，
+     * 后面新建的规则永远轮不到（客户那条规则就是这么一条都没发出去的）。
+     */
+    private const SEND_BUDGET = 12;
 
     private const LOCK_KEY = 'bot_chat:crontab_lock';
 
@@ -75,7 +87,7 @@ final class BotChatCrontab
     private function run(): void
     {
         $today = date('Y-m-d');
-        $budget = self::BATCH;
+        $budget = self::SEND_BUDGET;
 
         foreach ($this->ruleRepository->listEnabled() as $rule) {
             if ($budget <= 0) {
@@ -90,14 +102,22 @@ final class BotChatCrontab
                 continue;
             }
 
-            foreach ($this->targetRepository->listActiveByRule((int) $rule->id) as $target) {
+            // 「看」不等于「发」：没到间隔的会立刻返回，只有真发出去的才扣预算。
+            // 目标按最久没说的优先排，保证一条规则下的所有女号都能轮到。
+            $targets = $this->targetRepository->listActiveByRuleDueFirst(
+                (int) $rule->id,
+                self::CHECKS_PER_RULE,
+            );
+
+            foreach ($targets as $target) {
                 if ($budget <= 0) {
                     return;
                 }
-                --$budget;
 
                 try {
-                    $this->botChatService->tick($rule, $target, $males, $today);
+                    if ($this->botChatService->tick($rule, $target, $males, $today)) {
+                        --$budget;
+                    }
                 } catch (Throwable $e) {
                     $this->logger->warning(sprintf(
                         'AI 互聊规则[%d] 女号[%d] 处理失败：%s',

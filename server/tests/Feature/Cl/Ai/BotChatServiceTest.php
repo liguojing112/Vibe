@@ -329,6 +329,23 @@ final class BotChatServiceTest extends TestCase
         self::assertSame(2, Message::query()->count());
     }
 
+    public function testTargetsAreCheckedLeastRecentlyMessagedFirst(): void
+    {
+        $rule = $this->makeRule();
+        $never = $this->makeTarget($rule->id, $this->makeFemale()->id);
+        $old = $this->makeTarget($rule->id, $this->makeFemale()->id);
+        $recent = $this->makeTarget($rule->id, $this->makeFemale()->id);
+
+        $old->update(['last_sent_at' => date('Y-m-d H:i:s', time() - 3600)]);
+        $recent->update(['last_sent_at' => date('Y-m-d H:i:s', time() - 60)]);
+
+        $rows = make(\App\Repository\Cl\BotChatTargetRepository::class)
+            ->listActiveByRuleDueFirst((int) $rule->id, 10);
+
+        $ids = array_map(static fn ($row): int => (int) $row->id, $rows);
+        self::assertSame([(int) $never->id, (int) $old->id, (int) $recent->id], $ids);
+    }
+
     public function testFemaleTypingDelayNeverOutlastsTheMaleInterval(): void
     {
         $normal = $this->makeRule(['interval_seconds' => 10]);
