@@ -71,13 +71,21 @@ const openedPanels = ref<number[]>([])
 const isEdit = computed(() => props.ruleId !== null)
 const title = computed(() => (isEdit.value ? '编辑互聊规则' : '新建互聊规则'))
 
-/** 搜索结果是增量的，已选中的用户不能被后一次搜索冲掉（否则标签会变成一串 id）。 */
-function mergeOptions(current: ClBotChatUserOption[], incoming: ClBotChatUserOption[]): ClBotChatUserOption[] {
-  const map = new Map(current.map(item => [item.user_id, item]))
-  for (const item of incoming) {
-    map.set(item.user_id, item)
-  }
-  return [...map.values()]
+/**
+ * 下拉选项 = 本次搜索结果 + 已选中但没出现在结果里的项。
+ *
+ * 不能简单地把新结果并进旧列表：那样搜过的词会一直累积在选项里，
+ * 搜「小」也能看到上次搜「陈」时的结果。
+ */
+function mergeOptions(
+  incoming: ClBotChatUserOption[],
+  selectedIds: number[],
+  previous: ClBotChatUserOption[],
+): ClBotChatUserOption[] {
+  const incomingIds = new Set(incoming.map(item => item.user_id))
+  const keep = previous.filter(item => selectedIds.includes(item.user_id) && !incomingIds.has(item.user_id))
+
+  return [...incoming, ...keep]
 }
 
 async function searchMales(keyword: string) {
@@ -85,7 +93,7 @@ async function searchMales(keyword: string) {
   try {
     const res = await api.botChatSearchMale(keyword)
     if (res.code === ResultCode.SUCCESS) {
-      maleOptions.value = mergeOptions(maleOptions.value, res.data)
+      maleOptions.value = mergeOptions(res.data, form.male_user_ids, maleOptions.value)
     }
   }
   finally {
@@ -98,7 +106,7 @@ async function searchFemales(keyword: string) {
   try {
     const res = await api.botChatSearchFemale(keyword)
     if (res.code === ResultCode.SUCCESS) {
-      femaleOptions.value = mergeOptions(femaleOptions.value, res.data)
+      femaleOptions.value = mergeOptions(res.data, form.female_user_ids, femaleOptions.value)
     }
   }
   finally {
