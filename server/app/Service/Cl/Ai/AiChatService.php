@@ -176,6 +176,13 @@ final class AiChatService
                 return;
             }
 
+            // 真人不会秒回：等几秒再发。时长由规则控制，且不会超过男号的下一条，
+            // 否则这条还没递出去、下一条已经到了，新的回复会被会话锁挡掉。
+            $delay = $botChat->femaleTypingDelay($ruleId);
+            if ($delay > 0) {
+                sleep($delay);
+            }
+
             $sentId = $this->deliver($persona, $female, $male, $result, AiReplyLog::KIND_REPLY, (int) $message->conversation_id, waitTyping: false);
             if ($sentId !== null && $sentId > 0) {
                 $botChat->recordFemaleReply($ruleId, $male->id, $female->id, $sentId);

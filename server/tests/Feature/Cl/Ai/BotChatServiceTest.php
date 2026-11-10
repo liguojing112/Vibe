@@ -329,6 +329,18 @@ final class BotChatServiceTest extends TestCase
         self::assertSame(2, Message::query()->count());
     }
 
+    public function testFemaleTypingDelayNeverOutlastsTheMaleInterval(): void
+    {
+        $normal = $this->makeRule(['interval_seconds' => 10]);
+        $delay = $this->service->femaleTypingDelay((int) $normal->id);
+        self::assertGreaterThanOrEqual(1, $delay);
+        self::assertLessThanOrEqual(4, $delay);
+
+        // 间隔很短时，女号的延迟必须跟着缩，否则男号下一条到了她还锁着会话
+        $fast = $this->makeRule(['interval_seconds' => 3]);
+        self::assertLessThanOrEqual(1, $this->service->femaleTypingDelay((int) $fast->id));
+    }
+
     public function testCanFemaleReplyFollowsTheRuleLimit(): void
     {
         $rule = $this->makeRule(['round_limit_per_pair' => 2]);

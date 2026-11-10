@@ -237,6 +237,25 @@ final class BotChatService
     }
 
     /**
+     * 女号回复前「打字」多久（秒）。
+     *
+     * 真人不会秒回，但也不能拖得比男号的下一条还久 —— 那样这条回复还没递出去，
+     * 下一条已经到了，新的回复会被会话锁挡掉，表现就是「女号漏回一句」。
+     * 所以上限卡在 `interval_seconds - 2`（留 2 秒给模型和落库）。
+     */
+    public function femaleTypingDelay(int $ruleId): int
+    {
+        $base = random_int(2, 4);
+        $rule = $this->ruleRepository->findById($ruleId);
+
+        if (! $rule instanceof BotChatRule || $rule->interval_seconds <= 0) {
+            return $base;
+        }
+
+        return max(1, min($base, $rule->interval_seconds - 2));
+    }
+
+    /**
      * 女 AI 回复前问一句：这一对今天还能不能回。
      *
      * `AiChatService` 用它挡住超出轮数和超出上限的回复。
