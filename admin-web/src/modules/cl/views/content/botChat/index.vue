@@ -291,26 +291,17 @@ const schema = ref<MaProTableSchema>({
 <template>
   <div class="mine-layout">
     <el-card shadow="never" class="mb-3">
-      <div class="flex flex-wrap items-center gap-3">
-        <el-alert
-          type="info"
-          :closable="false"
-          show-icon
-          class="flex-1"
-          title="男号发消息免费；女号的收益只做统计，不进钱包，也不影响等级和提现。"
+      <div class="flex items-center justify-end gap-3">
+        <span class="text-sm text-gray-600">总开关</span>
+        <el-switch
+          :model-value="globalEnabled"
+          :loading="globalSaving"
+          :disabled="!hasAuth('cl:content:bot:edit')"
+          @change="onGlobalChange"
         />
-        <div class="flex items-center gap-3">
-          <span class="text-sm text-gray-600">总开关</span>
-          <el-switch
-            :model-value="globalEnabled"
-            :loading="globalSaving"
-            :disabled="!hasAuth('cl:content:bot:edit')"
-            @change="onGlobalChange"
-          />
-          <el-button v-auth="['cl:content:bot:edit']" type="primary" @click="openCreate">
-            新建规则
-          </el-button>
-        </div>
+        <el-button v-auth="['cl:content:bot:edit']" type="primary" @click="openCreate">
+          新建规则
+        </el-button>
       </div>
     </el-card>
 

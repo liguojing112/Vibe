@@ -500,13 +500,6 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
           <el-input-number v-model="form.context_messages" :min="2" :max="50" controls-position="right" />
           <span class="ml-2 text-xs text-gray-400">生成接话时带最近多少条历史</span>
         </el-form-item>
-
-        <el-alert
-          type="info"
-          :closable="false"
-          show-icon
-          title="男号发消息不扣金币；女号的收益只做统计，不进钱包，也不影响等级和提现。"
-        />
       </el-form>
     </div>
 
