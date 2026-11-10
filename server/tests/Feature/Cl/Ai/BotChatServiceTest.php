@@ -72,7 +72,7 @@ final class BotChatServiceTest extends TestCase
         parent::tearDown();
     }
 
-    public function testMaleBotMessageIsFreeAndOnlyCountsVirtualPoints(): void
+    public function testMaleBotMessageIsFreeForMaleButPaysTheFemale(): void
     {
         $rule = $this->makeRule();
         $female = $this->makeFemale();
@@ -84,7 +84,7 @@ final class BotChatServiceTest extends TestCase
         $message = Message::query()->orderByDesc('id')->first();
         self::assertInstanceOf(Message::class, $message);
         self::assertSame(0, (int) $message->price_coins, '男号发消息不能扣金币');
-        self::assertSame(0, (int) $message->receiver_points, '虚拟收益不能写进消息的结算字段');
+        self::assertSame(15, (int) $message->receiver_points, '女号这条实际到账的积分要记在消息上');
         self::assertSame(BotChatService::FREE_REASON_BOT_MALE, $message->free_reason);
         self::assertSame($male->id, (int) $message->sender_id);
         self::assertSame($female->id, (int) $message->receiver_id);
@@ -98,10 +98,12 @@ final class BotChatServiceTest extends TestCase
         self::assertInstanceOf(BotChatPair::class, $pair);
         self::assertSame(1, (int) $pair->rounds_today);
 
-        // 钱包、积分流水、累计收益都不许动
-        self::assertSame(0, (int) PointWallet::query()->where('user_id', $female->id)->value('balance'));
-        self::assertSame(0, PointLog::query()->where('user_id', $female->id)->count());
+        // 积分真的进钱包，可以提现；男号那边一分钱不扣（机器人本来也没余额）
+        self::assertSame(15, (int) PointWallet::query()->where('user_id', $female->id)->value('balance'));
+        self::assertSame(1, PointLog::query()->where('user_id', $female->id)->count());
         self::assertSame(0, CoinWallet::query()->where('user_id', $female->id)->count());
+
+        // 但**不计入等级累计收益**：这是平台补贴，不能抬高真实男用户看到的价格
         self::assertSame(0, (int) $female->refresh()->total_earned_points);
 
         // 女号没开 AI 代聊：只有男号那一条
@@ -128,6 +130,10 @@ final class BotChatServiceTest extends TestCase
         $pair = BotChatPair::query()->where('male_id', $maleA->id)->first();
         self::assertInstanceOf(BotChatPair::class, $pair);
         self::assertGreaterThanOrEqual(15, (int) $pair->virtual_points_today);
+
+        // 两个男号各自那份都进了钱包
+        self::assertSame(30, (int) PointWallet::query()->where('user_id', $female->id)->value('balance'));
+        self::assertSame(2, PointLog::query()->where('user_id', $female->id)->count());
     }
 
     public function testRoundLimitStopsThePairButNotOtherFemales(): void

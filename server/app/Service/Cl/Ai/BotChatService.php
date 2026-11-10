@@ -11,6 +11,7 @@ use App\Model\Cl\BotChatRule;
 use App\Model\Cl\BotChatTarget;
 use App\Model\Cl\Message;
 use App\Model\Cl\User;
+use App\Model\Enums\Cl\PointLogType;
 use App\Repository\Cl\AiPersonaRepository;
 use App\Repository\Cl\BlockRepository;
 use App\Repository\Cl\BotChatLogRepository;
@@ -25,6 +26,7 @@ use App\Service\Cl\Chat\SensitiveWordService;
 use App\Service\Cl\Config\AppConfigService;
 use App\Service\Cl\Pricing\MessagePricingService;
 use App\Service\Cl\Push\PushService;
+use App\Service\Cl\Wallet\PointWalletService;
 use Hyperf\Coroutine\Coroutine;
 use Hyperf\DbConnection\Db;
 use Psr\Log\LoggerInterface;
@@ -34,10 +36,13 @@ use Throwable;
  * AI 男女互聊：机器人男号给指定女号发消息。
  *
  * **和 `MessageBillingService` 是两条完全独立的通道**：
- * - 不扣金币、不给积分、不记平台收入、不写任何钱包流水；
- * - 消息落库 `price_coins = 0`、`receiver_points = 0`、`free_reason = BOT_MALE`；
- * - 女号的「收益」只在本模块的 `cl_bot_chat_target.virtual_points_today` 里计数，
- *   用来判断当天是否已达上限，**不是钱**。
+ * - 男号不扣金币（机器人没有余额），也不记平台收入；
+ * - 女号**真的拿到积分**：走 `PointWalletService::increase()` 进钱包，可以提现
+ *   （客户 2026-11-10 确认：男 AI 发消息，女号的收益要进钱包）；
+ * - 消息落库 `price_coins = 0`、`receiver_points = 实际所得`、`free_reason = BOT_MALE`；
+ * - 15 元/天按「男号 + 女号」这一对算，记在配对上；
+ * - **不计入等级累计收益**（`total_earned_points` 不动）：这是平台补贴，
+ *   不能拿来抬高真实男用户看到的价格。
  *
  * 不走 `MessageBillingService` 加参数：那条链路是全站最敏感的部分，
  * 一个 `freeMode` 参数就等于给「免费发付费私信」开了后门。
@@ -48,6 +53,9 @@ final class BotChatService
 {
     /** 机器人消息的免费原因标记（女 AI 回复时靠它反查来源）。 */
     public const FREE_REASON_BOT_MALE = 'BOT_MALE';
+
+    /** 积分流水的业务来源（和真实付费私信的 `message` 分开，方便对账）。 */
+    public const REF_TYPE = 'bot_message';
 
     public function __construct(
         private readonly BotChatRuleRepository $ruleRepository,
@@ -63,6 +71,7 @@ final class BotChatService
         private readonly SensitiveWordService $sensitiveWordService,
         private readonly MessagePricingService $pricingService,
         private readonly PushService $pushService,
+        private readonly PointWalletService $pointWalletService,
         private readonly AiChatService $aiChatService,
         private readonly DeepSeekClient $client,
         private readonly AppConfigService $configService,
@@ -348,10 +357,23 @@ final class BotChatService
             /** @var Message $message */
             $message = Db::transaction(function () use ($rule, $target, $female, $male, $pair, $content): Message {
                 $conversation = $this->conversationService->lockOrCreate($male, $female);
-                $message = $this->writeMessage($male, $female, $conversation, $content);
+                $points = $this->virtualPointsOf($female);
+                $message = $this->writeMessage($male, $female, $conversation, $content, $points);
 
                 $sentAt = date('Y-m-d H:i:s');
-                $points = $this->virtualPointsOf($female);
+
+                // 真金白银进女号钱包（和付费私信同一个入口，流水按消息 id 幂等）。
+                // 男号不扣金币，所以这里也不记平台收入 —— 是平台在补贴。
+                if ($points > 0) {
+                    $this->pointWalletService->increase(
+                        $female->id,
+                        $points,
+                        PointLogType::MESSAGE_INCOME,
+                        self::REF_TYPE,
+                        (int) $message->id,
+                        'AI 互聊收入 · ' . $male->nickname,
+                    );
+                }
 
                 // 15 元/天记在配对上（这一对到顶只停这一对）；
                 // 目标女号那行同时累加，后台列表按「该女号今天总共收到多少」展示。
@@ -399,7 +421,7 @@ final class BotChatService
     /**
      * 写一条机器人消息：不扣钱、不给积分，只写消息 + 会话。
      */
-    private function writeMessage(User $male, User $female, mixed $conversation, string $content): Message
+    private function writeMessage(User $male, User $female, mixed $conversation, string $content, int $points): Message
     {
         $sensitiveHit = $this->sensitiveWordService->hit($content);
 
@@ -415,7 +437,7 @@ final class BotChatService
             'free_reason' => self::FREE_REASON_BOT_MALE,
             'receiver_level' => (int) ($female->level ?? 1),
             'share_rate' => $this->pricingService->shareRateOf($female, $this->pricingService->levelRateOf($female)),
-            'receiver_points' => 0,
+            'receiver_points' => $points,
             'sensitive_hit' => $sensitiveHit ? 1 : 0,
             'review_status' => $sensitiveHit ? Message::REVIEW_PENDING : Message::REVIEW_NONE,
         ]);
