@@ -528,32 +528,33 @@ final class BotChatService
         }
 
         // 男号每日总条数：一个号撩遍所有女号也会被拦住
-        if ($rule->male_daily_limit > 0) {
-            $counts = $this->pairRepository->maleDailyCounts((int) $rule->id, $today);
-            $usable = array_values(array_filter(
-                $usable,
-                static fn (User $m): bool => ($counts[$m->id] ?? 0) < $rule->male_daily_limit,
-            ));
+        $counts = $rule->male_daily_limit > 0
+            ? $this->pairRepository->maleDailyCounts((int) $rule->id, $today)
+            : [];
 
-            if ($usable === []) {
-                return null;
-            }
+        $underQuota = static fn (User $m): bool => $rule->male_daily_limit <= 0
+            || ($counts[$m->id] ?? 0) < $rule->male_daily_limit;
+
+        $usable = array_values(array_filter($usable, $underQuota));
+
+        if ($usable === []) {
+            return null;
         }
 
-        $byId = [];
-        foreach ($usable as $male) {
-            $byId[$male->id] = $male;
-        }
-
-        // ① 延续正在进行的对话
+        // ① 延续正在进行的对话。
+        // **不能要求这个人还在本轮随机抽出来的号池里** —— 号池每轮重新随机，
+        // 上一句还是他说的、这一轮没抽到，就会换个人开新对话，
+        // 表现得就像「每个男号只发一条」。号池只负责开新对话。
         $latest = $this->pairRepository->latestForFemale((int) $rule->id, $female->id, $today);
         if ($latest instanceof BotChatPair
-            && isset($byId[(int) $latest->male_id])
             && (int) $latest->rounds_today < $rule->round_limit_per_pair
             && $latest->last_sent_at !== null
             && $latest->last_sent_at->getTimestamp() + max(1, $rule->session_gap_seconds) >= time()
         ) {
-            return $byId[(int) $latest->male_id];
+            $lastMale = $this->userRepository->findById((int) $latest->male_id);
+            if ($lastMale instanceof User && $lastMale->isMale() && $lastMale->status === User::STATUS_NORMAL && $underQuota($lastMale)) {
+                return $lastMale;
+            }
         }
 
         // ② 冷场了，开新对话

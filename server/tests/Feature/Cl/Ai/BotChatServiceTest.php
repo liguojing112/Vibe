@@ -329,6 +329,27 @@ final class BotChatServiceTest extends TestCase
         self::assertSame(2, Message::query()->count());
     }
 
+    public function testConversationContinuesEvenIfThatMaleIsNotInThisRoundsRandomPool(): void
+    {
+        $maleA = $this->makeMale();
+        $maleB = $this->makeMale();
+        $rule = $this->makeRule([
+            'round_limit_per_pair' => 5,
+            'session_gap_seconds' => 3600,
+        ]);
+        $female = $this->makeFemale();
+        $target = $this->makeTarget($rule->id, $female->id);
+
+        // 第一句由 A 说
+        self::assertTrue($this->tick($rule, $target, [$maleA]));
+
+        // 第二轮随机池里只有 B：但对话是 A 起的，应该继续由 A 接，而不是换人
+        self::assertTrue($this->tick($rule, $target, [$maleB]));
+
+        $senders = Message::query()->orderBy('id')->pluck('sender_id')->map(static fn ($id): int => (int) $id)->all();
+        self::assertSame([$maleA->id, $maleA->id], $senders);
+    }
+
     public function testTargetsAreCheckedLeastRecentlyMessagedFirst(): void
     {
         $rule = $this->makeRule();
