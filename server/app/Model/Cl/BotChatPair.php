@@ -17,6 +17,7 @@ use Hyperf\DbConnection\Model\Model as MineModel;
  * @property int $female_id
  * @property string $stat_date
  * @property int $rounds_today
+ * @property int $virtual_points_today
  * @property null|\Carbon\Carbon $last_sent_at
  */
 class BotChatPair extends MineModel
@@ -25,11 +26,12 @@ class BotChatPair extends MineModel
 
     protected array $attributes = [
         'rounds_today' => 0,
+        'virtual_points_today' => 0,
     ];
 
     protected array $fillable = [
         'id', 'rule_id', 'male_id', 'female_id', 'stat_date', 'rounds_today',
-        'last_sent_at', 'created_at', 'updated_at',
+        'virtual_points_today', 'last_sent_at', 'created_at', 'updated_at',
     ];
 
     protected array $casts = [
@@ -38,6 +40,7 @@ class BotChatPair extends MineModel
         'male_id' => 'integer',
         'female_id' => 'integer',
         'rounds_today' => 'integer',
+        'virtual_points_today' => 'integer',
         'last_sent_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

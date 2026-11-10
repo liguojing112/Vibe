@@ -109,20 +109,25 @@ final class BotChatServiceTest extends TestCase
         self::assertSame(0, AiReplyLog::query()->count());
     }
 
-    public function testDailyLimitStopsTheFemaleForTheRestOfTheDay(): void
+    public function testDailyLimitStopsThisPairOnly(): void
     {
-        // 1 分 = 1 积分，第一条（15 积分）就会顶到上限
+        // 1 分 = 1 积分，第一条（15 积分）就会顶到这一对的上限
         $rule = $this->makeRule(['daily_amount_limit_fen' => 1]);
         $female = $this->makeFemale();
         $target = $this->makeTarget($rule->id, $female->id);
-        $male = $this->makeMale();
+        $maleA = $this->makeMale();
+        $maleB = $this->makeMale();
 
-        self::assertTrue($this->tick($rule, $target, [$male]));
-        self::assertFalse($this->tick($rule, $target, [$male]), '达到上限后当天不该再发');
+        self::assertTrue($this->tick($rule, $target, [$maleA]));
+        self::assertFalse($this->tick($rule, $target, [$maleA]), '这一对到顶后当天不该再发');
 
-        self::assertSame(1, Message::query()->count());
-        $target->refresh();
-        self::assertSame(BotChatTarget::STOP_DAILY_LIMIT, $target->stopped_reason);
+        // 15 元是按「男号 + 女号」一对算的 —— 别的男号还能继续跟她聊
+        self::assertTrue($this->tick($rule, $target, [$maleB]), '换个男号应该还能发');
+
+        self::assertSame(2, Message::query()->count());
+        $pair = BotChatPair::query()->where('male_id', $maleA->id)->first();
+        self::assertInstanceOf(BotChatPair::class, $pair);
+        self::assertGreaterThanOrEqual(15, (int) $pair->virtual_points_today);
     }
 
     public function testRoundLimitStopsThePairButNotOtherFemales(): void

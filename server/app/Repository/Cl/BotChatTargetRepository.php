@@ -92,25 +92,18 @@ final class BotChatTargetRepository extends IRepository
     }
 
     /**
-     * 累加虚拟收益 + 今日轮数。
+     * 累加「这个女号今天总共收到多少」——**只用于后台展示**，不做任何限流判断。
      *
-     * 达到上限后写 `stopped_reason`：**只计数，不动钱包**。
+     * 15 元/天的上限是按「男号 + 女号」这一对算的，存在 `cl_bot_chat_pair` 上；
+     * 同一个女号被多个男号聊时，这里的数字会超过 15 元，是正常的。
      */
-    public function addVirtualPoints(int $targetId, int $points, int $limitPoints, string $sentAt): void
+    public function addPoints(int $targetId, int $points, string $sentAt): void
     {
         $this->model->newQuery()->whereKey($targetId)->update([
             'virtual_points_today' => Db::raw('virtual_points_today + ' . $points),
             'rounds_today' => Db::raw('rounds_today + 1'),
             'last_sent_at' => $sentAt,
         ]);
-
-        // 单独判一次上限：SQL 里写 CASE 更难读，而且这一步只在真正达到时才更新
-        $row = $this->findById($targetId);
-        if ($row instanceof BotChatTarget && (int) $row->virtual_points_today >= $limitPoints) {
-            $this->model->newQuery()->whereKey($targetId)->update([
-                'stopped_reason' => BotChatTarget::STOP_DAILY_LIMIT,
-            ]);
-        }
     }
 
     /** 只刷最后发送时间（女 AI 回复时用，不重复计收益）。 */

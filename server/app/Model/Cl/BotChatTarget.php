@@ -24,9 +24,6 @@ use Hyperf\DbConnection\Model\Model as MineModel;
  */
 class BotChatTarget extends MineModel
 {
-    /** 当日虚拟收益已达上限，今天不再发。 */
-    public const STOP_DAILY_LIMIT = 'daily_limit';
-
     protected ?string $table = 'cl_bot_chat_target';
 
     protected array $attributes = [
@@ -52,9 +49,4 @@ class BotChatTarget extends MineModel
         'updated_at' => 'datetime',
     ];
 
-    /** 今天是不是已经因为收益上限停掉了。 */
-    public function isDailyLimitReached(): bool
-    {
-        return $this->stopped_reason === self::STOP_DAILY_LIMIT;
-    }
 }

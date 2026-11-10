@@ -219,9 +219,9 @@ const schema = ref<MaProTableSchema>({
       cellRender: ({ row }) => <ClAmount value={row.amount_today_fen} type="fen" />,
     },
     {
-      label: '已停女号',
+      label: '到顶配对',
       prop: 'limit_reached_count',
-      width: '100px',
+      width: '110px',
       cellRender: ({ row }) => (row.limit_reached_count > 0
         ? (
             <el-tag type="warning" size="small">

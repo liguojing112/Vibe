@@ -97,7 +97,7 @@ final class BotChatService
         // 跨天先重置，再重新读一次
         $this->targetRepository->resetDailyIfStale((int) $target->id, $today);
         $target = $this->targetRepository->findById($target->id);
-        if (! $target instanceof BotChatTarget || $target->isDailyLimitReached()) {
+        if (! $target instanceof BotChatTarget) {
             return false;
         }
 
@@ -118,6 +118,10 @@ final class BotChatService
 
         $pair = $this->pairRepository->ensure((int) $rule->id, $male->id, $female->id, $today);
         if ((int) $pair->rounds_today >= $rule->round_limit_per_pair) {
+            return false;
+        }
+        // 15 元/天是按**这一对**算的：A 到顶了就换 B，不影响别的男号
+        if ($this->pairLimitReached($pair, $rule)) {
             return false;
         }
         if (! $this->intervalPassed($pair, $rule)) {
@@ -166,11 +170,6 @@ final class BotChatService
             if (! $target instanceof BotChatTarget) {
                 continue;
             }
-            if ($target->isDailyLimitReached()) {
-                $skipped[] = '已达当日上限';
-
-                continue;
-            }
 
             $female = $this->userRepository->findById($target->female_id);
             if (! $female instanceof User || ! $female->isFemale() || $female->status !== User::STATUS_NORMAL) {
@@ -194,6 +193,11 @@ final class BotChatService
             $pair = $this->pairRepository->ensure((int) $rule->id, $male->id, $female->id, $today);
             if ((int) $pair->rounds_today >= $rule->round_limit_per_pair) {
                 $skipped[] = '该男号今日轮数已满';
+
+                continue;
+            }
+            if ($this->pairLimitReached($pair, $rule)) {
+                $skipped[] = '该男号今日收益已达上限';
 
                 continue;
             }
@@ -276,7 +280,10 @@ final class BotChatService
         if ((string) $target->stat_date !== $today) {
             return true;
         }
-        if ($target->isDailyLimitReached()) {
+
+        // 15 元上限按「这一对」算：别的男号到顶不影响这个人回不回
+        $pair = $this->pairRepository->findForToday($rule->id, $maleId, $femaleId, $today);
+        if ($pair instanceof BotChatPair && $this->pairLimitReached($pair, $rule)) {
             return false;
         }
 
@@ -346,13 +353,10 @@ final class BotChatService
                 $sentAt = date('Y-m-d H:i:s');
                 $points = $this->virtualPointsOf($female);
 
-                $this->pairRepository->touch((int) $pair->id, $sentAt);
-                $this->targetRepository->addVirtualPoints(
-                    (int) $target->id,
-                    $points,
-                    $this->limitPoints($rule),
-                    $sentAt,
-                );
+                // 15 元/天记在配对上（这一对到顶只停这一对）；
+                // 目标女号那行同时累加，后台列表按「该女号今天总共收到多少」展示。
+                $this->pairRepository->touch((int) $pair->id, $points, $sentAt);
+                $this->targetRepository->addPoints((int) $target->id, $points, $sentAt);
 
                 $this->logRepository->write([
                     'rule_id' => (int) $rule->id,
@@ -430,11 +434,22 @@ final class BotChatService
     }
 
     /** 每日上限换算成积分：1500 分 × 100 积分/元 ÷ 100 = 1500 积分。 */
-    private function limitPoints(BotChatRule $rule): int
+    public function limitPoints(BotChatRule $rule): int
     {
         $pointPerYuan = max(1, (int) $this->configService->get('point.per_yuan', 100));
 
         return intdiv($rule->daily_amount_limit_fen * $pointPerYuan, 100);
+    }
+
+    /**
+     * 这一对今天是不是已经聊到 15 元了。
+     *
+     * 口径是「**男号 + 女号**这一对」，不是「规则 + 女号」也不是「女号」：
+     * A 聊到 15 元就停 A，B 还能继续跟她聊他那一份。
+     */
+    private function pairLimitReached(BotChatPair $pair, BotChatRule $rule): bool
+    {
+        return (int) $pair->virtual_points_today >= $this->limitPoints($rule);
     }
 
     /**
@@ -548,6 +563,7 @@ final class BotChatService
         $latest = $this->pairRepository->latestForFemale((int) $rule->id, $female->id, $today);
         if ($latest instanceof BotChatPair
             && (int) $latest->rounds_today < $rule->round_limit_per_pair
+            && ! $this->pairLimitReached($latest, $rule)
             && $latest->last_sent_at !== null
             && $latest->last_sent_at->getTimestamp() + max(1, $rule->session_gap_seconds) >= time()
         ) {

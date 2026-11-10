@@ -32,7 +32,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
 
-const limitReachedCount = computed(() => rows.value.filter(row => row.stopped_reason === 'daily_limit').length)
+const limitReachedCount = computed(() => rows.value.reduce((sum, row) => sum + Number(row.pairs_limit_reached ?? 0), 0))
 const amountTodayTotal = computed(() => rows.value.reduce((sum, row) => sum + Number(row.amount_today_fen ?? 0), 0))
 
 async function load() {
@@ -73,7 +73,7 @@ watch([page, pageSize], load)
   <el-drawer v-model="drawerVisible" :title="`目标女号 · ${props.ruleName}`" size="900px" destroy-on-close>
     <div class="mb-3 flex items-center gap-4 text-sm text-gray-600">
       <span>目标 {{ total }} 个</span>
-      <span>本页已停：{{ limitReachedCount }} 个</span>
+      <span>本页到顶男号：{{ limitReachedCount }} 个</span>
       <span>
         本页虚拟收益合计：
         <ClAmount :value="amountTodayTotal" type="fen" />
@@ -96,10 +96,10 @@ watch([page, pageSize], load)
           {{ row.rounds_today }} 轮
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="120" align="center">
+      <el-table-column label="状态" width="130" align="center">
         <template #default="{ row }">
-          <el-tag v-if="row.stopped_reason === 'daily_limit'" type="warning" size="small">
-            已达上限
+          <el-tag v-if="row.pairs_limit_reached > 0" type="warning" size="small">
+            {{ row.pairs_limit_reached }} 个男号到顶
           </el-tag>
           <el-tag v-else type="success" size="small">
             进行中

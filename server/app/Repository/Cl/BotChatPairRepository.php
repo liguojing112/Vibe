@@ -62,10 +62,12 @@ final class BotChatPairRepository extends IRepository
         }
     }
 
-    public function touch(int $pairId, string $sentAt): void
+    /** 记一轮 + 这一对今天累计的虚拟收益。 */
+    public function touch(int $pairId, int $points, string $sentAt): void
     {
         $this->model->newQuery()->whereKey($pairId)->update([
             'rounds_today' => Db::raw('rounds_today + 1'),
+            'virtual_points_today' => Db::raw('virtual_points_today + ' . $points),
             'last_sent_at' => $sentAt,
         ]);
     }

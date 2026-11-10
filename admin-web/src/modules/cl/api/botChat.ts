@@ -55,7 +55,8 @@ export interface ClBotChatFemale {
   virtual_points_today: number
   amount_today_fen: number
   rounds_today: number
-  stopped_reason?: string | null
+  /** 这个女号今天有几个男号已经聊到 15 元上限（15 元是按「男号+女号」一对算的）。 */
+  pairs_limit_reached: number
   last_sent_at?: string | null
 }
 

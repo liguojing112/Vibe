@@ -7,6 +7,7 @@ namespace App\Service\Cl\Admin;
 use App\Exception\ClBusinessException;
 use App\Model\Cl\AiPersona;
 use App\Model\Cl\BotChatLog;
+use App\Model\Cl\BotChatPair;
 use App\Model\Cl\BotChatRule;
 use App\Model\Cl\BotChatTarget;
 use App\Model\Cl\User;
@@ -82,15 +83,21 @@ final class AdminBotChatService
             $targets = $this->targetRepository->getQuery()->where('rule_id', $rule->id)->get();
             $today = date('Y-m-d');
             $pointsToday = 0;
-            $limitReached = 0;
             foreach ($targets as $target) {
+                /** @var BotChatTarget $target */
                 if ((string) $target->stat_date === $today) {
                     $pointsToday += (int) $target->virtual_points_today;
                 }
-                if ((string) $target->stat_date === $today && $target->stopped_reason === BotChatTarget::STOP_DAILY_LIMIT) {
-                    ++$limitReached;
-                }
             }
+
+            // 15 元上限是按「男号 + 女号」一对算的，所以这里数的是**到顶的配对**，
+            // 不是「被停掉的女号」（女号本身不会因为某个男号到顶就整体停掉）。
+            $limitPoints = $this->botChatService->limitPoints($rule);
+            $limitReached = (int) BotChatPair::query()
+                ->where('rule_id', $rule->id)
+                ->where('stat_date', $today)
+                ->where('virtual_points_today', '>=', $limitPoints)
+                ->count();
 
             $list[] = [
                 'id' => (int) $rule->id,
@@ -142,7 +149,7 @@ final class AdminBotChatService
                 'virtual_points_today' => (string) $target->stat_date === $today ? (int) $target->virtual_points_today : 0,
                 'amount_today_fen' => $this->fenOf((string) $target->stat_date === $today ? (int) $target->virtual_points_today : 0),
                 'rounds_today' => (string) $target->stat_date === $today ? (int) $target->rounds_today : 0,
-                'stopped_reason' => (string) $target->stat_date === $today ? $target->stopped_reason : null,
+                'pairs_limit_reached' => $this->pairsAtLimit($rule, (int) $target->female_id, $today),
                 'last_sent_at' => $target->last_sent_at?->toDateTimeString(),
             ];
         }
@@ -261,7 +268,7 @@ final class AdminBotChatService
      */
     public function targets(int $ruleId, int $page, int $pageSize): array
     {
-        $this->requireRule($ruleId);
+        $rule = $this->requireRule($ruleId);
         $today = date('Y-m-d');
 
         $query = $this->targetRepository->getQuery()->where('rule_id', $ruleId);
@@ -281,7 +288,7 @@ final class AdminBotChatService
                 'virtual_points_today' => $isToday ? (int) $row->virtual_points_today : 0,
                 'amount_today_fen' => $this->fenOf($isToday ? (int) $row->virtual_points_today : 0),
                 'rounds_today' => $isToday ? (int) $row->rounds_today : 0,
-                'stopped_reason' => $isToday ? $row->stopped_reason : null,
+                'pairs_limit_reached' => $this->pairsAtLimit($rule, (int) $row->female_id, $today),
                 'last_sent_at' => $row->last_sent_at?->toDateTimeString(),
             ];
         }
@@ -601,6 +608,17 @@ final class AdminBotChatService
         }
 
         return $clean;
+    }
+
+    /** 这个女号今天有几个男号已经聊到 15 元上限（到顶的配对数量）。 */
+    private function pairsAtLimit(BotChatRule $rule, int $femaleId, string $today): int
+    {
+        return (int) BotChatPair::query()
+            ->where('rule_id', $rule->id)
+            ->where('female_id', $femaleId)
+            ->where('stat_date', $today)
+            ->where('virtual_points_today', '>=', $this->botChatService->limitPoints($rule))
+            ->count();
     }
 
     /** 积分 → 分（按 point.per_yuan 换算：100 积分 = 1 元 = 100 分）。 */
