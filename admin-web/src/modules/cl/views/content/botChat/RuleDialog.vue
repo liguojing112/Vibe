@@ -340,7 +340,7 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
                   <el-input
                     v-model="form.male_personas[id].persona"
                     type="textarea"
-                    :rows="3"
+                    :rows="6"
                     maxlength="1000"
                     show-word-limit
                     placeholder="性格、生活状态、职业背景。写得越具体越像真人"
@@ -350,7 +350,7 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
                   <el-input
                     v-model="form.male_personas[id].tone"
                     type="textarea"
-                    :rows="2"
+                    :rows="4"
                     maxlength="300"
                     show-word-limit
                     placeholder="例如：句子短，偶尔带点语气词"
@@ -359,7 +359,10 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
                 <el-form-item label="不聊的话题">
                   <el-input
                     v-model="form.male_personas[id].taboos"
+                    type="textarea"
+                    :rows="3"
                     maxlength="300"
+                    show-word-limit
                     placeholder="被提到时轻轻带过，例如：政治、借钱"
                   />
                 </el-form-item>
@@ -367,7 +370,7 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
                   <el-input
                     v-model="form.male_personas[id].examples"
                     type="textarea"
-                    :rows="5"
+                    :rows="10"
                     maxlength="2000"
                     show-word-limit
                     placeholder="我：在上班呢 好困&#10;她：这么惨&#10;---&#10;我：周末准备干嘛"
