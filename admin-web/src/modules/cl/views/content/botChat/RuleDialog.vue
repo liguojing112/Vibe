@@ -41,6 +41,7 @@ const emptyPersona = (): ClBotChatPersona => ({ persona: '', tone: '', taboos: '
 const form = reactive<ClBotChatSavePayload>({
   name: '',
   enabled: 1,
+  auto_send: 1,
   male_user_ids: [],
   pool_male_count: 0,
   female_user_ids: [],
@@ -120,6 +121,7 @@ function reset() {
   Object.assign(form, {
     name: '',
     enabled: 1,
+    auto_send: 1,
     male_user_ids: [],
     pool_male_count: 0,
     female_user_ids: [],
@@ -158,6 +160,7 @@ async function load(id: number) {
     }))
     form.name = detail.name
     form.enabled = detail.enabled
+    form.auto_send = detail.auto_send
     form.male_user_ids = [...detail.male_user_ids]
     form.pool_male_count = detail.pool_male_count
     form.female_user_ids = detail.females.map(item => item.user_id)
@@ -288,6 +291,15 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
         <el-form-item label="启用">
           <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
           <span class="ml-2 text-xs text-gray-400">还要打开右上角的总开关，任务才会真的开始发</span>
+        </el-form-item>
+
+        <el-form-item label="自动发送">
+          <el-switch v-model="form.auto_send" :active-value="1" :inactive-value="0" />
+          <span class="ml-2 text-xs text-gray-400">
+            {{ form.auto_send === 1
+              ? '定时任务每轮按规则自己发'
+              : '定时任务不发，只能到列表里点「发送」按钮' }}
+          </span>
         </el-form-item>
       </el-form>
 

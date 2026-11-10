@@ -14,6 +14,7 @@ use Hyperf\DbConnection\Model\Model as MineModel;
  * @property int $id
  * @property string $name
  * @property int $enabled
+ * @property int $auto_send
  * @property array<int,int> $male_user_ids
  * @property int $pool_male_count
  * @property int $window_start
@@ -30,10 +31,17 @@ class BotChatRule extends MineModel
 
     public const STATUS_RUNNING = 1;
 
+    /** 定时任务自动发（原来的行为）。 */
+    public const AUTO_SEND_ON = 1;
+
+    /** 只在后台点「发送」时发一次。 */
+    public const AUTO_SEND_OFF = 0;
+
     protected ?string $table = 'cl_bot_chat_rule';
 
     protected array $attributes = [
         'enabled' => 0,
+        'auto_send' => 1,
         'pool_male_count' => 0,
         'window_start' => 0,
         'window_end' => 0,
@@ -44,7 +52,7 @@ class BotChatRule extends MineModel
     ];
 
     protected array $fillable = [
-        'id', 'name', 'enabled', 'male_user_ids', 'pool_male_count',
+        'id', 'name', 'enabled', 'auto_send', 'male_user_ids', 'pool_male_count',
         'window_start', 'window_end', 'round_limit_per_pair', 'interval_seconds',
         'daily_amount_limit_fen', 'context_messages', 'operator_id',
         'created_at', 'updated_at',
@@ -53,6 +61,7 @@ class BotChatRule extends MineModel
     protected array $casts = [
         'id' => 'integer',
         'enabled' => 'integer',
+        'auto_send' => 'integer',
         'male_user_ids' => 'array',
         'pool_male_count' => 'integer',
         'window_start' => 'integer',

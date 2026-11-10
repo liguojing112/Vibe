@@ -113,6 +113,29 @@ final class BotChatController extends AbstractController
     }
 
     #[Post(
+        path: '/admin/cl/bot-chat/{id:\d+}/send',
+        operationId: 'clBotChatSend',
+        summary: '立即发送一轮',
+        security: [['Bearer' => [], 'ApiKey' => []]],
+        tags: ['畅撩交友 / 内容管理']
+    )]
+    #[Permission(code: 'cl:content:bot:send')]
+    #[ResultResponse(new Result())]
+    public function send(int $id): Result
+    {
+        $result = $this->service->sendNow($id);
+
+        if (! $result['sent']) {
+            return $this->error((string) $result['reason']);
+        }
+
+        return $this->success([
+            'message' => $result['message'],
+            'reason' => $result['reason'],
+        ]);
+    }
+
+    #[Post(
         path: '/admin/cl/bot-chat/{id:\d+}/toggle',
         operationId: 'clBotChatToggle',
         summary: '启动/暂停规则',

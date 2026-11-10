@@ -16,6 +16,7 @@ use App\Repository\Cl\BotChatLogRepository;
 use App\Repository\Cl\BotChatRuleRepository;
 use App\Repository\Cl\BotChatTargetRepository;
 use App\Repository\Cl\UserRepository;
+use App\Service\Cl\Ai\BotChatService;
 use App\Service\Cl\Config\AppConfigService;
 use Hyperf\DbConnection\Db;
 
@@ -39,6 +40,7 @@ final class AdminBotChatService
         private readonly AiPersonaRepository $personaRepository,
         private readonly UserRepository $userRepository,
         private readonly AppConfigService $configService,
+        private readonly BotChatService $botChatService,
     ) {}
 
     /** 全局总开关：关掉后定时任务一条都不发，规则本身不变。 */
@@ -94,6 +96,7 @@ final class AdminBotChatService
                 'id' => (int) $rule->id,
                 'name' => (string) $rule->name,
                 'enabled' => (int) $rule->enabled,
+                'auto_send' => (int) $rule->auto_send,
                 'male_count' => count($rule->manualMaleIds()) + (int) $rule->pool_male_count,
                 'target_count' => $targets->count(),
                 'round_limit_per_pair' => (int) $rule->round_limit_per_pair,
@@ -146,6 +149,7 @@ final class AdminBotChatService
             'id' => (int) $rule->id,
             'name' => (string) $rule->name,
             'enabled' => (int) $rule->enabled,
+            'auto_send' => (int) $rule->auto_send,
             'male_user_ids' => $rule->manualMaleIds(),
             'pool_male_count' => (int) $rule->pool_male_count,
             'window_start' => (int) $rule->window_start,
@@ -177,6 +181,9 @@ final class AdminBotChatService
         $values = [
             'name' => mb_substr(trim((string) ($data['name'] ?? '')), 0, 64),
             'enabled' => (int) ($data['enabled'] ?? 0) === 1 ? 1 : 0,
+            'auto_send' => (int) ($data['auto_send'] ?? BotChatRule::AUTO_SEND_ON) === 1
+                ? BotChatRule::AUTO_SEND_ON
+                : BotChatRule::AUTO_SEND_OFF,
             'male_user_ids' => $maleIds,
             'pool_male_count' => max(0, min(self::MAX_MALES, (int) ($data['pool_male_count'] ?? 0))),
             'window_start' => max(0, min(23, (int) ($data['window_start'] ?? 0))),
@@ -208,6 +215,21 @@ final class AdminBotChatService
         });
 
         return $ruleId;
+    }
+
+    /**
+     * 后台点「立即发送」：让这条规则马上给目标女号发一轮。
+     *
+     * 不受活跃时段和自动发送开关限制（这是人在按按钮），
+     * 但轮数、间隔、每日上限照旧生效 —— 这个按钮不能变成绕开限流的后门。
+     *
+     * @return array{sent: bool, message: null|string, reason: null|string}
+     */
+    public function sendNow(int $id): array
+    {
+        $rule = $this->requireRule($id);
+
+        return $this->botChatService->sendNow($rule, date('Y-m-d'));
     }
 
     /** 启动 / 暂停。全局开关没开时也能设置，但定时任务不会跑。 */

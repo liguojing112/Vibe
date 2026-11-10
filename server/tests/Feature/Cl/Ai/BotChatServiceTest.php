@@ -197,6 +197,92 @@ final class BotChatServiceTest extends TestCase
         self::assertSame(0, Message::query()->count());
     }
 
+    public function testAutoSendOffStopsTheCrontabButNotTheManualButton(): void
+    {
+        $male = $this->makeMale();
+        $rule = $this->makeRule([
+            'auto_send' => BotChatRule::AUTO_SEND_OFF,
+            'male_user_ids' => [$male->id],
+        ]);
+        $female = $this->makeFemale();
+        $target = $this->makeTarget($rule->id, $female->id);
+
+        self::assertFalse($this->tick($rule, $target, [$male]), '自动发送关掉后定时任务不该发');
+        self::assertSame(0, Message::query()->count());
+
+        $result = $this->service->sendNow($rule, date('Y-m-d'));
+        self::assertTrue($result['sent'], '手动按钮仍然要能发：' . ($result['reason'] ?? ''));
+        self::assertSame(1, Message::query()->count());
+    }
+
+    public function testManualSendStillRespectsRoundLimit(): void
+    {
+        $male = $this->makeMale();
+        $rule = $this->makeRule([
+            'auto_send' => BotChatRule::AUTO_SEND_OFF,
+            'round_limit_per_pair' => 1,
+            'male_user_ids' => [$male->id],
+        ]);
+        $female = $this->makeFemale();
+        $this->makeTarget($rule->id, $female->id);
+
+        self::assertTrue($this->service->sendNow($rule, date('Y-m-d'))['sent']);
+
+        // 轮数用完后手动按钮也不能绕过
+        $result = $this->service->sendNow($rule, date('Y-m-d'));
+        self::assertFalse($result['sent']);
+        self::assertNotNull($result['reason']);
+        self::assertSame(1, Message::query()->count());
+    }
+
+    public function testManualSendRespectsDailyLimit(): void
+    {
+        $male = $this->makeMale();
+        $rule = $this->makeRule([
+            'auto_send' => BotChatRule::AUTO_SEND_OFF,
+            'daily_amount_limit_fen' => 1,
+            'male_user_ids' => [$male->id],
+        ]);
+        $female = $this->makeFemale();
+        $this->makeTarget($rule->id, $female->id);
+
+        self::assertTrue($this->service->sendNow($rule, date('Y-m-d'))['sent']);
+        self::assertFalse($this->service->sendNow($rule, date('Y-m-d'))['sent']);
+        self::assertSame(1, Message::query()->count());
+    }
+
+    public function testManualSendFailsWhenRuleIsPaused(): void
+    {
+        $male = $this->makeMale();
+        $rule = $this->makeRule([
+            'enabled' => BotChatRule::STATUS_STOPPED,
+            'auto_send' => BotChatRule::AUTO_SEND_OFF,
+            'male_user_ids' => [$male->id],
+        ]);
+        $female = $this->makeFemale();
+        $this->makeTarget($rule->id, $female->id);
+
+        $result = $this->service->sendNow($rule, date('Y-m-d'));
+        self::assertFalse($result['sent']);
+        self::assertStringContainsString('暂停', (string) $result['reason']);
+    }
+
+    public function testManualSendIgnoresActiveWindow(): void
+    {
+        $male = $this->makeMale();
+        $hour = (int) date('G');
+        $rule = $this->makeRule([
+            'auto_send' => BotChatRule::AUTO_SEND_OFF,
+            'window_start' => ($hour + 2) % 24,
+            'window_end' => ($hour + 4) % 24,
+            'male_user_ids' => [$male->id],
+        ]);
+        $female = $this->makeFemale();
+        $this->makeTarget($rule->id, $female->id);
+
+        self::assertTrue($this->service->sendNow($rule, date('Y-m-d'))['sent'], '手动按钮不受时段限制');
+    }
+
     public function testCanFemaleReplyFollowsTheRuleLimit(): void
     {
         $rule = $this->makeRule(['round_limit_per_pair' => 2]);

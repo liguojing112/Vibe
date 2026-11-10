@@ -11,6 +11,8 @@ export interface ClBotChatRuleRow {
   id: number
   name: string
   enabled: number
+  /** 1 = 定时任务自动发；0 = 只能后台点「发送」。 */
+  auto_send: number
   male_count: number
   target_count: number
   round_limit_per_pair: number
@@ -57,6 +59,7 @@ export interface ClBotChatRuleDetail {
   id: number
   name: string
   enabled: number
+  auto_send: number
   male_user_ids: number[]
   pool_male_count: number
   window_start: number
@@ -101,6 +104,7 @@ export interface ClBotChatSavePayload {
   id?: number
   name: string
   enabled: number
+  auto_send: number
   male_user_ids: number[]
   pool_male_count: number
   female_user_ids: number[]
@@ -131,6 +135,11 @@ export function botChatDetail(id: number): Promise<ResponseStruct<ClBotChatRuleD
 
 export function botChatSave(data: ClBotChatSavePayload): Promise<ResponseStruct<{ id: number }>> {
   return useHttp().post('/admin/cl/bot-chat/save', data)
+}
+
+/** 立刻发一轮。**不受时段和自动发送开关限制**，但轮数/间隔/每日上限照旧生效。 */
+export function botChatSend(id: number): Promise<ResponseStruct<{ message: string, reason?: string | null }>> {
+  return useHttp().post(`/admin/cl/bot-chat/${id}/send`)
 }
 
 export function botChatToggle(id: number, enabled: number): Promise<ResponseStruct<object>> {

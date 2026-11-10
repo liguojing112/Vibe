@@ -92,7 +92,7 @@ class ZzClMenuSeeder20261014 extends Seeder
                 'cl:report:*',
                 'cl:content:moment:*',
                 'cl:content:ai:list', 'cl:content:ai:edit',
-                'cl:content:bot:list', 'cl:content:bot:edit',
+                'cl:content:bot:list', 'cl:content:bot:edit', 'cl:content:bot:send',
             ],
         ],
     ];
@@ -323,6 +323,7 @@ class ZzClMenuSeeder20261014 extends Seeder
                             ],
                             $this->button('cl:content:bot:list', '查看 AI 互聊'),
                             $this->button('cl:content:bot:edit', '配置互聊规则'),
+                            $this->button('cl:content:bot:send', '点击发送消息'),
                         ],
                     ],
                 ],

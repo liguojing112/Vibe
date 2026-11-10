@@ -100,6 +100,28 @@ function openLogs(row: ClBotChatRuleRow) {
   logVisible.value = true
 }
 
+const sending = ref<number | null>(null)
+
+async function sendNow(row: ClBotChatRuleRow) {
+  sending.value = row.id
+  try {
+    const res = await api.botChatSend(row.id)
+    if (res.code === ResultCode.SUCCESS) {
+      msg.success(res.data.message || '已发送')
+      if (res.data.reason) {
+        msg.warning(res.data.reason)
+      }
+      proTableRef.value?.refresh()
+    }
+    else {
+      msg.error(res.message)
+    }
+  }
+  finally {
+    sending.value = null
+  }
+}
+
 async function toggle(row: ClBotChatRuleRow) {
   const next = row.enabled === 1 ? 0 : 1
   const res = await api.botChatToggle(row.id, next)
@@ -165,6 +187,16 @@ const schema = ref<MaProTableSchema>({
           : <el-tag type="info">已暂停</el-tag>
       ),
     },
+    {
+      label: '发送方式',
+      prop: 'auto_send',
+      width: '110px',
+      cellRender: ({ row }) => (
+        row.auto_send === 1
+          ? <el-tag type="primary" size="small">自动</el-tag>
+          : <el-tag type="warning" size="small">手动</el-tag>
+      ),
+    },
     { label: '男号数', prop: 'male_count', width: '90px' },
     { label: '目标女号', prop: 'target_count', width: '100px' },
     { label: '每对轮数', prop: 'round_limit_per_pair', width: '100px' },
@@ -203,10 +235,17 @@ const schema = ref<MaProTableSchema>({
     {
       type: 'operation',
       label: '操作',
-      width: '260px',
+      width: '320px',
       fixed: 'right',
       operationConfigure: {
         actions: [
+          {
+            name: 'send',
+            text: '发送',
+            icon: 'ri:send-plane-fill',
+            show: () => hasAuth('cl:content:bot:send'),
+            onClick: ({ row }) => sendNow(row),
+          },
           {
             name: 'edit',
             text: '编辑',

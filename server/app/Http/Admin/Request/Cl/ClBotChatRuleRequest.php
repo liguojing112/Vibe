@@ -17,6 +17,7 @@ class ClBotChatRuleRequest extends FormRequest
         return [
             'name' => 'required|string|max:64',
             'enabled' => 'nullable|integer|in:0,1',
+            'auto_send' => 'nullable|integer|in:0,1',
             'male_user_ids' => 'nullable|array|max:500',
             'male_user_ids.*' => 'integer|min:1',
             'pool_male_count' => 'nullable|integer|between:0,500',
@@ -37,6 +38,7 @@ class ClBotChatRuleRequest extends FormRequest
         return [
             'name' => '规则名称',
             'enabled' => '启用状态',
+            'auto_send' => '自动发送',
             'male_user_ids' => '男号',
             'pool_male_count' => '号池补足数量',
             'female_user_ids' => '目标女号',

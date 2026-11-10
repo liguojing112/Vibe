@@ -5,11 +5,8 @@ declare(strict_types=1);
 namespace App\Crontab;
 
 use App\Model\Cl\BotChatRule;
-use App\Model\Cl\BotChatTarget;
-use App\Model\Cl\User;
 use App\Repository\Cl\BotChatRuleRepository;
 use App\Repository\Cl\BotChatTargetRepository;
-use App\Repository\Cl\UserRepository;
 use App\Service\Cl\Ai\BotChatService;
 use Hyperf\Crontab\Annotation\Crontab;
 use Hyperf\Redis\Redis;
@@ -36,7 +33,6 @@ final class BotChatCrontab
     public function __construct(
         private readonly BotChatRuleRepository $ruleRepository,
         private readonly BotChatTargetRepository $targetRepository,
-        private readonly UserRepository $userRepository,
         private readonly BotChatService $botChatService,
         private readonly Redis $redis,
         private readonly LoggerInterface $logger,
@@ -106,46 +102,9 @@ final class BotChatCrontab
         }
     }
 
-    /**
-     * 解析这条规则实际可用的男号：手动指定的 + 从机器人号池随机补足。
-     *
-     * 「机器人号池」= 后台批量开号生成的男号（`cl_user.source = 2` 且 `batch_no` 非空）。
-     *
-     * @return array<int,User>
-     */
+    /** 男号解析统一走 service，避免两处规则跑偏。 */
     private function resolveMales(BotChatRule $rule): array
     {
-        $ids = $rule->manualMaleIds();
-
-        if ($rule->pool_male_count > 0) {
-            $pool = $this->userRepository->getQuery()
-                ->where('gender', User::GENDER_MALE)
-                ->where('status', User::STATUS_NORMAL)
-                ->where('source', 2)
-                ->whereNotNull('batch_no')
-                ->where('batch_no', '!=', '')
-                ->when($ids !== [], fn ($q) => $q->whereNotIn('id', $ids))
-                ->inRandomOrder()
-                ->limit($rule->pool_male_count)
-                ->pluck('id')
-                ->map(static fn ($id): int => (int) $id)
-                ->all();
-
-            $ids = array_values(array_unique(array_merge($ids, $pool)));
-        }
-
-        if ($ids === []) {
-            return [];
-        }
-
-        /** @var array<int,User> $users */
-        $users = $this->userRepository->getQuery()
-            ->whereIn('id', $ids)
-            ->where('gender', User::GENDER_MALE)
-            ->where('status', User::STATUS_NORMAL)
-            ->get()
-            ->all();
-
-        return $users;
+        return $this->botChatService->resolveMales($rule);
     }
 }

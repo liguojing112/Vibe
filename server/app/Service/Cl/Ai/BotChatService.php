@@ -86,6 +86,10 @@ final class BotChatService
         if (! $this->enabled() || $rule->enabled !== BotChatRule::STATUS_RUNNING) {
             return false;
         }
+        // 规则设成「只在后台手动发」时，定时任务不再碰它
+        if ($rule->auto_send !== BotChatRule::AUTO_SEND_ON) {
+            return false;
+        }
         if (! $rule->inActiveWindow()) {
             return false;
         }
@@ -121,6 +125,115 @@ final class BotChatService
         }
 
         return $this->sendFromMale($rule, $target, $female, $male, $pair);
+    }
+
+    /**
+     * 后台点「发送」：立刻让这条规则的男号给目标女号发一条。
+     *
+     * 和定时任务的区别只有一处 —— **不检查活跃时段、不检查自动发送开关**，
+     * 因为这就是运营在按按钮，他说现在发就是现在发。
+     * 但今天还能不能发仍然受规则约束：轮数、间隔、每日上限一条都不放宽，
+     * 否则这个按钮就成了绕开限流的后门。
+     *
+     * @return array{sent: bool, message: null|string, reason: null|string}
+     */
+    public function sendNow(BotChatRule $rule, string $today): array
+    {
+        if (! $this->enabled()) {
+            return $this->fail('AI 互聊总开关未打开');
+        }
+        if ($rule->enabled !== BotChatRule::STATUS_RUNNING) {
+            return $this->fail('规则已暂停，请先启动');
+        }
+
+        $targets = $this->targetRepository->listActiveByRule((int) $rule->id);
+        if ($targets === []) {
+            return $this->fail('这条规则还没有目标女号');
+        }
+
+        $males = $this->resolveMales($rule);
+        if ($males === []) {
+            return $this->fail('这条规则没有可用的男号（检查男号状态或号池）');
+        }
+
+        $sent = 0;
+        $skipped = [];
+
+        foreach ($targets as $target) {
+            $this->targetRepository->resetDailyIfStale((int) $target->id, $today);
+            $target = $this->targetRepository->findById($target->id);
+
+            if (! $target instanceof BotChatTarget) {
+                continue;
+            }
+            if ($target->isDailyLimitReached()) {
+                $skipped[] = '已达当日上限';
+
+                continue;
+            }
+
+            $female = $this->userRepository->findById($target->female_id);
+            if (! $female instanceof User || ! $female->isFemale() || $female->status !== User::STATUS_NORMAL) {
+                $skipped[] = '女号状态异常';
+
+                continue;
+            }
+
+            $male = $this->pickMale($rule, $female, $males, $today);
+            if (! $male instanceof User) {
+                $skipped[] = '没有可用男号';
+
+                continue;
+            }
+            if ($this->blockRepository->blockedEitherWay($female->id, $male->id)) {
+                $skipped[] = '已被拉黑';
+
+                continue;
+            }
+
+            $pair = $this->pairRepository->ensure((int) $rule->id, $male->id, $female->id, $today);
+            if ((int) $pair->rounds_today >= $rule->round_limit_per_pair) {
+                $skipped[] = '该男号今日轮数已满';
+
+                continue;
+            }
+            if (! $this->intervalPassed($pair, $rule)) {
+                $skipped[] = '未到发送间隔';
+
+                continue;
+            }
+
+            try {
+                if ($this->sendFromMale($rule, $target, $female, $male, $pair)) {
+                    ++$sent;
+                } else {
+                    $skipped[] = '生成或落库失败';
+                }
+            } catch (Throwable $e) {
+                $this->logger->warning('AI 互聊手动发送失败：' . $e->getMessage());
+                $skipped[] = '发送异常';
+            }
+        }
+
+        if ($sent === 0) {
+            $reason = $skipped === [] ? '没有可发送的目标' : implode('、', array_unique($skipped));
+
+            return $this->fail($reason);
+        }
+
+        return [
+            'sent' => true,
+            'message' => sprintf('已发送 %d 条', $sent),
+            'reason' => $skipped === [] ? null : ('跳过：' . implode('、', array_unique($skipped))),
+        ];
+    }
+
+    /**
+     * @return array{sent: false, message: null, reason: string}
+     */
+    private function fail(string $reason): array
+    {
+        return ['sent' => false, 'message' => null, 'reason' => $reason];
     }
 
     /**
@@ -312,6 +425,49 @@ final class BotChatService
         }
 
         return $pair->last_sent_at->getTimestamp() + $rule->interval_seconds <= time();
+    }
+
+    /**
+     * 解析这条规则实际可用的男号：手动指定的 + 从机器人号池随机补足。
+     *
+     * 「机器人号池」= 后台批量开号生成的男号（`cl_user.source = 2` 且 `batch_no` 非空）。
+     *
+     * @return array<int,User>
+     */
+    public function resolveMales(BotChatRule $rule): array
+    {
+        $ids = $rule->manualMaleIds();
+
+        if ($rule->pool_male_count > 0) {
+            $pool = $this->userRepository->getQuery()
+                ->where('gender', User::GENDER_MALE)
+                ->where('status', User::STATUS_NORMAL)
+                ->where('source', 2)
+                ->whereNotNull('batch_no')
+                ->where('batch_no', '!=', '')
+                ->when($ids !== [], fn ($q) => $q->whereNotIn('id', $ids))
+                ->inRandomOrder()
+                ->limit($rule->pool_male_count)
+                ->pluck('id')
+                ->map(static fn ($id): int => (int) $id)
+                ->all();
+
+            $ids = array_values(array_unique(array_merge($ids, $pool)));
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        /** @var array<int,User> $users */
+        $users = $this->userRepository->getQuery()
+            ->whereIn('id', $ids)
+            ->where('gender', User::GENDER_MALE)
+            ->where('status', User::STATUS_NORMAL)
+            ->get()
+            ->all();
+
+        return $users;
     }
 
     /**
