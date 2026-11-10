@@ -43,10 +43,28 @@ pnpm install --frozen-lockfile
 pnpm build
 
 echo "==> 5/6 发布前端"
+# 站点根目录里有几样**不是构建产物**的东西，必须保留：
+#   404.html、download/（APK 下载页）、.htaccess、.user.ini（宝塔/PHP 配置）、.well-known（证书验证）
+# `--delete` 会把它们一起删掉，所以统一排除。
+KEEP_PATTERNS='^(\.user\.ini|\.htaccess|404\.html|download/|\.well-known/)'
 if command -v rsync >/dev/null 2>&1; then
-  rsync -a --delete "$REPO/admin-web/dist/" "$WEB/"
+  rsync -a --delete \
+    --exclude='/.user.ini' --exclude='/.htaccess' --exclude='/404.html' \
+    --exclude='/download' --exclude='/.well-known' \
+    "$REPO/admin-web/dist/" "$WEB/"
 else
+  # 没有 rsync 时 `cp -a` 不会删旧文件 —— 之前就是这样堆了几千个带 hash 的 JS。
+  # 这里按「新产物清单」反向清理一次，规则和 rsync 的 --delete 对齐。
   cp -a "$REPO/admin-web/dist/." "$WEB/"
+
+  NEW_LIST=/tmp/cl-admin-dist-files.txt
+  OLD_LIST=/tmp/cl-admin-web-files.txt
+  (cd "$REPO/admin-web/dist" && find . -type f | sed 's|^\./||' | sort) > "$NEW_LIST"
+  (cd "$WEB" && find . -type f | sed 's|^\./||' | sort) > "$OLD_LIST"
+
+  comm -13 "$NEW_LIST" "$OLD_LIST" | grep -vE "$KEEP_PATTERNS" | while IFS= read -r stale; do
+    rm -f -- "$WEB/$stale"
+  done
 fi
 chown -R www:www "$REPO/server/runtime" "$REPO/server/storage" "$WEB" 2>/dev/null || true
 
