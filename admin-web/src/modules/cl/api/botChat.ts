@@ -16,7 +16,11 @@ export interface ClBotChatRuleRow {
   male_count: number
   target_count: number
   round_limit_per_pair: number
+  /** 每个男号每天最多发多少条，0 = 不限。 */
+  male_daily_limit: number
   interval_seconds: number
+  /** 超过这么多秒没说话就算这段对话结束，换下一个男号。 */
+  session_gap_seconds: number
   window_start: number
   window_end: number
   daily_amount_limit_fen: number
@@ -65,7 +69,9 @@ export interface ClBotChatRuleDetail {
   window_start: number
   window_end: number
   round_limit_per_pair: number
+  male_daily_limit: number
   interval_seconds: number
+  session_gap_seconds: number
   daily_amount_limit_fen: number
   context_messages: number
   males: ClBotChatMale[]
@@ -111,7 +117,9 @@ export interface ClBotChatSavePayload {
   window_start: number
   window_end: number
   round_limit_per_pair: number
+  male_daily_limit: number
   interval_seconds: number
+  session_gap_seconds: number
   daily_amount_limit_fen: number
   context_messages: number
   male_personas: Record<number, ClBotChatPersona>

@@ -38,11 +38,19 @@ final class BotChatCrontab
         private readonly LoggerInterface $logger,
     ) {}
 
+    /**
+     * **每 10 秒**跑一轮（Hyperf 的 crontab 支持秒级，6 段表达式）。
+     *
+     * 原来是一分钟一轮，配出来的效果是「每一对每分钟才说一句」——
+     * 真人聊天不是这个节奏，客户要的是像正常人来回聊。
+     * 真正的节流交给规则里的 `interval_seconds`（含 ±30% 抖动），
+     * 这里只负责「勤快地看一眼有没有该说话的」。
+     */
     #[Crontab(
-        rule: '* * * * *',
+        rule: '*/10 * * * * *',
         name: 'cl-bot-chat',
         callback: 'execute',
-        memo: 'AI 男女互聊：机器人男号按规则给指定女号发消息',
+        memo: 'AI 男女互聊：机器人男号按规则给指定女号发消息（每 10 秒一轮）',
     )]
     public function execute(): void
     {

@@ -48,7 +48,9 @@ const form = reactive<ClBotChatSavePayload>({
   window_start: 0,
   window_end: 0,
   round_limit_per_pair: 20,
+  male_daily_limit: 0,
   interval_seconds: 30,
+  session_gap_seconds: 300,
   daily_amount_limit_fen: 1500,
   context_messages: 10,
   male_personas: {},
@@ -136,7 +138,9 @@ function reset() {
     window_start: 0,
     window_end: 0,
     round_limit_per_pair: 20,
+    male_daily_limit: 0,
     interval_seconds: 30,
+    session_gap_seconds: 300,
     daily_amount_limit_fen: 1500,
     context_messages: 10,
     male_personas: {},
@@ -175,7 +179,9 @@ async function load(id: number) {
     form.window_start = detail.window_start
     form.window_end = detail.window_end
     form.round_limit_per_pair = detail.round_limit_per_pair
+    form.male_daily_limit = detail.male_daily_limit
     form.interval_seconds = detail.interval_seconds
+    form.session_gap_seconds = detail.session_gap_seconds
     form.daily_amount_limit_fen = detail.daily_amount_limit_fen
     form.context_messages = detail.context_messages
     const personas: Record<number, ClBotChatPersona> = {}
@@ -453,9 +459,23 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
           <span class="ml-2 text-xs text-gray-400">同一个男号对同一个女号，一天最多聊几个来回</span>
         </el-form-item>
 
+        <el-form-item label="男号每日上限">
+          <el-input-number v-model="form.male_daily_limit" :min="0" :max="100000" controls-position="right" />
+          <span class="ml-2 text-xs text-gray-400">
+            每个男号一天最多发多少条，0 = 不限
+          </span>
+        </el-form-item>
+
         <el-form-item label="发送间隔">
           <el-input-number v-model="form.interval_seconds" :min="0" :max="86400" controls-position="right" />
-          <span class="ml-2 text-xs text-gray-400">秒。同一对之间至少隔这么久</span>
+          <span class="ml-2 text-xs text-gray-400">秒。同一对之间至少隔这么久（实际会有 ±30% 抖动，更像真人）</span>
+        </el-form-item>
+
+        <el-form-item label="会话断开">
+          <el-input-number v-model="form.session_gap_seconds" :min="60" :max="86400" controls-position="right" />
+          <span class="ml-2 text-xs text-gray-400">
+            秒。超过这么久没说话就算这段聊完了，换下一个男号
+          </span>
         </el-form-item>
 
         <el-form-item label="每日时段">

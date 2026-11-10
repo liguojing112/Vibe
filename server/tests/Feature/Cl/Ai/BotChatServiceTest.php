@@ -283,6 +283,52 @@ final class BotChatServiceTest extends TestCase
         self::assertTrue($this->service->sendNow($rule, date('Y-m-d'))['sent'], '手动按钮不受时段限制');
     }
 
+    public function testSameMaleKeepsTheConversationGoingUntilRoundLimit(): void
+    {
+        $maleA = $this->makeMale();
+        $maleB = $this->makeMale();
+        $rule = $this->makeRule([
+            'round_limit_per_pair' => 3,
+            'session_gap_seconds' => 3600,
+        ]);
+        $female = $this->makeFemale();
+        $target = $this->makeTarget($rule->id, $female->id);
+
+        for ($i = 0; $i < 3; ++$i) {
+            self::assertTrue($this->tick($rule, $target, [$maleA, $maleB]));
+        }
+
+        $senders = Message::query()->orderBy('id')->pluck('sender_id')->map(static fn ($id): int => (int) $id)->all();
+        self::assertCount(3, $senders);
+        self::assertCount(1, array_unique($senders), '同一段对话应该由同一个人接着说，不是每条都换人');
+
+        // 这一对轮数用完后，换另一个男号开新对话
+        self::assertTrue($this->tick($rule, $target, [$maleA, $maleB]));
+        $last = (int) Message::query()->orderByDesc('id')->value('sender_id');
+        self::assertNotSame($senders[0], $last);
+    }
+
+    public function testMaleDailyLimitCapsEachMaleAcrossFemales(): void
+    {
+        $male = $this->makeMale();
+        $rule = $this->makeRule([
+            'male_daily_limit' => 2,
+            'round_limit_per_pair' => 10,
+            'session_gap_seconds' => 3600,
+        ]);
+        $femaleA = $this->makeFemale();
+        $femaleB = $this->makeFemale();
+        $targetA = $this->makeTarget($rule->id, $femaleA->id);
+        $targetB = $this->makeTarget($rule->id, $femaleB->id);
+
+        self::assertTrue($this->tick($rule, $targetA, [$male]));
+        self::assertTrue($this->tick($rule, $targetA, [$male]));
+
+        // 这个男号今天已经发满 2 条，换女号也不行
+        self::assertFalse($this->tick($rule, $targetB, [$male]));
+        self::assertSame(2, Message::query()->count());
+    }
+
     public function testCanFemaleReplyFollowsTheRuleLimit(): void
     {
         $rule = $this->makeRule(['round_limit_per_pair' => 2]);

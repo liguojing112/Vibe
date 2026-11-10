@@ -418,13 +418,23 @@ final class BotChatService
         return intdiv($rule->daily_amount_limit_fen * $pointPerYuan, 100);
     }
 
+    /**
+     * 同一对之间是否已经隔够时间。
+     *
+     * 间隔带 ±30% 的固定抖动：真人不会每 10 秒准点发一条，整齐得像节拍器。
+     * 抖动用 `last_sent_at` 算，不是每次随机 —— 否则同一秒里查两次会得到不同答案。
+     */
     private function intervalPassed(BotChatPair $pair, BotChatRule $rule): bool
     {
-        if ($pair->last_sent_at === null) {
+        if ($pair->last_sent_at === null || $rule->interval_seconds <= 0) {
             return true;
         }
 
-        return $pair->last_sent_at->getTimestamp() + $rule->interval_seconds <= time();
+        $seed = crc32($pair->id . '|' . $pair->last_sent_at->getTimestamp()) % 601; // 0..600
+        $jitter = (int) round($rule->interval_seconds * ($seed - 300) / 1000);       // ±30%
+        $interval = max(1, $rule->interval_seconds + $jitter);
+
+        return $pair->last_sent_at->getTimestamp() + $interval <= time();
     }
 
     /**
@@ -471,7 +481,13 @@ final class BotChatService
     }
 
     /**
-     * 选一个男号：优先今天还没跟这个女号聊过的，轮转让更多号出现。
+     * 选一个男号。
+     *
+     * 像真人聊天，不是每条都换个人：
+     * 1. **先延续当前这段对话** —— 上一个说话的人还没冷场（`session_gap_seconds` 内）、
+     *    这一对的轮数还没用完，就继续由他接话；
+     * 2. 冷场了才开新对话，优先挑今天还没跟这个女号聊过的，让更多号露面；
+     * 3. 每个男号还受「每天最多发多少条」限制（`male_daily_limit`，0 = 不限）。
      *
      * @param array<int,User> $males
      */
@@ -492,6 +508,36 @@ final class BotChatService
             return null;
         }
 
+        // 男号每日总条数：一个号撩遍所有女号也会被拦住
+        if ($rule->male_daily_limit > 0) {
+            $counts = $this->pairRepository->maleDailyCounts((int) $rule->id, $today);
+            $usable = array_values(array_filter(
+                $usable,
+                static fn (User $m): bool => ($counts[$m->id] ?? 0) < $rule->male_daily_limit,
+            ));
+
+            if ($usable === []) {
+                return null;
+            }
+        }
+
+        $byId = [];
+        foreach ($usable as $male) {
+            $byId[$male->id] = $male;
+        }
+
+        // ① 延续正在进行的对话
+        $latest = $this->pairRepository->latestForFemale((int) $rule->id, $female->id, $today);
+        if ($latest instanceof BotChatPair
+            && isset($byId[(int) $latest->male_id])
+            && (int) $latest->rounds_today < $rule->round_limit_per_pair
+            && $latest->last_sent_at !== null
+            && $latest->last_sent_at->getTimestamp() + max(1, $rule->session_gap_seconds) >= time()
+        ) {
+            return $byId[(int) $latest->male_id];
+        }
+
+        // ② 冷场了，开新对话
         $todayMales = $this->pairRepository->maleIdsToday((int) $rule->id, $female->id, $today);
         $fresh = array_values(array_filter($usable, static fn (User $m): bool => ! in_array($m->id, $todayMales, true)));
 

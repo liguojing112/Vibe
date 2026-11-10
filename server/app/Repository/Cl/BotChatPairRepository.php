@@ -79,7 +79,7 @@ final class BotChatPairRepository extends IRepository
     }
 
     /**
-     * 今天已经和这个女号聊过的男号 id（选男号时优先避开，让更多男号露面）。
+     * 今天已经和这个女号聊过的男号 id（开新对话时优先避开，让更多男号露面）。
      *
      * @return array<int,int>
      */
@@ -91,6 +91,40 @@ final class BotChatPairRepository extends IRepository
             ->where('stat_date', $today)
             ->pluck('male_id')
             ->map(static fn ($id): int => (int) $id)
+            ->all();
+    }
+
+    /** 这个女号今天最后一个说话的对象（用来判断「这段对话还没结束」）。 */
+    public function latestForFemale(int $ruleId, int $femaleId, string $today): ?BotChatPair
+    {
+        /** @var null|BotChatPair $row */
+        $row = $this->model->newQuery()
+            ->where('rule_id', $ruleId)
+            ->where('female_id', $femaleId)
+            ->where('stat_date', $today)
+            ->whereNotNull('last_sent_at')
+            ->orderByDesc('last_sent_at')
+            ->first();
+
+        return $row;
+    }
+
+    /**
+     * 每个男号今天已经发了多少条（按规则 + 日期汇总所有女号）。
+     *
+     * 用来卡「男号每日总条数」：单个男女对的上限管不住「一个男号撩遍所有女号」。
+     *
+     * @return array<int,int> maleId => 已发条数
+     */
+    public function maleDailyCounts(int $ruleId, string $today): array
+    {
+        return $this->model->newQuery()
+            ->where('rule_id', $ruleId)
+            ->where('stat_date', $today)
+            ->selectRaw('male_id, SUM(rounds_today) AS sent')
+            ->groupBy('male_id')
+            ->pluck('sent', 'male_id')
+            ->map(static fn ($v): int => (int) $v)
             ->all();
     }
 }
