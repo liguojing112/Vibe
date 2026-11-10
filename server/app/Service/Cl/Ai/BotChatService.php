@@ -371,7 +371,8 @@ final class BotChatService
                         PointLogType::MESSAGE_INCOME,
                         self::REF_TYPE,
                         (int) $message->id,
-                        'AI 互聊收入 · ' . $male->nickname,
+                        // 收益明细在客户端展示：和真实付费私信用同一个文案，不暴露机器人
+                        '私信收入 · ' . $male->nickname,
                     );
                 }
 
