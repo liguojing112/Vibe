@@ -130,12 +130,13 @@ if (! is_dir($avatarDir)) {
     mkdir($avatarDir, 0755, true);
 }
 
-// 优先用客户 2026-11-12 提供的男头像；没有就退回之前的风景图
-$sources = glob(__DIR__ . '/assets/ai-male-avatars/a_*.jpg') ?: [];
-if ($sources === []) {
-    $sources = glob(__DIR__ . '/assets/landscape-avatars/s_*.jpg') ?: [];
-}
-sort($sources);
+// 客户提供的男头像 + 风景图一起用：500 个号分到 200+ 张，重复度更低
+$maleSources = glob(__DIR__ . '/assets/ai-male-avatars/a_*.jpg') ?: [];
+$landSources = glob(__DIR__ . '/assets/landscape-avatars/s_*.jpg') ?: [];
+sort($maleSources);
+sort($landSources);
+$sources = array_merge($maleSources, $landSources);
+
 if ($sources === []) {
     fwrite(STDERR, "缺少头像素材：scripts/assets/ai-male-avatars/ 或 landscape-avatars/\n");
     exit(1);
