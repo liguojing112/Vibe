@@ -478,8 +478,12 @@ final class BotChatService
     /**
      * 同一对之间是否已经隔够时间。
      *
-     * 间隔带 ±30% 的固定抖动：真人不会每 10 秒准点发一条，整齐得像节拍器。
-     * 抖动用 `last_sent_at` 算，不是每次随机 —— 否则同一秒里查两次会得到不同答案。
+     * 配了上限（`interval_max_seconds > interval_seconds`）就在这个区间里随机：
+     * 配 120~300 秒，就是每条消息之间隔 2~5 分钟随机 —— 收益明细里不会一分钟刷三条。
+     * 没配上限时沿用老行为（±30% 抖动）。
+     *
+     * 随机值用 `last_sent_at` 做种子，不是每次现算 —— 定时任务每 10 秒查一次，
+     * 每次随机的话同一秒里查两次会得到不同答案。
      */
     private function intervalPassed(BotChatPair $pair, BotChatRule $rule): bool
     {
@@ -487,9 +491,16 @@ final class BotChatService
             return true;
         }
 
-        $seed = crc32($pair->id . '|' . $pair->last_sent_at->getTimestamp()) % 601; // 0..600
-        $jitter = (int) round($rule->interval_seconds * ($seed - 300) / 1000);       // ±30%
-        $interval = max(1, $rule->interval_seconds + $jitter);
+        $min = max(1, (int) $rule->interval_seconds);
+        $max = max($min, (int) $rule->interval_max_seconds);
+        $seed = crc32($pair->id . '|' . $pair->last_sent_at->getTimestamp());
+
+        if ($max > $min) {
+            $interval = $min + ($seed % ($max - $min + 1));
+        } else {
+            $jitter = (int) round($min * (($seed % 601) - 300) / 1000); // ±30%
+            $interval = max(1, $min + $jitter);
+        }
 
         return $pair->last_sent_at->getTimestamp() + $interval <= time();
     }
@@ -583,12 +594,16 @@ final class BotChatService
         // **不能要求这个人还在本轮随机抽出来的号池里** —— 号池每轮重新随机，
         // 上一句还是他说的、这一轮没抽到，就会换个人开新对话，
         // 表现得就像「每个男号只发一条」。号池只负责开新对话。
+        // 会话窗口不能比「最大发送间隔」还短：配 5 分钟间隔、5 分钟冷场的话，
+        // 下一条刚好落在窗口外，会被误判成聊完而换人。
+        $sessionGap = max(1, (int) $rule->session_gap_seconds, (int) $rule->interval_max_seconds + 60);
+
         $latest = $this->pairRepository->latestForFemale((int) $rule->id, $female->id, $today);
         if ($latest instanceof BotChatPair
             && (int) $latest->rounds_today < $rule->round_limit_per_pair
             && ! $this->pairLimitReached($latest, $rule)
             && $latest->last_sent_at !== null
-            && $latest->last_sent_at->getTimestamp() + max(1, $rule->session_gap_seconds) >= time()
+            && $latest->last_sent_at->getTimestamp() + $sessionGap >= time()
         ) {
             $lastMale = $this->userRepository->findById((int) $latest->male_id);
             if ($lastMale instanceof User && $lastMale->isMale() && $lastMale->status === User::STATUS_NORMAL && $underQuota($lastMale)) {

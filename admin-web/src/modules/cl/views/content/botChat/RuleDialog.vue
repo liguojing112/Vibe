@@ -50,6 +50,7 @@ const form = reactive<ClBotChatSavePayload>({
   round_limit_per_pair: 20,
   male_daily_limit: 0,
   interval_seconds: 30,
+  interval_max_seconds: 0,
   session_gap_seconds: 300,
   daily_amount_limit_fen: 1500,
   context_messages: 10,
@@ -140,6 +141,7 @@ function reset() {
     round_limit_per_pair: 20,
     male_daily_limit: 0,
     interval_seconds: 30,
+    interval_max_seconds: 0,
     session_gap_seconds: 300,
     daily_amount_limit_fen: 1500,
     context_messages: 10,
@@ -181,6 +183,7 @@ async function load(id: number) {
     form.round_limit_per_pair = detail.round_limit_per_pair
     form.male_daily_limit = detail.male_daily_limit
     form.interval_seconds = detail.interval_seconds
+    form.interval_max_seconds = detail.interval_max_seconds
     form.session_gap_seconds = detail.session_gap_seconds
     form.daily_amount_limit_fen = detail.daily_amount_limit_fen
     form.context_messages = detail.context_messages
@@ -468,7 +471,11 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
         <el-form-item label="发送间隔">
           <el-input-number v-model="form.interval_seconds" :min="0" :max="86400" controls-position="right" />
-          <span class="ml-2 text-xs text-gray-400">秒。同一对之间至少隔这么久（实际会有 ±30% 抖动，更像真人）</span>
+          <span class="mx-2">到</span>
+          <el-input-number v-model="form.interval_max_seconds" :min="0" :max="86400" controls-position="right" />
+          <span class="ml-2 text-xs text-gray-400">
+            秒。同一对两次消息的间隔在这个区间里随机；上限填 0 表示固定用左边的值（±30% 抖动）
+          </span>
         </el-form-item>
 
         <el-form-item label="会话断开">

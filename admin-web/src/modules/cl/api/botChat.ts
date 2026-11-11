@@ -19,6 +19,8 @@ export interface ClBotChatRuleRow {
   /** 每个男号每天最多发多少条，0 = 不限。 */
   male_daily_limit: number
   interval_seconds: number
+  /** 同一对两次消息的最大间隔。0 = 不设上限，沿用 ±30% 抖动。 */
+  interval_max_seconds: number
   /** 超过这么多秒没说话就算这段对话结束，换下一个男号。 */
   session_gap_seconds: number
   window_start: number
@@ -72,6 +74,7 @@ export interface ClBotChatRuleDetail {
   round_limit_per_pair: number
   male_daily_limit: number
   interval_seconds: number
+  interval_max_seconds: number
   session_gap_seconds: number
   daily_amount_limit_fen: number
   context_messages: number
@@ -120,6 +123,7 @@ export interface ClBotChatSavePayload {
   round_limit_per_pair: number
   male_daily_limit: number
   interval_seconds: number
+  interval_max_seconds: number
   session_gap_seconds: number
   daily_amount_limit_fen: number
   context_messages: number

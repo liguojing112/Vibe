@@ -152,6 +152,32 @@ final class BotChatServiceTest extends TestCase
         self::assertSame(2, Message::query()->count());
     }
 
+    public function testIntervalRangeKeepsTwoMessagesApart(): void
+    {
+        $male = $this->makeMale();
+        $rule = $this->makeRule([
+            'interval_seconds' => 120,
+            'interval_max_seconds' => 300,
+            'session_gap_seconds' => 600,
+            'male_user_ids' => [$male->id],
+        ]);
+        $female = $this->makeFemale();
+        $target = $this->makeTarget($rule->id, $female->id);
+
+        self::assertTrue($this->tick($rule, $target, [$male]));
+
+        $pair = BotChatPair::query()->where('rule_id', $rule->id)->first();
+        self::assertInstanceOf(BotChatPair::class, $pair);
+
+        // 才过 100 秒，连最小间隔 120 都没到
+        $pair->update(['last_sent_at' => date('Y-m-d H:i:s', time() - 100)]);
+        self::assertFalse($this->tick($rule, $target, [$male]), '区间下限内不该发');
+
+        // 过了 400 秒，超过最大间隔 300
+        $pair->update(['last_sent_at' => date('Y-m-d H:i:s', time() - 400)]);
+        self::assertTrue($this->tick($rule, $target, [$male]), '超过上限后应该发');
+    }
+
     public function testIntervalBlocksImmediateSecondSend(): void
     {
         $rule = $this->makeRule(['interval_seconds' => 3600]);
