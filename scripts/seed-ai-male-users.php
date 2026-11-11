@@ -112,10 +112,14 @@ if (! is_dir($avatarDir)) {
     mkdir($avatarDir, 0755, true);
 }
 
-$sources = glob(__DIR__ . '/assets/landscape-avatars/' . AVATAR_KIND . '_*.jpg') ?: [];
+// 优先用客户提供的男头像；没有就退回风景图
+$sources = glob(__DIR__ . '/assets/ai-male-avatars/a_*.jpg') ?: [];
+if ($sources === []) {
+    $sources = glob(__DIR__ . '/assets/landscape-avatars/' . AVATAR_KIND . '_*.jpg') ?: [];
+}
 sort($sources);
 if ($sources === []) {
-    fwrite(STDERR, "缺少风景头像素材：scripts/assets/landscape-avatars/\n");
+    fwrite(STDERR, "缺少头像素材：scripts/assets/ai-male-avatars/ 或 landscape-avatars/\n");
     exit(1);
 }
 

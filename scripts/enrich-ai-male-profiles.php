@@ -130,10 +130,14 @@ if (! is_dir($avatarDir)) {
     mkdir($avatarDir, 0755, true);
 }
 
-$sources = glob(__DIR__ . '/assets/landscape-avatars/s_*.jpg') ?: [];
+// 优先用客户 2026-11-12 提供的男头像；没有就退回之前的风景图
+$sources = glob(__DIR__ . '/assets/ai-male-avatars/a_*.jpg') ?: [];
+if ($sources === []) {
+    $sources = glob(__DIR__ . '/assets/landscape-avatars/s_*.jpg') ?: [];
+}
 sort($sources);
 if ($sources === []) {
-    fwrite(STDERR, "缺少风景头像素材：scripts/assets/landscape-avatars/\n");
+    fwrite(STDERR, "缺少头像素材：scripts/assets/ai-male-avatars/ 或 landscape-avatars/\n");
     exit(1);
 }
 
@@ -148,7 +152,7 @@ foreach ($sources as $source) {
     $avatars[] = $avatarUrl . '/' . $file;
 }
 
-printf("==> 风景头像 %d 张就绪\n", count($avatars));
+printf("==> 头像素材 %d 张就绪\n", count($avatars));
 
 // ---------- 2. 取账号 ----------
 
