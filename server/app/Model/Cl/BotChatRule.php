@@ -21,6 +21,7 @@ use Hyperf\DbConnection\Model\Model as MineModel;
  * @property int $window_end
  * @property int $round_limit_per_pair
  * @property int $male_daily_limit
+ * @property int $max_consecutive_messages
  * @property int $interval_seconds
  * @property int $interval_max_seconds
  * @property int $session_gap_seconds
@@ -50,6 +51,7 @@ class BotChatRule extends MineModel
         'window_end' => 0,
         'round_limit_per_pair' => 20,
         'male_daily_limit' => 0,
+        'max_consecutive_messages' => 2,
         'interval_seconds' => 30,
         'interval_max_seconds' => 0,
         'session_gap_seconds' => 300,
@@ -59,7 +61,7 @@ class BotChatRule extends MineModel
 
     protected array $fillable = [
         'id', 'name', 'enabled', 'auto_send', 'male_user_ids', 'pool_male_count',
-        'window_start', 'window_end', 'round_limit_per_pair', 'male_daily_limit',
+        'window_start', 'window_end', 'round_limit_per_pair', 'male_daily_limit', 'max_consecutive_messages',
         'interval_seconds', 'interval_max_seconds', 'session_gap_seconds',
         'daily_amount_limit_fen', 'context_messages', 'operator_id',
         'created_at', 'updated_at',
@@ -75,6 +77,7 @@ class BotChatRule extends MineModel
         'window_end' => 'integer',
         'round_limit_per_pair' => 'integer',
         'male_daily_limit' => 'integer',
+        'max_consecutive_messages' => 'integer',
         'interval_seconds' => 'integer',
         'interval_max_seconds' => 'integer',
         'session_gap_seconds' => 'integer',

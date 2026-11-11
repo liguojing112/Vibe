@@ -63,12 +63,13 @@ final class BotChatPairRepository extends IRepository
     }
 
     /** 记一轮 + 这一对今天累计的虚拟收益。 */
-    public function touch(int $pairId, int $points, string $sentAt): void
+    public function touch(int $pairId, int $points, string $sentAt, int $messageId): void
     {
         $this->model->newQuery()->whereKey($pairId)->update([
             'rounds_today' => Db::raw('rounds_today + 1'),
             'virtual_points_today' => Db::raw('virtual_points_today + ' . $points),
             'last_sent_at' => $sentAt,
+            'last_message_id' => $messageId,
         ]);
     }
 
@@ -105,7 +106,10 @@ final class BotChatPairRepository extends IRepository
             ->where('female_id', $femaleId)
             ->where('stat_date', $today)
             ->whereNotNull('last_sent_at')
+            // 秒级时间戳会撞：同一秒里两个人各发一条时，必须靠消息 id 定先后
+            ->orderByDesc('last_message_id')
             ->orderByDesc('last_sent_at')
+            ->orderByDesc('id')
             ->first();
 
         return $row;

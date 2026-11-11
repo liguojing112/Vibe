@@ -327,6 +327,8 @@ final class BotChatServiceTest extends TestCase
         $rule = $this->makeRule([
             'round_limit_per_pair' => 3,
             'session_gap_seconds' => 3600,
+            // 这条用例只看「轮数内是不是同一个人」，连发上限另有专门用例
+            'max_consecutive_messages' => 0,
         ]);
         $female = $this->makeFemale();
         $target = $this->makeTarget($rule->id, $female->id);
@@ -364,6 +366,29 @@ final class BotChatServiceTest extends TestCase
         // 这个男号今天已经发满 2 条，换女号也不行
         self::assertFalse($this->tick($rule, $targetB, [$male]));
         self::assertSame(2, Message::query()->count());
+    }
+
+    public function testSameMaleDoesNotSendMoreThanTheConsecutiveLimit(): void
+    {
+        $maleA = $this->makeMale();
+        $maleB = $this->makeMale();
+        $rule = $this->makeRule([
+            'max_consecutive_messages' => 2,
+            'round_limit_per_pair' => 20,
+            'session_gap_seconds' => 3600,
+        ]);
+        $female = $this->makeFemale();
+        $target = $this->makeTarget($rule->id, $female->id);
+
+        for ($i = 0; $i < 4; ++$i) {
+            self::assertTrue($this->tick($rule, $target, [$maleA, $maleB]));
+        }
+
+        $senders = Message::query()->orderBy('id')->pluck('sender_id')->map(static fn ($id): int => (int) $id)->all();
+        self::assertCount(4, $senders);
+        self::assertSame($senders[0], $senders[1], '前两条可以由同一个人说');
+        self::assertNotSame($senders[0], $senders[2], '连发到上限要换人，收益明细里不能三条同名');
+        self::assertSame($senders[2], $senders[3], '换上来的人可以接着说');
     }
 
     public function testConversationContinuesEvenIfThatMaleIsNotInThisRoundsRandomPool(): void

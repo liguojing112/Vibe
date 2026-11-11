@@ -49,6 +49,7 @@ const form = reactive<ClBotChatSavePayload>({
   window_end: 0,
   round_limit_per_pair: 20,
   male_daily_limit: 0,
+  max_consecutive_messages: 2,
   interval_seconds: 30,
   interval_max_seconds: 0,
   session_gap_seconds: 300,
@@ -140,6 +141,7 @@ function reset() {
     window_end: 0,
     round_limit_per_pair: 20,
     male_daily_limit: 0,
+    max_consecutive_messages: 2,
     interval_seconds: 30,
     interval_max_seconds: 0,
     session_gap_seconds: 300,
@@ -182,6 +184,7 @@ async function load(id: number) {
     form.window_end = detail.window_end
     form.round_limit_per_pair = detail.round_limit_per_pair
     form.male_daily_limit = detail.male_daily_limit
+    form.max_consecutive_messages = detail.max_consecutive_messages
     form.interval_seconds = detail.interval_seconds
     form.interval_max_seconds = detail.interval_max_seconds
     form.session_gap_seconds = detail.session_gap_seconds
@@ -466,6 +469,13 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
           <el-input-number v-model="form.male_daily_limit" :min="0" :max="100000" controls-position="right" />
           <span class="ml-2 text-xs text-gray-400">
             每个男号一天最多发多少条，0 = 不限
+          </span>
+        </el-form-item>
+
+        <el-form-item label="最多连发">
+          <el-input-number v-model="form.max_consecutive_messages" :min="0" :max="20" controls-position="right" />
+          <span class="ml-2 text-xs text-gray-400">
+            同一个男号最多连着发几条，发满就换人接；0 = 不限
           </span>
         </el-form-item>
 

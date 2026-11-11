@@ -30,6 +30,25 @@ final class MessageRepository extends IRepository
     }
 
     /**
+     * 某个女号最近收到的几条机器人消息是**谁**发的（最新在前）。
+     *
+     * 用来判断「同一个男号是不是连着发太多了」：收益明细里同一个名字连刷三条会显得假。
+     *
+     * @return array<int,int> sender_id 列表
+     */
+    public function recentBotSenderIds(int $receiverId, string $freeReason, int $limit): array
+    {
+        return $this->model->newQuery()
+            ->where('receiver_id', $receiverId)
+            ->where('free_reason', $freeReason)
+            ->orderByDesc('id')
+            ->limit(max(1, $limit))
+            ->pluck('sender_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+    }
+
+    /**
      * 会话里的历史消息（`before_id` 为空时取最新的一页），按 id 倒序取。
      *
      * @return Collection<int,Message>

@@ -24,7 +24,6 @@ date_default_timezone_set('Asia/Shanghai');
 
 const ACCOUNT_PREFIX = 'aim';
 const AVATAR_KIND = 's';
-const AVATAR_COUNT = 12;
 
 /** 客户给的 15 个基准网名。 */
 const BASE_NAMES = [
@@ -113,17 +112,19 @@ if (! is_dir($avatarDir)) {
     mkdir($avatarDir, 0755, true);
 }
 
+$sources = glob(__DIR__ . '/assets/landscape-avatars/' . AVATAR_KIND . '_*.jpg') ?: [];
+sort($sources);
+if ($sources === []) {
+    fwrite(STDERR, "缺少风景头像素材：scripts/assets/landscape-avatars/\n");
+    exit(1);
+}
+
 $avatars = [];
-for ($i = 1; $i <= AVATAR_COUNT; ++$i) {
-    $file = sprintf('%s_%03d.jpg', AVATAR_KIND, $i);
+foreach ($sources as $source) {
+    $file = basename($source);
     $target = $avatarDir . '/' . $file;
-    $source = sprintf('%s/assets/landscape-avatars/s_%03d.jpg', __DIR__, $i);
 
     if (! is_file($target) || filesize($target) < 1000) {
-        if (! is_file($source)) {
-            fwrite(STDERR, "缺少风景头像素材：{$source}\n");
-            exit(1);
-        }
         copy($source, $target);
         @chmod($target, 0644);
     }

@@ -378,7 +378,7 @@ final class BotChatService
 
                 // 15 元/天记在配对上（这一对到顶只停这一对）；
                 // 目标女号那行同时累加，后台列表按「该女号今天总共收到多少」展示。
-                $this->pairRepository->touch((int) $pair->id, $points, $sentAt);
+                $this->pairRepository->touch((int) $pair->id, $points, $sentAt, (int) $message->id);
                 $this->targetRepository->addPoints((int) $target->id, $points, $sentAt);
 
                 $this->logRepository->write([
@@ -594,12 +594,29 @@ final class BotChatService
         // **不能要求这个人还在本轮随机抽出来的号池里** —— 号池每轮重新随机，
         // 上一句还是他说的、这一轮没抽到，就会换个人开新对话，
         // 表现得就像「每个男号只发一条」。号池只负责开新对话。
+        // 连发上限：同一个男号连续发太多条，女号的收益明细里会出现一串同名记录，看着假。
+        // 到了上限就换个人接，过一会儿原来那个人还能回来。
+        $maxConsecutive = (int) $rule->max_consecutive_messages;
+        $recentSenders = $maxConsecutive > 0
+            ? $this->messageRepository->recentBotSenderIds($female->id, self::FREE_REASON_BOT_MALE, $maxConsecutive)
+            : [];
+        $lastSenderId = $recentSenders[0] ?? null;
+        $streak = 0;
+        foreach ($recentSenders as $senderId) {
+            if ($senderId !== $lastSenderId) {
+                break;
+            }
+            ++$streak;
+        }
+        $needDifferentMale = $maxConsecutive > 0 && $lastSenderId !== null && $streak >= $maxConsecutive;
+
         // 会话窗口不能比「最大发送间隔」还短：配 5 分钟间隔、5 分钟冷场的话，
         // 下一条刚好落在窗口外，会被误判成聊完而换人。
         $sessionGap = max(1, (int) $rule->session_gap_seconds, (int) $rule->interval_max_seconds + 60);
 
         $latest = $this->pairRepository->latestForFemale((int) $rule->id, $female->id, $today);
-        if ($latest instanceof BotChatPair
+        if (! $needDifferentMale
+            && $latest instanceof BotChatPair
             && (int) $latest->rounds_today < $rule->round_limit_per_pair
             && ! $this->pairLimitReached($latest, $rule)
             && $latest->last_sent_at !== null
@@ -611,7 +628,15 @@ final class BotChatService
             }
         }
 
-        // ② 冷场了，开新对话
+        // ② 冷场了（或者这个人已经连发到上限），换个人开新对话
+        if ($needDifferentMale) {
+            $others = array_values(array_filter($usable, static fn (User $m): bool => $m->id !== $lastSenderId));
+            // 只有他一个可用男号时别把人卡死，继续用他
+            if ($others !== []) {
+                $usable = $others;
+            }
+        }
+
         $todayMales = $this->pairRepository->maleIdsToday((int) $rule->id, $female->id, $today);
         $fresh = array_values(array_filter($usable, static fn (User $m): bool => ! in_array($m->id, $todayMales, true)));
 
