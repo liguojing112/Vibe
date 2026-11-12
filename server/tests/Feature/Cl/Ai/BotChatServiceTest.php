@@ -272,6 +272,29 @@ final class BotChatServiceTest extends TestCase
         self::assertSame(2, Message::query()->count());
     }
 
+    public function testManualSendReportsInsufficientModelBalance(): void
+    {
+        // 模型账户余额不足：后台要看到「余额不足」，而不是笼统的「生成失败」
+        $this->bindFakeAiClient(403, (string) json_encode([
+            'error' => ['message' => 'Insufficient Balance'],
+        ], JSON_UNESCAPED_UNICODE));
+
+        $service = make(BotChatService::class);
+        $male = $this->makeMale();
+        $rule = $this->makeRule([
+            'auto_send' => BotChatRule::AUTO_SEND_OFF,
+            'male_user_ids' => [$male->id],
+        ]);
+        $female = $this->makeFemale();
+        $this->makeTarget($rule->id, $female->id);
+
+        $result = $service->sendNow($rule, date('Y-m-d'));
+
+        self::assertFalse($result['sent']);
+        self::assertStringContainsString('余额不足', (string) $result['reason']);
+        self::assertSame(0, Message::query()->count());
+    }
+
     public function testManualSendStillRespectsRoundLimit(): void
     {
         $male = $this->makeMale();
@@ -504,20 +527,34 @@ final class BotChatServiceTest extends TestCase
      * **两处都要绑**：只绑工厂的话，全套件跑下来 `DeepSeekClient` 可能已经被别的用例解析过、
      * 存在容器里，这时拿到的还是真工厂（请求打到外网、失败返回 null，表现就是「一条都发不出去」）。
      */
-    private function bindFakeAiClient(): void
+    private function bindFakeAiClient(int $status = 200, string $body = ''): void
     {
+        if ($body === '') {
+            $body = (string) json_encode([
+                'choices' => [['message' => ['content' => '在干嘛呢']]],
+                'usage' => ['prompt_tokens' => 12, 'completion_tokens' => 6],
+            ], JSON_UNESCAPED_UNICODE);
+        }
+
         $container = ApplicationContext::getContainer();
-        $factory = new class ($container) extends ClientFactory {
+        $factory = new class ($container, $status, $body) extends ClientFactory {
+            public function __construct(
+                \Hyperf\Contract\ContainerInterface $container,
+                private readonly int $status,
+                private readonly string $body,
+            ) {
+                parent::__construct($container);
+            }
+
             public function create(array $options = []): Client
             {
-                $mock = new MockHandler([
-                    new Response(200, [], (string) json_encode([
-                        'choices' => [['message' => ['content' => '在干嘛呢']]],
-                        'usage' => ['prompt_tokens' => 12, 'completion_tokens' => 6],
-                    ], JSON_UNESCAPED_UNICODE)),
-                ]);
+                $mock = new MockHandler([new Response($this->status, [], $this->body)]);
 
-                return new Client(['handler' => HandlerStack::create($mock)]);
+                // 必须把调用方传的选项（http_errors 等）一起带上，否则 4xx 会直接抛异常
+                return new Client(array_replace(
+                    ['handler' => HandlerStack::create($mock)],
+                    $options,
+                ));
             }
         };
 

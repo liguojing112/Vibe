@@ -213,11 +213,13 @@ final class BotChatService
             // **不检查发送间隔**：这是运营在按按钮，点了就是要现在发。
             // 轮数、金额、男号每日上限这些硬限制仍然生效，避免变成刷钱后门。
 
+            $error = null;
             try {
-                if ($this->sendFromMale($rule, $target, $female, $male, $pair)) {
+                if ($this->sendFromMale($rule, $target, $female, $male, $pair, $error)) {
                     ++$sent;
                 } else {
-                    $skipped[] = '生成或落库失败';
+                    // 把真实原因（余额不足 / Key 无效 / 超时）带回给后台
+                    $skipped[] = $error ?? '生成或落库失败';
                 }
             } catch (Throwable $e) {
                 $this->logger->warning('AI 互聊手动发送失败：' . $e->getMessage());
@@ -336,14 +338,16 @@ final class BotChatService
         User $female,
         User $male,
         BotChatPair $pair,
+        ?string &$error = null,
     ): bool {
         // 只为拿上下文而**只读**一次会话：生成失败时不能留下一条空会话，
         // 否则女号的消息列表里会多出一行没有任何消息的记录。
         $existing = $this->conversationRepository->findByPair($male->id, $female->id);
 
-        $content = $this->generateContent($rule, $male, $female, $existing === null ? 0 : (int) $existing->id);
+        $content = $this->generateContent($rule, $male, $female, $existing === null ? 0 : (int) $existing->id, $error);
         if ($content === null) {
-            $this->logFailure($rule, $male, $female, 'AI 生成失败');
+            $error ??= 'AI 生成失败';
+            $this->logFailure($rule, $male, $female, $error);
 
             return false;
         }
@@ -392,6 +396,7 @@ final class BotChatService
             });
         } catch (Throwable $e) {
             $this->logger->warning('AI 互聊发送失败：' . $e->getMessage());
+            $error = '发送失败：' . mb_substr($e->getMessage(), 0, 160);
             $this->logFailure($rule, $male, $female, mb_substr($e->getMessage(), 0, 200));
 
             return false;
@@ -645,8 +650,13 @@ final class BotChatService
     /**
      * 生成男号要说的话：该会话没历史就开场白，有历史就带上下文接话。
      */
-    private function generateContent(BotChatRule $rule, User $male, User $female, int $conversationId): ?string
-    {
+    private function generateContent(
+        BotChatRule $rule,
+        User $male,
+        User $female,
+        int $conversationId,
+        ?string &$error = null,
+    ): ?string {
         $persona = $this->personaRepository->findByUser($male->id);
 
         $system = $this->maleSystemPrompt($male, $persona);
@@ -678,6 +688,9 @@ final class BotChatService
 
         $result = $this->client->chat($messages);
         if ($result === null || trim($result['content']) === '') {
+            // 紧接着读：模型调用失败的真实原因（余额不足、Key 无效…）要带回给后台
+            $error = $this->client->lastError() ?? 'AI 模型没有返回内容';
+
             return null;
         }
 

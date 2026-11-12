@@ -25,6 +25,14 @@ final class DeepSeekClient
         private readonly LoggerInterface $logger,
     ) {}
 
+    /** 最近一次失败的原因（成功时清空）。只在同一协程里紧接着读，别跨请求依赖它。 */
+    private ?string $lastError = null;
+
+    public function lastError(): ?string
+    {
+        return $this->lastError;
+    }
+
     /**
      * @param array<int,array{role:string,content:string}> $messages
      * @return null|array{content: string, prompt_tokens: int, completion_tokens: int}
@@ -32,9 +40,12 @@ final class DeepSeekClient
      */
     public function chat(array $messages): ?array
     {
+        $this->lastError = null;
+
         $cfg = (array) $this->config->get('ai', []);
         $apiKey = $this->setting('ai.api_key', (string) ($cfg['api_key'] ?? ''));
         if ($apiKey === '') {
+            $this->lastError = 'AI 模型未配置 API Key';
             $this->logger->warning('AI 代聊未配置 API Key，跳过');
 
             return null;
@@ -44,7 +55,12 @@ final class DeepSeekClient
         $model = $this->setting('ai.model', (string) ($cfg['model'] ?? 'deepseek-chat'));
 
         try {
-            $client = $this->clientFactory->create(['timeout' => (float) ($cfg['timeout'] ?? 30)]);
+            // http_errors=false：4xx 也把响应体拿回来，才能把「Insufficient Balance」
+            // 翻译成运营看得懂的「余额不足」；否则只会抛异常、消息里全是原始 JSON。
+            $client = $this->clientFactory->create([
+                'timeout' => (float) ($cfg['timeout'] ?? 30),
+                'http_errors' => false,
+            ]);
 
             $payload = [
                 'model' => $model,
@@ -67,6 +83,7 @@ final class DeepSeekClient
             $status = $response->getStatusCode();
             $body = (string) $response->getBody();
             if ($status !== 200) {
+                $this->lastError = $this->describeError($status, $body);
                 $this->logger->warning('AI 代聊请求失败', ['status' => $status, 'body' => mb_substr($body, 0, 300)]);
 
                 return null;
@@ -75,6 +92,8 @@ final class DeepSeekClient
             $data = json_decode($body, true);
             $content = trim((string) ($data['choices'][0]['message']['content'] ?? ''));
             if ($content === '') {
+                $this->lastError = 'AI 模型返回了空内容';
+
                 return null;
             }
 
@@ -85,10 +104,38 @@ final class DeepSeekClient
             ];
         } catch (Throwable $e) {
             // 模型挂了不能影响正常发消息，这里吞掉只记日志
-            $this->logger->warning('AI 代聊调用异常：' . $e->getMessage());
+            $message = $e->getMessage();
+            $this->lastError = stripos($message, 'Insufficient Balance') !== false
+                ? 'AI 模型账户余额不足，请充值后再试'
+                : 'AI 模型调用异常：' . mb_substr($message, 0, 120);
+            $this->logger->warning('AI 代聊调用异常：' . $message);
 
             return null;
         }
+    }
+
+    /**
+     * 把上游的错误翻译成运营看得懂的一句话。
+     *
+     * 「Insufficient Balance」这种必须显式说成「余额不足」——
+     * 之前只记在日志里，后台只显示「生成失败」，客户会以为是软件的问题。
+     */
+    private function describeError(int $status, string $body): string
+    {
+        $payload = json_decode($body, true);
+        $message = is_array($payload) ? (string) ($payload['error']['message'] ?? '') : '';
+
+        if (stripos($message, 'Insufficient Balance') !== false) {
+            return 'AI 模型账户余额不足，请充值后再试';
+        }
+        if (stripos($message, 'invalid api key') !== false || $status === 401) {
+            return 'AI 模型 API Key 无效，请到「AI 模型设置」检查';
+        }
+        if ($status === 429) {
+            return 'AI 模型调用过于频繁，请稍后再试';
+        }
+
+        return sprintf('AI 模型返回 %d：%s', $status, mb_substr($message !== '' ? $message : $body, 0, 120));
     }
 
     /** 后台「AI 模型」配置优先；留空回退 `.env` 的默认值。 */
