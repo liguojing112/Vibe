@@ -19,7 +19,10 @@ use App\Repository\Cl\BotChatTargetRepository;
 use App\Repository\Cl\UserRepository;
 use App\Service\Cl\Ai\BotChatService;
 use App\Service\Cl\Config\AppConfigService;
+use Hyperf\Coroutine\Coroutine;
 use Hyperf\DbConnection\Db;
+use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * 后台「AI 互聊」：机器人男号给指定女号发消息的规则管理。
@@ -42,6 +45,7 @@ final class AdminBotChatService
         private readonly UserRepository $userRepository,
         private readonly AppConfigService $configService,
         private readonly BotChatService $botChatService,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /** 全局总开关：关掉后定时任务一条都不发，规则本身不变。 */
@@ -233,14 +237,45 @@ final class AdminBotChatService
             return $ruleId;
         });
 
+        // 新建（不是编辑）且直接启用的规则：立刻发第一条，别让运营等着。
+        // 放进协程里跑：目标多的时候模型调用要好几秒，不能卡住保存请求。
+        if ($id === null && $values['enabled'] === 1) {
+            $this->sendFirstMessageAfterCreate($ruleId);
+        }
+
         return $ruleId;
+    }
+
+    /**
+     * 新建规则后异步发第一条。
+     *
+     * 第一条之后就按规则里的发送间隔走（配对已经记下 last_sent_at）。
+     * 失败只记日志，不影响规则保存本身。
+     */
+    private function sendFirstMessageAfterCreate(int $ruleId): void
+    {
+        Coroutine::create(function () use ($ruleId): void {
+            try {
+                $rule = $this->ruleRepository->findById($ruleId);
+                if (! $rule instanceof BotChatRule) {
+                    return;
+                }
+
+                $result = $this->botChatService->sendNow($rule, date('Y-m-d'));
+                if (! $result['sent']) {
+                    $this->logger->warning(sprintf('AI 互聊规则[%d] 首条发送失败：%s', $ruleId, (string) $result['reason']));
+                }
+            } catch (Throwable $e) {
+                $this->logger->warning(sprintf('AI 互聊规则[%d] 首条发送异常：%s', $ruleId, $e->getMessage()));
+            }
+        });
     }
 
     /**
      * 后台点「立即发送」：让这条规则马上给目标女号发一轮。
      *
-     * 不受活跃时段和自动发送开关限制（这是人在按按钮），
-     * 但轮数、间隔、每日上限照旧生效 —— 这个按钮不能变成绕开限流的后门。
+     * 不受活跃时段、自动发送开关、发送间隔限制（这是人在按按钮，点了就要立刻发），
+     * 但轮数、每日金额、男号每日上限照旧生效 —— 这个按钮不能变成刷钱后门。
      *
      * @return array{sent: bool, message: null|string, reason: null|string}
      */

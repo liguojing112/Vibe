@@ -143,10 +143,10 @@ final class BotChatService
     /**
      * 后台点「发送」：立刻让这条规则的男号给目标女号发一条。
      *
-     * 和定时任务的区别只有一处 —— **不检查活跃时段、不检查自动发送开关**，
-     * 因为这就是运营在按按钮，他说现在发就是现在发。
-     * 但今天还能不能发仍然受规则约束：轮数、间隔、每日上限一条都不放宽，
-     * 否则这个按钮就成了绕开限流的后门。
+     * 和定时任务的区别：**不检查活跃时段、不检查自动发送开关、不检查发送间隔** ——
+     * 这就是运营在按按钮，点了就是要现在发。
+     * 但硬限制不能绕：每对轮数、每对每日金额、男号每日上限、拉黑，一条都不放宽，
+     * 否则这个按钮就成了刷钱后门。
      *
      * @return array{sent: bool, message: null|string, reason: null|string}
      */
@@ -210,11 +210,8 @@ final class BotChatService
 
                 continue;
             }
-            if (! $this->intervalPassed($pair, $rule)) {
-                $skipped[] = '未到发送间隔';
-
-                continue;
-            }
+            // **不检查发送间隔**：这是运营在按按钮，点了就是要现在发。
+            // 轮数、金额、男号每日上限这些硬限制仍然生效，避免变成刷钱后门。
 
             try {
                 if ($this->sendFromMale($rule, $target, $female, $male, $pair)) {

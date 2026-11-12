@@ -252,6 +252,26 @@ final class BotChatServiceTest extends TestCase
         self::assertSame(1, Message::query()->count());
     }
 
+    public function testManualSendIgnoresTheInterval(): void
+    {
+        $male = $this->makeMale();
+        $rule = $this->makeRule([
+            'auto_send' => BotChatRule::AUTO_SEND_OFF,
+            'interval_seconds' => 300,
+            'interval_max_seconds' => 360,
+            'round_limit_per_pair' => 20,
+            'male_user_ids' => [$male->id],
+        ]);
+        $female = $this->makeFemale();
+        $this->makeTarget($rule->id, $female->id);
+
+        // 连点两次：运营按按钮就该立刻发，不该被 5 分钟的间隔挡住
+        self::assertTrue($this->service->sendNow($rule, date('Y-m-d'))['sent']);
+        self::assertTrue($this->service->sendNow($rule, date('Y-m-d'))['sent']);
+
+        self::assertSame(2, Message::query()->count());
+    }
+
     public function testManualSendStillRespectsRoundLimit(): void
     {
         $male = $this->makeMale();
