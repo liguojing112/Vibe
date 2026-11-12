@@ -19,6 +19,7 @@ use App\Repository\Cl\UserRepository;
 use App\Repository\Cl\VipOrderRepository;
 use App\Repository\Cl\VipPlanRepository;
 use App\Service\Cl\Chat\Concerns\RetriesTransactions;
+use App\Service\Cl\Config\AppConfigService;
 use App\Service\Cl\Notice\NoticeService;
 use App\Service\Cl\Push\PushService;
 use App\Service\Cl\Vip\VipService;
@@ -59,6 +60,7 @@ final class AdminUserService
         private readonly VipOrderRepository $vipOrderRepository,
         private readonly NoticeService $noticeService,
         private readonly PushService $pushService,
+        private readonly AppConfigService $configService,
     ) {}
 
     // ---------- 读 ----------
@@ -78,6 +80,10 @@ final class AdminUserService
         $coin = $this->coinWalletService->summaryOfMany([$id])[$id] ?? null;
         $point = $this->pointWalletService->summaryOfMany([$id])[$id] ?? null;
         $realName = $this->realNameRepository->findByUserId($id);
+
+        $today = date('Y-m-d');
+        $todayIncome = $this->pointLogRepository->sumIncomeBetween([$id], $today . ' 00:00:00', $today . ' 23:59:59')[$id] ?? 0;
+        $pointPerYuan = max(1, (int) $this->configService->get('point.per_yuan', 100));
 
         return [
             'user' => [
@@ -108,6 +114,8 @@ final class AdminUserService
                 'balance' => $point['balance'] ?? 0,
                 'frozen' => $point['frozen'] ?? 0,
                 'totalEarned' => (int) $user->total_earned_points,
+                'todayEarned' => $todayIncome,
+                'todayEarnedFen' => intdiv($todayIncome * 100, $pointPerYuan),
             ],
             'level' => ['level' => (int) $user->level, 'locked' => (int) $user->level_locked === 1],
             'realName' => [
@@ -352,8 +360,14 @@ final class AdminUserService
         $coins = $this->coinWalletService->summaryOfMany($ids);
         $points = $this->pointWalletService->summaryOfMany($ids);
 
-        return array_map(static function (array $row) use ($coins, $points): array {
+        // 「今日收益」= 今天的私信 + 礼物分成（不含补发、提现）
+        $today = date('Y-m-d');
+        $todayIncome = $this->pointLogRepository->sumIncomeBetween($ids, $today . ' 00:00:00', $today . ' 23:59:59');
+        $pointPerYuan = max(1, (int) $this->configService->get('point.per_yuan', 100));
+
+        return array_map(static function (array $row) use ($coins, $points, $todayIncome, $pointPerYuan): array {
             $id = (int) $row['id'];
+            $income = $todayIncome[$id] ?? 0;
 
             return [
                 ...$row,
@@ -361,6 +375,8 @@ final class AdminUserService
                 'coin_total_recharge' => $coins[$id]['totalRecharge'] ?? 0,
                 'point_balance' => $points[$id]['balance'] ?? 0,
                 'point_frozen' => $points[$id]['frozen'] ?? 0,
+                'today_income_points' => $income,
+                'today_income_fen' => intdiv($income * 100, $pointPerYuan),
             ];
         }, $rows);
     }

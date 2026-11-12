@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository\Cl;
 
 use App\Model\Cl\PointLog;
+use App\Model\Enums\Cl\PointLogType;
 use App\Repository\IRepository;
 
 /**
@@ -31,6 +32,36 @@ final class PointLogRepository extends IRepository
     public function add(array $data): void
     {
         $this->model->newQuery()->create($data);
+    }
+
+    /**
+     * 一批用户在某段时间内的**收益合计**（私信 + 礼物分成，不含补发、提现）。
+     *
+     * 后台列表要显示「今日收益」，不能逐行查。
+     *
+     * @param array<int,int> $userIds
+     * @return array<int,int> userId => 积分
+     */
+    public function sumIncomeBetween(array $userIds, string $from, string $to): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        return $this->model->newQuery()
+            ->whereIn('user_id', $userIds)
+            ->whereIn('type', [
+                PointLogType::MESSAGE_INCOME->value,
+                PointLogType::GIFT_INCOME->value,
+            ])
+            ->where('change', '>', 0)
+            ->where('created_at', '>=', $from)
+            ->where('created_at', '<=', $to)
+            ->selectRaw('user_id, SUM(`change`) AS total')
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id')
+            ->map(static fn ($total): int => (int) $total)
+            ->all();
     }
 
     /**

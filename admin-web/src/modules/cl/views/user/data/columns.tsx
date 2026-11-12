@@ -83,6 +83,20 @@ export default function getTableColumns(female: boolean, actions: UserTableActio
           cellRender: ({ row }) => <ClAmount value={row.total_earned_points ?? 0} type="point" />,
         },
         {
+          label: '今日收益',
+          prop: 'today_income_points',
+          width: '160px',
+          cellRender: ({ row }) => (
+            <span>
+              <ClAmount value={row.today_income_points ?? 0} type="point" />
+              <span class="ml-1 text-xs text-gray-400">
+                ¥
+                {((row.today_income_fen ?? 0) / 100).toFixed(2)}
+              </span>
+            </span>
+          ),
+        },
+        {
           label: '实名状态',
           prop: 'real_name_status',
           width: '110px',

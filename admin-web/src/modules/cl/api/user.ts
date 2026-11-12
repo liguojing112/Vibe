@@ -18,6 +18,10 @@ export interface ClUserRow extends ClUserLike {
   level: number
   level_locked: number
   total_earned_points: number
+  /** 今日收益（私信 + 礼物分成，积分） */
+  today_income_points?: number
+  /** 今日收益换算成「分」（1 元 = 100 分） */
+  today_income_fen?: number
   vip_expire_at?: string | null
   real_name_status: number
   created_at?: string
