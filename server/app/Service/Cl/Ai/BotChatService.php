@@ -109,6 +109,10 @@ final class BotChatService
         if (! $target instanceof BotChatTarget) {
             return false;
         }
+        // 每日上限按**这个女号当天累计**算：不管换了几个男号，总额到顶就停
+        if ($this->targetLimitReached($target, $rule)) {
+            return false;
+        }
 
         $female = $this->userRepository->findById($target->female_id);
         if (! $female instanceof User || ! $female->isFemale() || $female->status !== User::STATUS_NORMAL) {
@@ -177,6 +181,11 @@ final class BotChatService
             $target = $this->targetRepository->findById($target->id);
 
             if (! $target instanceof BotChatTarget) {
+                continue;
+            }
+            if ($this->targetLimitReached($target, $rule)) {
+                $skipped[] = '已达当日上限';
+
                 continue;
             }
 
@@ -289,9 +298,8 @@ final class BotChatService
             return true;
         }
 
-        // 15 元上限按「这一对」算：别的男号到顶不影响这个人回不回
-        $pair = $this->pairRepository->findForToday($rule->id, $maleId, $femaleId, $today);
-        if ($pair instanceof BotChatPair && $this->pairLimitReached($pair, $rule)) {
+        // 女号当天累计到上限就不再回（跨所有男号）
+        if ($this->targetLimitReached($target, $rule)) {
             return false;
         }
 
@@ -467,14 +475,22 @@ final class BotChatService
     }
 
     /**
-     * 这一对今天是不是已经聊到 15 元了。
-     *
-     * 口径是「**男号 + 女号**这一对」，不是「规则 + 女号」也不是「女号」：
-     * A 聊到 15 元就停 A，B 还能继续跟她聊他那一份。
+     * 这一对今天是不是已经聊到上限了（单对保护，防止极端参数下无限发）。
      */
     private function pairLimitReached(BotChatPair $pair, BotChatRule $rule): bool
     {
         return (int) $pair->virtual_points_today >= $this->limitPoints($rule);
+    }
+
+    /**
+     * **这个女号**今天累计是不是已经到上限了。
+     *
+     * 后台「每号每日上限」的口径就是这个：不管当天换了几个男号、聊了几段，
+     * 女号收到的总额加起来到顶就停。
+     */
+    private function targetLimitReached(BotChatTarget $target, BotChatRule $rule): bool
+    {
+        return (int) $target->virtual_points_today >= $this->limitPoints($rule);
     }
 
     /**
